@@ -1,12 +1,14 @@
 [CmdletBinding()]
-param()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 $ErrorActionPreference = "Stop"
 
-# One working folder, no guessing: instances live in <Root>\<name>, every
-# archive in <Root>\archives - the rule the whole family follows.
-$Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
-$ArchiveFolder = Join-Path $Root "archives"
+# One working folder, no guessing: instances in <Root>\<name>, every archive in
+# <Root>\archives - the engine holds both roots.
+$ArchiveFolder = $Manager.ArchivesRoot
 
 # The family's shared half: the marker, and the Windows-side look - stored next
 # to the tar, re-applied here.
@@ -30,10 +32,9 @@ if (-not (Test-Path $ArchiveFolder)) {
 }
 
 # An archive is a folder - the tar, and the look it was taken with - so this
-# lists folders that hold one. Most recent first: usually the one wanted back.
-$Archives = @(Get-ChildItem -Path $ArchiveFolder -Directory |
-    Where-Object { (Get-ChildItem -Path $_.FullName -Filter "*.tar*" -File).Count -gt 0 } |
-    Sort-Object LastWriteTime -Descending)
+# lists folders that hold one, read through the engine like everything else
+# that shows the fleet: most recent first, usually the one wanted back.
+$Archives = @($Manager.List().Archives)
 
 if ($Archives.Count -eq 0) {
     Write-Host ""
@@ -90,7 +91,7 @@ if ((Get-DistroNames) -contains $Name) {
 
 # The install folder must be free too: a leftover folder of that name would
 # end up inside the new instance's disk.
-$InstallPath = [System.IO.Path]::GetFullPath((Join-Path $Root $Name))
+$InstallPath = [System.IO.Path]::GetFullPath((Join-Path $Manager.InstancesRoot $Name))
 if (Test-Path $InstallPath) {
     Write-Host ""
     Write-Host "[ABORT] A folder with that name already exists:" -ForegroundColor (Get-MessageColour error)
@@ -100,7 +101,8 @@ if (Test-Path $InstallPath) {
 }
 
 # 4. Import. Version 2, like build.ps1: a tar does not carry the version it
-# came from, and WSL 1 is not what this repository builds.
+# came from, and WSL 1 is not what this repository builds. The import, the
+# marker, the look and Docker's entry are the engine's.
 $ChosenTar = Get-ChildItem -Path $Chosen.FullName -Filter "*.tar*" -File |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
@@ -111,7 +113,7 @@ Write-Host "  * Install folder   : $InstallPath" -ForegroundColor (Get-MessageCo
 Write-Host ""
 
 try {
-    $null = [WslInstance]::Restore($Chosen.FullName, $Name, $InstallPath)
+    $null = $Manager.RestoreFromArchive($Chosen.FullName, $Name)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
@@ -119,10 +121,6 @@ try {
     Write-Host "        behind:  .\wsl.ps1 unregister        (pick '$Name' in the list)" -ForegroundColor (Get-MessageColour hint)
     exit 1
 }
-
-# The look and Docker's entry, which a tar carries neither of - the marker
-# was written by Restore, right after the import.
-Set-InstanceState -Name $Name -InstallPath $InstallPath -Folder $Chosen.FullName
 
 Write-Host "============================================================" -ForegroundColor (Get-MessageColour success)
 Write-Host "       '$Name' restored from an archive" -ForegroundColor (Get-MessageColour success)
