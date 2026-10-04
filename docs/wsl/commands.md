@@ -194,8 +194,8 @@ files are taken back out, and the build names the pack and points at
 The last question is the user the instance will open as — lowercase letters,
 digits, `_` and `-`. It is asked with the rest, so the instance is born with it
 and the first-boot onboarding does not ask again. The name is checked against
-the image's own accounts the moment the instance is imported; a name the image
-already carries is asked again there, before the onboarding starts.
+the image's own accounts just before the import; a name the image already
+carries is asked again there, before anything is created.
 
 ---
 

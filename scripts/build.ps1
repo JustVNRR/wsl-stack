@@ -170,15 +170,17 @@ function Resolve-InstallPath {
 
 # The user the instance opens as: asked with the rest, so the build knows it
 # before the machine starts. The shape is checked here, with the same rule the
-# onboarding applies; whether the image already carries that account is the
-# machine's own answer (step 6).
+# onboarding applies; whether the image already carries the account is asked
+# of the image itself, just before the import.
 function Resolve-DefaultUser {
     param([string]$DistroName)
 
     $UserName = $null
     while (-not $UserName) {
         $Answer = [string](Read-Host "User name for '$DistroName' (CTRL+C to abort)")
-        $Answer = $Answer.Trim()
+        # Interpolated first: Read-Host at end of input hands back null, and
+        # Trim() on it would throw instead of falling back to the question.
+        $Answer = "$Answer".Trim()
         # -cmatch, not -match: PowerShell's -match ignores case, and 'Root'
         # would pass here only to be refused inside.
         if ($Answer -cmatch '^[a-z_][a-z0-9_-]*$') {
@@ -543,6 +545,14 @@ try {
     }
     New-Item -ItemType Directory -Path $InstallPath -Force | Out-Null
 
+    # The accounts the imported instance will carry are the image's own. The
+    # name is checked against them before anything is created, so the
+    # instance is born with one that passes - nothing corrects it after.
+    while (Test-NativeCommand { docker run --rm $ImageTag id $UserName }) {
+        Write-Host "  The account '$UserName' already exists - pick another name." -ForegroundColor (Get-MessageColour warning)
+        $UserName = Resolve-DefaultUser -DistroName $DistroName
+    }
+
     Write-Host "==> 5. Importing into WSL ($DistroName)..." -ForegroundColor (Get-MessageColour info)
     # The import and the marker in one gesture, on the model: the instance is
     # marked the moment it is registered, before the steps that can still
@@ -554,17 +564,6 @@ try {
     $Deployment.DistroRegistered = $true
 
     Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
-
-    # The questions checked the name's shape; only the machine knows the
-    # accounts its image carries. The answer is put to it here, where a
-    # refusal can still be answered.
-    while (Test-NativeCommand { wsl.exe -d $DistroName -u root id $UserName }) {
-        Write-Host "  The account '$UserName' already exists - pick another name." -ForegroundColor (Get-MessageColour warning)
-        $UserName = Resolve-DefaultUser -DistroName $DistroName
-        # Born with the refused name: the instance takes the one that passes.
-        $Instance.DefaultUser = $UserName
-    }
-
     Invoke-WslFirstBoot -DistroName $DistroName -User $UserName
 
     Write-Host "==> 7. Shutting down distro to persist systemd and user configuration..." -ForegroundColor (Get-MessageColour info)
