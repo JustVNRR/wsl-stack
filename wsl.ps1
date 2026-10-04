@@ -17,6 +17,10 @@
 # What this file loads, it loads once: the shared half (scripts\instance.ps1),
 # and THE manager - the engine every command calls. The manager is made here
 # and handed to the command; a command run on its own makes its own.
+#
+# The list is asked through scripts\WslUI.ps1: one WslCommand per row of the
+# table below - the word, the line, the gesture - and the trio answers both
+# ways in, the menu and the command line alike.
 # ==============================================================================
 
 $Scripts = Join-Path $PSScriptRoot "scripts"
@@ -60,9 +64,10 @@ $Commands = @(
 )
 
 # The shared half - the classes, the menus, the packs, the marker - read once,
-# here: the question below asks through it, the manager just under is built on
-# it, and the command dispatched at the bottom loads it anyway. Asking is
-# scripts\menu.ps1's job, and it must not be written a second time here.
+# here: the manager just under is built on it, the command dispatched at the
+# bottom loads it anyway, and the trio the list is asked with comes from it
+# too (scripts\WslUI.ps1). Asking is that trio's job now, and it must not be
+# written a second time here.
 $InstanceLib = Join-Path $Scripts "instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
@@ -71,6 +76,21 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
+# The table above, as objects - built here, where the table lives: one
+# WslCommand per row. The gesture is one block for every row: the command and
+# a run context arrive as parameters, so nothing is read from a scope at call
+# time - measured: a closure that read its variables by name came up empty on
+# a machine where the same code ran on another.
+$Dispatcher = [WslDispatcher]::new("WSL Stack")
+$Gesture = {
+    param($Command, $Run)
+    $Extra = @($Run.Args)
+    & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Extra -Manager $Run.Manager
+}
+foreach ($Command in $Commands) {
+    $null = $Dispatcher.Add($Command.Name, $Command.What, $Gesture)
+}
+
 # Bare, the repository asks its first question - which command - and it is a
 # question like the ones inside the commands: the same menu, walked with the
 # arrows, cancelled with Escape.
@@ -78,33 +98,28 @@ if ($args.Count -eq 0) {
     Write-Host ""
     Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 
-    $Chosen = Select-FromList -Title "WSL Stack" -Items $Commands -Label {
-        param($Command)
-        "{0,-12} {1}" -f $Command.Name, $Command.What
-    }
-
+    $Chosen = $Dispatcher.Prompt()
     if (-not $Chosen) {
         Write-Host ""
         Write-Host "[ABORT] Operation cancelled by user. Nothing was run." -ForegroundColor (Get-MessageColour success)
         exit 0
     }
-    $Verb = $Chosen.Name
 } else {
-    $Verb = "$($args[0])".ToLower()
-}
-
-$Chosen = $Commands | Where-Object { $_.Name -eq $Verb } | Select-Object -First 1
-
-if (-not $Chosen) {
-    Write-Host ""
-    Write-Host "[ABORT] Invalid command '$($args[0])'. Available commands:" -ForegroundColor (Get-MessageColour error)
-    foreach ($Command in $Commands) {
-        Write-Host "          $($Command.Name)" -ForegroundColor (Get-MessageColour hint)
+    # The command line is routed the same way the menu is: the word names its
+    # command, whatever its case. A word nobody knows is said here, with the
+    # table it should have come from.
+    $Chosen = $Dispatcher.Dispatch("$($args[0])")
+    if (-not $Chosen) {
+        Write-Host ""
+        Write-Host "[ABORT] Invalid command '$($args[0])'. Available commands:" -ForegroundColor (Get-MessageColour error)
+        foreach ($Command in $Commands) {
+            Write-Host "          $($Command.Name)" -ForegroundColor (Get-MessageColour hint)
+        }
+        exit 1
     }
-    exit 1
 }
 
-$Script = Join-Path $Scripts "$($Chosen.Name).ps1"
+$Script = Join-Path $Scripts "$($Chosen.Key).ps1"
 if (-not (Test-Path $Script)) {
     Write-Host ""
     Write-Host "[ABORT] $Script is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
@@ -117,10 +132,17 @@ if (-not (Test-Path $Script)) {
 $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 
 # Whatever followed the command is handed over as it came: a command that has
-# options keeps them, the others ignore them.
+# options keeps them, the others ignore them. With the scripts' folder and the
+# manager above, that is the run context the gesture takes its parameters from.
 $Rest = @()
 if ($args.Count -gt 1) { $Rest = $args[1..($args.Count - 1)] }
-& $Script @Rest -Manager $Manager
+$Run = @{
+    Scripts = $Scripts
+    Args    = $Rest
+    Manager = $Manager
+}
+
+$Chosen.Execute($Run)
 
 if ($null -eq $LASTEXITCODE) { exit 0 }
 exit $LASTEXITCODE

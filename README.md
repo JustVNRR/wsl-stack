@@ -290,6 +290,8 @@ the repository at runtime.
 │                            #   colour scheme of the window it is printed in
 │   ├── menu.ps1             # The menu itself: the items, the console, the
 │                            #   questions - and the doors the scripts call
+│   ├── WslUI.ps1            # The way in as objects: the commands, the
+│                            #   terminal, and the dispatch the root asks with
 │   ├── packs.ps1            # The pack moves: copying a pack in, installing it,
 │                            #   taking it out again
 │   ├── prompts.ps1          # The questions a command asks: the instance's full
@@ -307,7 +309,8 @@ the repository at runtime.
 │                            # unregister, archive, restore, duplicate,
 │                            # shrink, wslconfig
 ├── tests/                   # The suites that RUN the code: the arrow menu with a
-│                            # scripted keyboard, the pack checklist, build's
+│                            # scripted keyboard, the way in with a scripted
+│                            # terminal, the pack checklist, build's
 │                            # questions over a stand-in docker, the icon a name
 │                            # draws, the icon, font and colour commands, the
 │                            # colour a message takes, the name a Windows
@@ -374,7 +377,7 @@ Two GitHub Actions workflows, in `.github/workflows/`:
 
 | Workflow | Runs on | What it proves |
 | :--- | :--- | :--- |
-| `ci.yml` — Checks | every push, PRs onto `main` | shellcheck, `zsh -n`, the colour codes confined to their files, the makefile parses with a complete help menu, docs and cheatsheets in sync with the `gmake` modules — then twelve suites on Windows drive the real code under PowerShell 7 |
+| `ci.yml` — Checks | every push, PRs onto `main` | shellcheck, `zsh -n`, the colour codes confined to their files, the makefile parses with a complete help menu, docs and cheatsheets in sync with the `gmake` modules — then thirteen suites on Windows drive the real code under PowerShell 7 |
 | `image.yml` — Rootfs image build | every push, PRs onto `main`, weekly, manual | the Dockerfile still resolves end to end: apt repositories, download URLs, git clones |
 
 They check the **repository** — the files, and the code run against stand-ins,

@@ -20,7 +20,7 @@
 #
 # The second job, on windows-latest, is the one that RUNS the code instead of
 # reading it, because that is where PowerShell and wsl.exe are: every .ps1 must
-# parse under PowerShell 7 first, then eleven suites, none of which needs an
+# parse under PowerShell 7 first, then twelve suites, none of which needs an
 # instance, a console or Docker Desktop. Every bug the scripts themselves have
 # had was caught there, and none of these checks can be replaced by reading the
 # files.
@@ -336,15 +336,20 @@ jobs:
         shell: bash
         run: pwsh -NoProfile -File tests/parse-check.ps1
 
-      # The answers come from the .answers file beside each suite, never a copy
-      # spelled out here: the numbered prompt reads them when there is no
-      # console, and a second copy drifts - this file listed the answers of the
-      # day it was written while the suite grew.
+      # The answers, where a suite reads them from the numbered prompt, come
+      # from the .answers file beside it, never a copy spelled out here: a
+      # second copy drifts - this file listed the answers of the day it was
+      # written while the suite grew.
 
       - name: The arrow menu, driven by a scripted keyboard
         if: always()
         shell: bash
         run: pwsh -NoProfile -File tests/menu-test.ps1 < tests/menu-test.answers
+
+      - name: The way in, driven by a scripted terminal
+        if: always()
+        shell: bash
+        run: pwsh -NoProfile -File tests/wslui-test.ps1
 
       - name: The pack checklist, and what it applies
         if: always()

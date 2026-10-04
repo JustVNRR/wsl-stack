@@ -751,6 +751,22 @@ if (-not (Test-Path $MenuLib)) {
 . $MenuLib
 
 # ---------------------------------------------------------------------------
+# THE WAY IN'S TRIO
+# ---------------------------------------------------------------------------
+# The command list wsl.ps1 asks with, as classes: WslCommand, WslTerminal and
+# WslDispatcher (WslUI.ps1). Loaded here, next to the menu: everything that has
+# the shared half has the trio. The names are temporary - the classes beside
+# hold the questions under the names the trio will take back the day they come
+# over.
+$UILib = Join-Path $PSScriptRoot "WslUI.ps1"
+if (-not (Test-Path $UILib)) {
+    Write-Host ""
+    Write-Host "[ABORT] scripts\WslUI.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
+. $UILib
+
+# ---------------------------------------------------------------------------
 # THE PACKS
 # ---------------------------------------------------------------------------
 # What this checkout carries, what an instance has, and the moves that make a
