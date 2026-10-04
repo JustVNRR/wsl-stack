@@ -67,7 +67,7 @@ if (-not (Test-Path $OurFragment)) {
 }
 
 # The escape character, and whether colours are worth writing: the second from
-# menu.ps1, where it is written once for every command that shows a colour.
+# WslUI.ps1, where it is written once for every command that shows a colour.
 $Escape = [char]27
 $Coloured = Test-ColourOutput
 

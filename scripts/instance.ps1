@@ -740,31 +740,16 @@ function Get-InstanceHome {
 # THE MENUS
 # ---------------------------------------------------------------------------
 # What the commands share: what this machine is (here) and how it is asked
-# (menu.ps1). Same rule when a piece is missing: say so, rather than die with a
-# PowerShell error that reads like the machine's fault.
-$MenuLib = Join-Path $PSScriptRoot "menu.ps1"
+# (WslUI.ps1 - the rows, the console, the ask, the doors). Same rule when a
+# piece is missing: say so, rather than die with a PowerShell error that reads
+# like the machine's fault.
+$MenuLib = Join-Path $PSScriptRoot "WslUI.ps1"
 if (-not (Test-Path $MenuLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\menu.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $MenuLib
-
-# ---------------------------------------------------------------------------
-# THE WAY IN'S TRIO
-# ---------------------------------------------------------------------------
-# The command list wsl.ps1 asks with, as classes: WslCommand, WslTerminal and
-# WslDispatcher (WslUI.ps1). Loaded here, next to the menu: everything that has
-# the shared half has the trio. The names are temporary - the classes beside
-# hold the questions under the names the trio will take back the day they come
-# over.
-$UILib = Join-Path $PSScriptRoot "WslUI.ps1"
-if (-not (Test-Path $UILib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\WslUI.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
     exit 1
 }
-. $UILib
+. $MenuLib
 
 # ---------------------------------------------------------------------------
 # THE PACKS

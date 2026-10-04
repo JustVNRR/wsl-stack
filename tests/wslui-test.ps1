@@ -1,8 +1,8 @@
-# Drives the way in's trio with a scripted terminal: the arrow loop and the
+# Drives the way in's menu with a scripted console: the arrow loop and the
 # numbered prompt run with no console in sight, which is the only way to test
-# them. The terminal is a WslTerminal subclass (fake-terminal.ps1, next to
-# this file) that answers canned keys, records the lines instead of drawing
-# them, and can say there is no keyboard. The gestures are counted, not run.
+# them. The console is a WslConsole subclass (fake-console.ps1, next to this
+# file) that answers canned keys, records the lines instead of drawing them,
+# and can say there is no keyboard. The gestures are counted, not run.
 #
 # The last checks spawn wsl.ps1 itself, where its words live: the invalid
 # command and its table, and the cancelled menu - both leave before the
@@ -12,7 +12,7 @@
 #
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\scripts\WslUI.ps1")
-. (Join-Path $PSScriptRoot "fake-terminal.ps1")
+. (Join-Path $PSScriptRoot "fake-console.ps1")
 
 $Failures = 0
 function Check {
@@ -28,10 +28,10 @@ function Check {
 # The three rows the checks walk: the real words of the real table, so the
 # twelve-wide column and the marker are read the way the docs show them.
 function New-TestDispatcher {
-    $D = [WslDispatcher]::new("WSL Stack")
-    $null = $D.Add([WslCommand]::new("list",  "list our instances and the archives", { $script:Ran += "list" }))
-    $null = $D.Add([WslCommand]::new("build", "build an instance from the image",    { $script:Ran += "build" }))
-    $null = $D.Add([WslCommand]::new("start", "start a stopped instance",            { $script:Ran += "start" }))
+    $D = [WslMenu]::new("WSL Stack")
+    $null = $D.Add([WslMenuItem]::new("list",  "list our instances and the archives", { $script:Ran += "list" }))
+    $null = $D.Add([WslMenuItem]::new("build", "build an instance from the image",    { $script:Ran += "build" }))
+    $null = $D.Add([WslMenuItem]::new("start", "start a stopped instance",            { $script:Ran += "start" }))
     return $D
 }
 
@@ -41,10 +41,10 @@ function Run-Choice {
     param([ConsoleKey[]]$Keys)
     $script:Ran = @()
     $D = New-TestDispatcher
-    $T = [FakeTerminal]::new()
+    $T = [FakeConsole]::new()
     $T.Keys = [System.Collections.Queue]::new()
     foreach ($Key in $Keys) { $T.Keys.Enqueue($Key) }
-    $D.Terminal = $T
+    $D.Console = $T
     $Picked = $D.Ask()
     if ($Picked) { $Picked.Execute($null) }
     return $Picked
@@ -65,7 +65,7 @@ Check "the key 9 (off the list) -> ignored" `
 Check "any other key            -> ignored" `
     ((Run-Choice @([ConsoleKey]::A, [ConsoleKey]::Enter)).Key) "list"
 Check "empty list               -> nothing, and nothing is asked" `
-    (([WslDispatcher]::new("WSL Stack")).Ask()) ""
+    (([WslMenu]::new("WSL Stack")).Ask()) ""
 
 Write-Output ""
 Write-Output "--- the block: the marker, the column, the words ---"
@@ -73,11 +73,11 @@ Write-Output "--- the block: the marker, the column, the words ---"
 # (the current one behind the marker) and the hint. The rows are the ones the
 # commands page shows, column included, word for word.
 $D = New-TestDispatcher
-$T = [FakeTerminal]::new()
+$T = [FakeConsole]::new()
 $T.SizeAnswer = @(80, 20)          # the window the docs' samples assume
 $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::Enter)
-$D.Terminal = $T
+$D.Console = $T
 $null = $D.Ask()
 Check "the block, six lines, whole" ($T.Lines[0..5] -join "|") `
     "|WSL Stack|  > list         list our instances and the archives|    build        build an instance from the image|    start        start a stopped instance|  up/down to move, Enter to choose, Escape to cancel"
@@ -88,13 +88,13 @@ Write-Output "--- a row is one line: cut to the window ---"
 # together never exceed the width the terminal gave.
 $Wide = "x" * 400
 Check "a row with its marker fits the width" `
-    (4 + @([WslDispatcher]::Fit(@($Wide), 40, 4))[0].Length) "39"
+    (4 + @([WslMenu]::Fit(@($Wide), 40, 4))[0].Length) "39"
 Check "  ... and the cut shows as one" `
-    (@([WslDispatcher]::Fit(@($Wide), 40, 4))[0] -like "x*...") "True"
+    (@([WslMenu]::Fit(@($Wide), 40, 4))[0] -like "x*...") "True"
 Check "a short label is left alone" `
-    (@([WslDispatcher]::Fit(@("court"), 40, 4))[0]) "court"
+    (@([WslMenu]::Fit(@("court"), 40, 4))[0]) "court"
 Check "a host that says no width cuts none" `
-    (@([WslDispatcher]::Fit(@($Wide), 0, 4))[0]).Length "400"
+    (@([WslMenu]::Fit(@($Wide), 0, 4))[0]).Length "400"
 
 Write-Output ""
 Write-Output "--- the repaint: the top of the block is read back AFTER it is drawn ---"
@@ -102,11 +102,11 @@ Write-Output "--- the repaint: the top of the block is read back AFTER it is dra
 # rows are drawn and 40 after. Read before drawing, 20 puts every row 20 lines
 # too high - the fake tells the two moments apart.
 $D = New-TestDispatcher
-$T = [FakeTerminal]::new()
+$T = [FakeConsole]::new()
 $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::DownArrow)
 $T.Keys.Enqueue([ConsoleKey]::Enter)
-$D.Terminal = $T
+$D.Console = $T
 $Picked = $D.Ask()
 Check "top read after (36..38, then 40) -> no drift" ($T.Moves -join ",") "36,37,38,40"
 Check "  ... and the choice is right" $Picked.Key "build"
@@ -116,14 +116,14 @@ Write-Output "--- the window: a tall list scrolls ---"
 # A tiny window, and the list must still work: only the rows that fit are
 # drawn, and the window follows the choice - the current row carries the
 # marker.
-$D = [WslDispatcher]::new("WSL Stack")
-foreach ($Index in 0..9) { $null = $D.Add([WslCommand]::new("c$Index", "d$Index", {})) }
-$T = [FakeTerminal]::new()
+$D = [WslMenu]::new("WSL Stack")
+foreach ($Index in 0..9) { $null = $D.Add([WslMenuItem]::new("c$Index", "d$Index", {})) }
+$T = [FakeConsole]::new()
 $T.SizeAnswer = @(40, 6)
 $T.Keys = [System.Collections.Queue]::new()
 foreach ($n in 1..6) { $T.Keys.Enqueue([ConsoleKey]::DownArrow) }
 $T.Keys.Enqueue([ConsoleKey]::Enter)
-$D.Terminal = $T
+$D.Console = $T
 $Picked = $D.Ask()
 # A two-letter word in the twelve-wide column: eleven spaces between it and
 # its description.
@@ -149,7 +149,7 @@ Write-Output "--- the gesture's context: everything arrives in its parameters --
 # machine and came up empty on another - measured). The context is made after
 # the block, like the manager.
 $Gesture = { param($Command, $Run) $script:Seen = "$($Command.Key):$($Run.Note)" }
-$Cmd = [WslCommand]::new("list", "list our instances and the archives", $Gesture)
+$Cmd = [WslMenuItem]::new("list", "list our instances and the archives", $Gesture)
 $Run = @{ Note = "made-after" }
 $Cmd.Execute($Run)
 Check "the command and the late context arrive whole" $script:Seen "list:made-after"
@@ -162,11 +162,11 @@ function New-NumberRun {
     param([string[]]$Answers)
     $script:Ran = @()
     $D = New-TestDispatcher
-    $T = [FakeTerminal]::new()
+    $T = [FakeConsole]::new()
     $T.KeyboardAnswer = $false
     $T.Answers = [System.Collections.Queue]::new()
     foreach ($Answer in $Answers) { $T.Answers.Enqueue($Answer) }
-    $D.Terminal = $T
+    $D.Console = $T
     return @($D, $T)
 }
 

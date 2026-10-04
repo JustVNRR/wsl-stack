@@ -18,7 +18,7 @@
 # and THE manager - the engine every command calls. The manager is made here
 # and handed to the command; a command run on its own makes its own.
 #
-# The list is asked through scripts\WslUI.ps1: one WslCommand per row of the
+# The list is asked through scripts\WslUI.ps1: one WslMenuItem per row of the
 # table below - the word, the line, the gesture - and the trio answers both
 # ways in, the menu and the command line alike.
 # ==============================================================================
@@ -77,18 +77,18 @@ if (-not (Test-Path $InstanceLib)) {
 . $InstanceLib
 
 # The table above, as objects - built here, where the table lives: one
-# WslCommand per row. The gesture is one block for every row: the command and
+# WslMenuItem per row. The gesture is one block for every row: the command and
 # a run context arrive as parameters, so nothing is read from a scope at call
 # time - measured: a closure that read its variables by name came up empty on
 # a machine where the same code ran on another.
-$Dispatcher = [WslDispatcher]::new("WSL Stack")
+$Dispatcher = [WslMenu]::new("WSL Stack")
 $Gesture = {
     param($Command, $Run)
     $Extra = @($Run.Args)
     & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Extra -Manager $Run.Manager
 }
 foreach ($Command in $Commands) {
-    $null = $Dispatcher.Add([WslCommand]::new($Command.Name, $Command.What, $Gesture))
+    $null = $Dispatcher.Add([WslMenuItem]::new($Command.Name, $Command.What, $Gesture))
 }
 
 # Bare, the repository asks its first question - which command - and it is a

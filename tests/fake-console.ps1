@@ -1,10 +1,10 @@
-# The terminal the tests give the dispatcher: canned keys, canned answers for
-# the numbered prompt, a canned window, a cursor that mimics a scrolling
-# console, and every line recorded instead of drawn. It is a subclass of the
-# real one - the tests replace the OBJECT, not functions by name. And it can
-# say there is no keyboard, which is how the numbered prompt is reached
-# without a console.
-class FakeTerminal : WslTerminal {
+# The console the tests give the menu: canned keys, canned answers for the
+# numbered prompt, a canned window, a cursor that mimics a scrolling console,
+# and every line recorded instead of drawn. It is a subclass of the real one -
+# the tests replace the OBJECT, not functions by name. And it can say there
+# is no keyboard, which is how the numbered prompt is reached without a
+# console.
+class FakeConsole : WslConsole {
     [System.Collections.Queue]$Keys
     [System.Collections.Queue]$Answers
     [string[]]$Prompts = @()

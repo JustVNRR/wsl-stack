@@ -14,7 +14,7 @@
 #     +- scripts\<command>.ps1         the INTERFACE of one command: it asks,
 #          |                           hands the answers to the engine, and
 #          |                           shows what comes back
-#          +- [WslDispatcher] / [WslTerminal]  the asking device (console today)
+#          +- [WslMenu] / [WslConsole]  the asking device (console today)
 #          +- $Manager.<Command>(...)   THE ENGINE - this class
 #          |     +- [WslInstance]...    the gestures, the state, the disk
 #          +- prints the report

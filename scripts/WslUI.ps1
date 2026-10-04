@@ -1,29 +1,30 @@
 # ==============================================================================
-# THE LISTS, AS OBJECTS: THE ROWS, THE TERMINAL, AND THE ASK
+# THE LISTS, AS OBJECTS - AND THE DOORS THE COMMANDS CALL
 # ==============================================================================
-# The trio the repository asks everything with: the command list at the root,
-# and every question inside the commands (through menu.ps1's two doors).
+# The menus, as three classes and two doors:
 #
-#   WslCommand    - one row: what it shows, what it carries, whether it is
-#                   ticked - and, for a command, the word that names it and
-#                   the gesture that runs it.
-#   WslTerminal   - the terminal: keyboard, cursor, window, and the one
-#                   line-writer everything goes through.
-#   WslDispatcher - one list: the rows, the wonderings (Multi, Note, where
-#                   the choice starts), the ask - the arrows, or the numbered
-#                   prompt when the machine has no keyboard - and the route
-#                   by name for the command line.
+#   WslMenuItem - one row: what it shows, what it carries, whether it is
+#                 ticked - and, for a command, the word that names it and the
+#                 gesture that runs it.
+#   WslConsole  - the console: keyboard, cursor, window, and the one
+#                 line-writer everything goes through.
+#   WslMenu     - one list: the rows, the wonderings (Multi, Note, where the
+#                 choice starts), the ask - the arrows, or the numbered
+#                 prompt when the machine has no keyboard - and the route by
+#                 name for the command line.
 #
-# The names are temporary, like the copy they live beside: menu.ps1 still
-# defines WslMenuItem, WslConsole and WslMenu - no caller left, waiting for
-# the step that takes them out - and two classes of one name cannot coexist:
-# the last one read wins, in silence, measured. The painting was recopied
-# from that menu, word for word and colour for colour; when the old classes
-# leave, one copy remains, and the names are decided again.
+# The two doors at the bottom - Select-FromList, Select-Distro - are what the
+# command scripts call, by those names, and the small helpers just above them
+# are what the theme family calls by name. Both lived in scripts\menu.ps1,
+# which this file replaced.
 #
-# The ask hands the WslCommand back instead of running it: the engine is made
+# "$Host" in a method: the parser refuses the name; it is reached through
+# Get-Variable - measured. And a class is not data: a data class never draws;
+# WslMenu is the list itself, its console is its trade.
+#
+# The ask hands the WslMenuItem back instead of running it: the engine is made
 # by the caller only once a command really is about to run, exactly as before,
-# and the gesture - WslCommand.Execute() - is what runs it, with the command
+# and the gesture - WslMenuItem.Execute() - is what runs it, with the command
 # and the caller's context travelling in its parameters.
 # ==============================================================================
 
@@ -34,7 +35,7 @@
 # One row of a list: the word that names it (a command; empty for a plain
 # choice), the line it shows, the value it carries (a choice), the tick (a
 # checklist row), and the gesture (a command).
-class WslCommand {
+class WslMenuItem {
     [string]$Key
     [string]$Text
     [object]$Value
@@ -43,14 +44,14 @@ class WslCommand {
 
     # A command: the word, the line that says what it does, the gesture. The
     # row shows the word in the twelve-wide column the documentation uses.
-    WslCommand([string]$Key, [string]$Description, [scriptblock]$Action) {
+    WslMenuItem([string]$Key, [string]$Description, [scriptblock]$Action) {
         $this.Key    = $Key
         $this.Text   = "{0,-12} {1}" -f $Key, $Description
         $this.Action = $Action
     }
 
     # A choice: the text shown, the value carried.
-    WslCommand([string]$Text, [object]$Value) {
+    WslMenuItem([string]$Text, [object]$Value) {
         $this.Text  = $Text
         $this.Value = $Value
     }
@@ -67,10 +68,10 @@ class WslCommand {
     }
 }
 
-# The terminal, as the dispatcher's only collaborator. The real one touches
-# the real console; a test builds a subclass that answers canned keys and
-# records the lines instead of drawing them.
-class WslTerminal {
+# The console, as the menu's only collaborator. The real one touches the real
+# console; a test builds a subclass that answers canned keys and records the
+# lines instead of drawing them.
+class WslConsole {
     # Is there a keyboard we can read without hanging? Both checks are cheap
     # and neither one blocks: KeyAvailable throws without a console, and a
     # throw is an answer. $Host is reached through Get-Variable: a method
@@ -91,7 +92,7 @@ class WslTerminal {
     }
 
     # $null means the host would not say - not the same as "row zero". A
-    # terminal that refuses to be drawn on leaves the menu working, only
+    # console that refuses to be drawn on leaves the menu working, only
     # uglier: the choice is the keys, never the paint.
     [object] Top() {
         try { return [Console]::CursorTop } catch { return $null }
@@ -138,40 +139,40 @@ class WslTerminal {
     }
 }
 
-# One list asked = one WslDispatcher: what is offered, where the choice starts
-# and stands, what is ticked, the note under the block. Ask() walks the
-# arrows; with no keyboard it falls back to the numbered prompt. The answer is
-# a WslCommand (or the ticked ones), never a loose value - and $null, which
+# One list asked = one WslMenu: what is offered, where the choice starts and
+# stands, what is ticked, the note under the block. Ask() walks the arrows;
+# with no keyboard it falls back to the numbered prompt. The answer is a
+# WslMenuItem (or the ticked ones), never a loose value - and $null, which
 # every caller reads as "the user cancelled". Dispatch() routes a word from
 # the command line to the command it names.
-class WslDispatcher {
+class WslMenu {
     [string]$Title
-    [WslTerminal]$Terminal
-    [System.Collections.Generic.List[WslCommand]]$Items
+    [WslConsole]$Console
+    [System.Collections.Generic.List[WslMenuItem]]$Items
     [bool]$Multi = $false
     [int]$Current = 0
     [string]$Note = ""
 
-    # The terminal is built here, not handed in: a class constructor takes no
-    # default value - [WslDispatcher]::new("T") would find no overload with
-    # one argument, measured - and the tests replace the object right after,
-    # as they always did.
-    WslDispatcher([string]$Title) {
-        $this.Title    = $Title
-        $this.Terminal = [WslTerminal]::new()
-        $this.Items    = [System.Collections.Generic.List[WslCommand]]::new()
+    # The console is built here, not handed in: a class constructor takes no
+    # default value - [WslMenu]::new("T") would find no overload with one
+    # argument, measured - and the tests replace the object right after, as
+    # they always did.
+    WslMenu([string]$Title) {
+        $this.Title   = $Title
+        $this.Console = [WslConsole]::new()
+        $this.Items   = [System.Collections.Generic.List[WslMenuItem]]::new()
     }
 
-    # The list is built by the caller - wsl.ps1, or a door in menu.ps1 - one
-    # row per line. The fluent return keeps the construction one statement.
-    [WslDispatcher] Add([WslCommand]$Row) {
+    # The list is built by the caller - wsl.ps1, or a door below - one row per
+    # line. The fluent return keeps the construction one statement.
+    [WslMenu] Add([WslMenuItem]$Row) {
         $this.Items.Add($Row)
         return $this
     }
 
     # The command a typed word names, or $null. The word's case does not
     # matter; the caller says which word found nothing.
-    [WslCommand] Dispatch([string]$Key) {
+    [WslMenuItem] Dispatch([string]$Key) {
         $Wanted = "$Key".ToLower()
         foreach ($Command in $this.Items) {
             if ($Command.Key -eq $Wanted) { return $Command }
@@ -182,14 +183,14 @@ class WslDispatcher {
     # The ask. An empty list asks nothing.
     [object] Ask() {
         if ($this.Items.Count -eq 0) { return $null }
-        if ($this.Terminal.HasKeyboard()) {
+        if ($this.Console.HasKeyboard()) {
             return $this.AskWithArrows()
         }
         return $this.AskByNumber()
     }
 
     # One row, as it is drawn: the marker says where the choice is, the box
-    # what is checked - two questions, two signs, so a terminal that renders
+    # what is checked - two questions, two signs, so a console that renders
     # no colour still reads correctly. $null checked flags = a single-choice
     # list, where there is nothing to check.
     static [string] FormatRow([int]$Index, [int]$Current, [string[]]$Labels, [bool[]]$Checked) {
@@ -224,7 +225,7 @@ class WslDispatcher {
     # One row, now, in the right colour.
     hidden [void] DrawRow([int]$Index, [string[]]$Texts) {
         $Kind = if ($Index -eq $this.Current) { "info" } else { "" }
-        $this.Terminal.Line([WslDispatcher]::FormatRow($Index, $this.Current, $Texts, $this.Flags()), $Kind)
+        $this.Console.Line([WslMenu]::FormatRow($Index, $this.Current, $Texts, $this.Flags()), $Kind)
     }
 
     # The rows are drawn once and repainted in place - every label keeps its
@@ -238,17 +239,17 @@ class WslDispatcher {
         $Texts = @($this.Items | ForEach-Object { $_.Text })
         $Hint = if ($this.Multi) { "  up/down to move, space to check, Enter to apply, Escape to cancel" }
                 else { "  up/down to move, Enter to choose, Escape to cancel" }
-        $Size = $this.Terminal.Size()
+        $Size = $this.Console.Size()
         # Every line of the block is cut to the window, title and hint
         # included: one line that wraps moves the rows below by one, and the
         # arithmetic below is written for exactly Visible + 3 lines, plus the
         # note when there is one. A line the arithmetic does not know about is
         # the bug this file was written against.
         $Extra = if ($this.Note) { 1 } else { 0 }
-        $Shown = [WslDispatcher]::Fit($Texts, $Size[0], $(if ($this.Multi) { 8 } else { 4 }))
-        $ShownTitle = @([WslDispatcher]::Fit(@($this.Title), $Size[0], 0))[0]
-        $ShownHint = @([WslDispatcher]::Fit(@($Hint), $Size[0], 0))[0]
-        $ShownNote = @([WslDispatcher]::Fit(@($this.Note), $Size[0], 0))[0]
+        $Shown = [WslMenu]::Fit($Texts, $Size[0], $(if ($this.Multi) { 8 } else { 4 }))
+        $ShownTitle = @([WslMenu]::Fit(@($this.Title), $Size[0], 0))[0]
+        $ShownHint = @([WslMenu]::Fit(@($Hint), $Size[0], 0))[0]
+        $ShownNote = @([WslMenu]::Fit(@($this.Note), $Size[0], 0))[0]
 
         # A list taller than the window scrolls rather than refuse: only the
         # rows that fit are drawn, and the window follows the choice. Three
@@ -262,13 +263,13 @@ class WslDispatcher {
         # computed before: writing the block can scroll the console, and a
         # row number from before is wrong by what scrolled - that was the
         # bug: every arrow added one more copy of the list.
-        $this.Terminal.Line("", "")
-        if ($ShownTitle) { $this.Terminal.Line($ShownTitle, "info") }
+        $this.Console.Line("", "")
+        if ($ShownTitle) { $this.Console.Line($ShownTitle, "info") }
         for ($Row = 0; $Row -lt $Visible; $Row++) { $this.DrawRow($First + $Row, $Shown) }
-        $this.Terminal.Line($ShownHint, "muted")
-        if ($ShownNote) { $this.Terminal.Line($ShownNote, "muted") }
+        $this.Console.Line($ShownHint, "muted")
+        if ($ShownNote) { $this.Console.Line($ShownNote, "muted") }
 
-        $Cursor = $this.Terminal.Top()
+        $Cursor = $this.Console.Top()
         $Top = if ($null -ne $Cursor) { $Cursor - ($Visible + 1 + $Extra) } else { 0 }
         # No cursor reading (a test, a host that will not say): the loop still
         # answers the keys, it simply does not repaint - there is nothing to
@@ -276,7 +277,7 @@ class WslDispatcher {
         $CanPaint = ($null -ne $Cursor) -and ($Top -ge 0)
 
         while ($true) {
-            $Key = $this.Terminal.ReadKey()
+            $Key = $this.Console.ReadKey()
             $Last = $Count - 1
             $Moved = $true
 
@@ -290,7 +291,7 @@ class WslDispatcher {
                 # does.
                 $this.Items[$this.Current].Checked = -not $this.Items[$this.Current].Checked
             } elseif ($Key -eq [ConsoleKey]::Enter) {
-                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
+                if ($CanPaint) { $null = $this.Console.SetTop($Top + $Visible + 1 + $Extra) }
                 if ($this.Multi) {
                     # No comma, unlike the function this came from: a method
                     # hands its value back whole, where a function's output is
@@ -301,7 +302,7 @@ class WslDispatcher {
                 }
                 return $this.Items[$this.Current]
             } elseif ($Key -eq [ConsoleKey]::Escape) {
-                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
+                if ($CanPaint) { $null = $this.Console.SetTop($Top + $Visible + 1 + $Extra) }
                 return $null
             } elseif (($Key -ge [ConsoleKey]::D1 -and $Key -le [ConsoleKey]::D9) -or
                       ($Key -ge [ConsoleKey]::NumPad1 -and $Key -le [ConsoleKey]::NumPad9)) {
@@ -311,7 +312,7 @@ class WslDispatcher {
                     if ($this.Multi) {
                         $this.Items[$Wanted].Checked = -not $this.Items[$Wanted].Checked    # a digit checks, it does not leave
                     } else {
-                        if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
+                        if ($CanPaint) { $null = $this.Console.SetTop($Top + $Visible + 1 + $Extra) }
                         return $this.Items[$Wanted]
                     }
                 }
@@ -330,7 +331,7 @@ class WslDispatcher {
 
             $Placed = $true
             for ($Row = 0; $Row -lt $Visible; $Row++) {
-                if (-not $this.Terminal.SetTop($Top + $Row)) { $Placed = $false; break }
+                if (-not $this.Console.SetTop($Top + $Row)) { $Placed = $false; break }
                 $this.DrawRow($First + $Row, $Shown)
             }
             if (-not $Placed) {
@@ -357,16 +358,16 @@ class WslDispatcher {
                 # The list is written again at every turn: a box that changed
                 # has to be seen, and with no console to paint on there is
                 # nowhere else to put it.
-                $this.Terminal.Line("", "")
-                if ($this.Title) { $this.Terminal.Line($this.Title, "info") }
+                $this.Console.Line("", "")
+                if ($this.Title) { $this.Console.Line($this.Title, "info") }
                 for ($Index = 0; $Index -lt $Count; $Index++) {
                     $Box = if ($this.Items[$Index].Checked) { "[x]" } else { "[ ]" }
-                    $this.Terminal.Line(("  {0,2}.  {1} {2}" -f ($Index + 1), $Box, $Texts[$Index]), "")
+                    $this.Console.Line(("  {0,2}.  {1} {2}" -f ($Index + 1), $Box, $Texts[$Index]), "")
                 }
-                $this.Terminal.Line("   0.  Cancel", "")
-                if ($this.Note) { $this.Terminal.Line("  $($this.Note)", "muted") }
+                $this.Console.Line("   0.  Cancel", "")
+                if ($this.Note) { $this.Console.Line("  $($this.Note)", "muted") }
 
-                $Answer = $this.Terminal.Prompt("Number toggles, v applies, 0 cancels")
+                $Answer = $this.Console.Prompt("Number toggles, v applies, 0 cancels")
                 if ([string]::IsNullOrWhiteSpace($Answer) -or $Answer.Trim() -eq "0") { return $null }
                 if ($Answer.Trim() -match "^[vV]$") {
                     return @($this.Items | Where-Object { $_.Checked })
@@ -377,31 +378,162 @@ class WslDispatcher {
                     $this.Items[$Number - 1].Checked = -not $this.Items[$Number - 1].Checked
                     continue
                 }
-                $this.Terminal.Line("  '$Answer' is not one of the numbers above.", "warning")
+                $this.Console.Line("  '$Answer' is not one of the numbers above.", "warning")
             }
         }
 
-        $this.Terminal.Line("", "")
-        if ($this.Title) { $this.Terminal.Line($this.Title, "info") }
+        $this.Console.Line("", "")
+        if ($this.Title) { $this.Console.Line($this.Title, "info") }
         for ($Index = 0; $Index -lt $Count; $Index++) {
-            $this.Terminal.Line(("  {0,2}.  {1}" -f ($Index + 1), $Texts[$Index]), "")
+            $this.Console.Line(("  {0,2}.  {1}" -f ($Index + 1), $Texts[$Index]), "")
         }
-        $this.Terminal.Line("   0.  Cancel", "")
-        if ($this.Note) { $this.Terminal.Line("  $($this.Note)", "muted") }
+        $this.Console.Line("   0.  Cancel", "")
+        if ($this.Note) { $this.Console.Line("  $($this.Note)", "muted") }
 
         while ($true) {
-            $Answer = $this.Terminal.Prompt("Which one? (0 to cancel)")
+            $Answer = $this.Console.Prompt("Which one? (0 to cancel)")
             if ([string]::IsNullOrWhiteSpace($Answer)) { return $null }
             $Number = 0
             if ([int]::TryParse($Answer.Trim(), [ref]$Number)) {
                 if ($Number -eq 0) { return $null }
                 if ($Number -ge 1 -and $Number -le $Count) { return $this.Items[$Number - 1] }
             }
-            $this.Terminal.Line("  '$Answer' is not one of the numbers above.", "warning")
+            $this.Console.Line("  '$Answer' is not one of the numbers above.", "warning")
         }
 
         # Never reached, like the one in AskWithArrows: for the parser, not for
         # the console.
         return $null
     }
+}
+
+# ---------------------------------------------------------------------------
+# THE SMALL HELPERS THE COMMANDS ALREADY CALLED
+# ---------------------------------------------------------------------------
+# The commands ask these by name (theme.ps1 and the three children, icon, font
+# and color) - kept where they always lived, and spelled as functions because
+# that is how their callers know them. What a console can show, and how it
+# spells a colour: WslConsole answers the same questions for the lists.
+# Test-KeyInput is WslConsole's HasKeyboard twin - a method cannot name $Host,
+# measured, so the class reads it through Get-Variable and this reads it
+# directly.
+
+# Is there a keyboard we can read without hanging? Both checks are cheap and
+# neither one blocks: CursorTop and KeyAvailable throw without a console, and
+# a throw is an answer.
+function Test-KeyInput {
+    if ([Console]::IsInputRedirected) { return $false }
+    try {
+        $null = $Host.UI.RawUI.KeyAvailable
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+# Both questions have to be yes: a console that reads the escape sequences, and
+# somebody looking at them - a pipe is reading a file, not a screen.
+function Test-ColourOutput {
+    $Coloured = $false
+    try { $Coloured = [bool]$Host.UI.SupportsVirtualTerminal } catch { $Coloured = $false }
+    if ($env:WT_SESSION) { $Coloured = $true }
+    if ($Coloured) { $Coloured = Test-KeyInput }
+    return $Coloured
+}
+
+# "#CF7040" -> "207;112;64": how a terminal spells a colour.
+function ConvertTo-Rgb {
+    param([string]$Hex)
+
+    $Hex = $Hex.TrimStart("#")
+    return "{0};{1};{2}" -f [Convert]::ToInt32($Hex.Substring(0, 2), 16),
+                           [Convert]::ToInt32($Hex.Substring(2, 2), 16),
+                           [Convert]::ToInt32($Hex.Substring(4, 2), 16)
+}
+
+# A clean screen, for going down a level or coming back up one. The first
+# version blanked exactly the rows each menu had drawn - row numbers are
+# absolute and the console moves, so one scroll made every remembered row a row
+# off. Clearing is one call and cannot drift; the price, chosen: what was above
+# goes with it.
+function Clear-MenuScreen {
+    try { Clear-Host } catch { }
+}
+
+# ---------------------------------------------------------------------------
+# THE DOORS - WHAT THE SCRIPTS CALL, OVER THE CLASSES
+# ---------------------------------------------------------------------------
+# The same list, for the commands as they are written: Select-FromList builds
+# a WslMenu from raw items and a label; Select-Distro composes the one list
+# this family shows most. Thin on purpose - the day another interface replaces
+# the console, the doors go and the classes stay.
+
+function Select-FromList {
+    param(
+        [string]$Title = "",
+        [object[]]$Items = @(),
+        [scriptblock]$Label = { param($Item) [string]$Item },
+        [int]$DefaultIndex = 0,
+        [switch]$Multi,
+        [int[]]$CheckedIndexes = @(),
+        [string]$Note = ""
+    )
+
+    $Items = @($Items)
+    if ($Items.Count -eq 0) { return $null }
+
+    $Menu = [WslMenu]::new($Title)
+    foreach ($Item in $Items) {
+        $null = $Menu.Add([WslMenuItem]::new([string](& $Label $Item), $Item))
+    }
+    if ($Multi) {
+        foreach ($Index in $CheckedIndexes) {
+            if ($Index -ge 0 -and $Index -lt $Menu.Items.Count) { $Menu.Items[$Index].Checked = $true }
+        }
+    }
+    $Menu.Multi = [bool]$Multi
+    $Menu.Note = $Note
+    # An index that is not in the list is the first one: the list's own rule.
+    if ($DefaultIndex -ge 0 -and $DefaultIndex -lt $Menu.Items.Count) { $Menu.Current = $DefaultIndex }
+    $Picked = $Menu.Ask()
+
+    if ($null -eq $Picked) { return $null }
+    if ($Multi) {
+        # The comma: a function's output is unrolled, and "I checked none"
+        # must arrive as an empty list, not as nothing at all.
+        return ,@($Picked | ForEach-Object { $_.Value })
+    }
+    return $Picked.Value
+}
+
+# The list this family shows most: the instances that are OURS, with the state
+# and the room each takes. Escape is the end of the command that asked, unless
+# -AllowCancel: then it is $null, for a command that has somewhere to go back
+# to.
+function Select-Distro {
+    param([switch]$AllowCancel)
+
+    $All = @([WslInstanceManager]::Ours())
+    if ($All.Count -eq 0) {
+        Write-Host ""
+        Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Build one with  .\wsl.ps1 build" -ForegroundColor (Get-MessageColour hint)
+        exit 1
+    }
+
+    $Menu = [WslMenu]::new("Our Instances")
+    foreach ($Instance in $All) {
+        $State = if ($Instance.State -eq [WslState]::Running) { "running" } else { "stopped" }
+        $null = $Menu.Add([WslMenuItem]::new(
+            ("{0,-30} {1,-8} {2,10}" -f $Instance.Name, $State, (Format-Size (Get-VhdxSize $Instance.Path))), $Instance))
+    }
+    $Picked = $Menu.Ask()
+
+    if ($null -eq $Picked) {
+        if ($AllowCancel) { return $null }
+        Write-Host ""
+        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+        exit 0
+    }
+    return $Picked.Value
 }

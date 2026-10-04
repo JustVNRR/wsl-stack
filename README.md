@@ -288,10 +288,9 @@ the repository at runtime.
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
 │   ├── message.ps1          #   and the colour a message takes, read from the
 │                            #   colour scheme of the window it is printed in
-│   ├── menu.ps1             # The menu itself: the items, the console, the
-│                            #   questions - and the doors the scripts call
-│   ├── WslUI.ps1            # The way in as objects: the commands, the
-│                            #   terminal, and the dispatch the root asks with
+│   ├── WslUI.ps1            # The menu itself: the rows, the console, the
+│                            #   ask, the doors the scripts call - and the
+│                            #   helpers the theme family asks by name
 │   ├── packs.ps1            # The pack moves: copying a pack in, installing it,
 │                            #   taking it out again
 │   ├── prompts.ps1          # The questions a command asks: the instance's full
