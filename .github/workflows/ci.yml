@@ -356,6 +356,11 @@ jobs:
         shell: bash
         run: bash tests/build-question-test.sh
 
+      - name: The name a Windows account proposes, cleaned into a user name
+        if: always()
+        shell: bash
+        run: pwsh -NoProfile -File tests/user-name-test.ps1
+
       - name: The icon an instance is given, from its name
         if: always()
         shell: bash

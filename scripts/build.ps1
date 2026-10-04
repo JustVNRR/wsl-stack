@@ -20,6 +20,16 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
+# The user name a Windows account proposes: its own file, so the suite can
+# walk the cleaning without a build.
+$UserNameLib = Join-Path $PSScriptRoot "user-name.ps1"
+if (-not (Test-Path $UserNameLib)) {
+    Write-Host ""
+    Write-Host "[ABORT] scripts\user-name.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
+. $UserNameLib
+
 if ($Ignored) {
     Write-Host ""
     Write-Host "[ABORT] This command takes no options." -ForegroundColor (Get-MessageColour error)
@@ -166,19 +176,6 @@ function Resolve-InstallPath {
         $Folder = $Answer.Trim()
     }
     return $InstallPath
-}
-
-# The Windows account's name, cleaned into one the rule accepts: lowercase,
-# accents unfolded, and whatever separators were left turning into single
-# dashes. Nothing is proposed when what remains does not pass - a name made
-# up by the build would be worse than no proposal.
-function Get-WindowsUserProposal {
-    $Name = "$env:USERNAME".ToLower()
-    $Name = $Name.Normalize([Text.NormalizationForm]::FormD) -replace '\p{Mn}', ''
-    $Name = $Name -replace '[^a-z0-9_-]+', '-'
-    $Name = $Name.Trim('-', '_')
-    if ($Name -cmatch '^[a-z][a-z0-9_-]*$') { return $Name }
-    return ""
 }
 
 # The user the instance opens as: asked with the rest, so the build knows it
