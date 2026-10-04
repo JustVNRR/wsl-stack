@@ -13,12 +13,12 @@ cd "$(dirname "$0")/.." || exit 1
 
 ps=$(tr -d '\r' < wsl.ps1)
 drift=0
-names=$(printf '%s\n' "$ps" | sed -n 's/.*Name = "\([a-z_]*\)".*/\1/p')
+names=$(printf '%s\n' "$ps" | sed -n 's/^ *Add("\([a-z_]*\)".*/\1/p')
 
 printf "%-14s %-8s %-7s %-7s %-7s %-8s %-8s\n" COMMAND README TABLE SECTION SAMPLE WHAT@README WHAT@PAGE
 while read -r name; do
     [ -z "$name" ] && continue
-    what=$(printf '%s\n' "$ps" | sed -n "s/.*Name = \"$name\"; *What = \"\([^\"]*\)\".*/\1/p")
+    what=$(printf '%s\n' "$ps" | sed -n "s/.*Add(\"$name\", *\"\([^\"]*\)\".*/\1/p")
 
     ok() { if [ "$1" -gt 0 ]; then echo ok; else echo MISSING; drift=1; fi; }
     r=$(ok "$(grep -c "wsl\.ps1 $name\`\](docs/wsl/commands.md#$name)" README.md)")
@@ -38,7 +38,7 @@ done <<< "$names"
 # ".\wsl.ps1 <name>" - so that prose naming wsl.ps1 without the dot-slash is not
 # read as a command.
 while read -r name; do
-    grep -q "Name = \"$name\"" wsl.ps1 || {
+    grep -q "Add(\"$name\"" wsl.ps1 || {
         echo "  EXTRA: '$name' is offered by the docs, and wsl.ps1 does not know it"
         drift=1
     }
@@ -57,7 +57,7 @@ if [ -z "$SampleMenu" ]; then
 fi
 while read -r name; do
     [ -z "$name" ] && continue
-    grep -q "Name = \"$name\"" wsl.ps1 || {
+    grep -q "Add(\"$name\"" wsl.ps1 || {
         echo "  EXTRA: the sample menu shows '$name', and wsl.ps1 does not know it"
         drift=1
     }

@@ -1,3 +1,14 @@
+[CmdletBinding()]
+param (
+    [Parameter(Position = 0)]
+    [string]$Command,
+
+    # Nothing followed means an empty list, never $null: @($null) is a list of
+    # one, and every command run bare would receive that stray argument.
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [object[]]$RemainingArgs = @()
+)
+
 # ==============================================================================
 # THE WAY IN: one command at the root, the scripts themselves in scripts\
 # ==============================================================================
@@ -19,7 +30,7 @@
 # and handed to the command; a command run on its own makes its own.
 #
 # The list is asked through scripts\WslUI.ps1: one WslMenuItem per row of the
-# table below - the word, the line, the gesture - and the trio answers both
+# chain below - the word, the line, the gesture - and the trio answers both
 # ways in, the menu and the command line alike.
 # ==============================================================================
 
@@ -37,32 +48,6 @@ if (-not (Test-Path $MessageLib)) {
 }
 . $MessageLib
 
-# The order is the one the documentation uses, and it starts with the command
-# that answers "what do I have?" - list, then the rest along an instance's life.
-# Each line says what the command does and stops there: a menu is read at a
-# glance. The longest description is 40 characters - 61 columns numbered, 58
-# behind the arrow marker, measured - so an 80-column window shows them whole
-# and the cut never eats a word that mattered. What deserves a sentence is in
-# docs\wsl\commands.md.
-$Commands = @(
-    @{ Name = "list";       What = "list our instances and the archives" },
-    @{ Name = "build";      What = "build an instance from the image" },
-    @{ Name = "start";      What = "start a stopped instance" },
-    @{ Name = "stop";       What = "stop a running instance" },
-    @{ Name = "restart";    What = "restart an instance" },
-    @{ Name = "shell";      What = "open a shell inside an instance" },
-    @{ Name = "add_pack";   What = "install a pack into an instance" },
-    @{ Name = "remove_pack"; What = "uninstall a pack from an instance" },
-    @{ Name = "manage_packs"; What = "choose the packs an instance should carry" },
-    @{ Name = "theme";      What = "choose the icon, font and colours" },
-    @{ Name = "unregister"; What = "remove an instance" },
-    @{ Name = "archive";    What = "write an instance to a named archive" },
-    @{ Name = "restore";    What = "rebuild an instance from an archive" },
-    @{ Name = "duplicate";  What = "copy an instance under another name" },
-    @{ Name = "shrink";     What = "reclaim the space an instance has freed" },
-    @{ Name = "wslconfig";  What = "open the Windows-wide WSL settings" }
-)
-
 # The shared half - the classes, the menus, the packs, the marker - read once,
 # here: the manager just under is built on it, the command dispatched at the
 # bottom loads it anyway, and the trio the list is asked with comes from it
@@ -76,46 +61,69 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# The table above, as objects - built here, where the table lives: one
-# WslMenuItem per row. The gesture is one block for every row: the command and
-# a run context arrive as parameters, so nothing is read from a scope at call
-# time - measured: a closure that read its variables by name came up empty on
-# a machine where the same code ran on another.
-$Dispatcher = [WslMenu]::new("WSL Stack")
+# The gesture, one block for every command: the row and the run context arrive
+# as parameters - nothing is read from a scope at call time (measured: a
+# closure that read its variables by name worked on one machine and came up
+# empty on another). The entry below runs it at its own scope, and NOT through
+# a class method: a method collects what it runs and takes the console away
+# from every native underneath - the child loses its terminal and its stdout
+# is thrown away, which is what blinded a build's whiptail (measured).
 $Gesture = {
     param($Command, $Run)
     $Extra = @($Run.Args)
     & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Extra -Manager $Run.Manager
 }
-foreach ($Command in $Commands) {
-    $null = $Dispatcher.Add([WslMenuItem]::new($Command.Name, $Command.What, $Gesture))
-}
 
-# Bare, the repository asks its first question - which command - and it is a
-# question like the ones inside the commands: the same menu, walked with the
-# arrows, cancelled with Escape.
-if ($args.Count -eq 0) {
+# The words, one chain: one WslMenuItem per command - the word, the line, the
+# gesture. The order is the one the documentation uses, and it starts with the
+# command that answers "what do I have?" - list, then the rest along an
+# instance's life. Each line says what the command does and stops there: a
+# menu is read at a glance. The longest description is 40 characters - 61
+# columns numbered, 58 behind the arrow marker, measured - so an 80-column
+# window shows them whole and the cut never eats a word that mattered. What
+# deserves a sentence is in docs\wsl\commands.md.
+$Menu = [WslMenu]::new("WSL Stack").
+    Add("list",         "list our instances and the archives",      $Gesture).
+    Add("build",        "build an instance from the image",         $Gesture).
+    Add("start",        "start a stopped instance",                 $Gesture).
+    Add("stop",         "stop a running instance",                  $Gesture).
+    Add("restart",      "restart an instance",                      $Gesture).
+    Add("shell",        "open a shell inside an instance",          $Gesture).
+    Add("add_pack",     "install a pack into an instance",          $Gesture).
+    Add("remove_pack",  "uninstall a pack from an instance",        $Gesture).
+    Add("manage_packs", "choose the packs an instance should carry", $Gesture).
+    Add("theme",        "choose the icon, font and colours",        $Gesture).
+    Add("unregister",   "remove an instance",                       $Gesture).
+    Add("archive",      "write an instance to a named archive",     $Gesture).
+    Add("restore",      "rebuild an instance from an archive",      $Gesture).
+    Add("duplicate",    "copy an instance under another name",      $Gesture).
+    Add("shrink",       "reclaim the space an instance has freed",  $Gesture).
+    Add("wslconfig",    "open the Windows-wide WSL settings",       $Gesture)
+
+# With a word, the command line routes it; bare, the repository asks its first
+# question - which command - and it is a question like the ones inside the
+# commands: the same menu, walked with the arrows, cancelled with Escape.
+if ($Command) {
+    # The word names its command, whatever its case. A word nobody knows is
+    # said here, with the list it should have come from.
+    $Chosen = $Menu.Dispatch($Command)
+    if (-not $Chosen) {
+        Write-Host ""
+        Write-Host "[ABORT] Invalid command '$Command'. Available commands:" -ForegroundColor (Get-MessageColour error)
+        foreach ($Item in $Menu.Items) {
+            Write-Host "          $($Item.Key)" -ForegroundColor (Get-MessageColour hint)
+        }
+        exit 1
+    }
+} else {
     Write-Host ""
     Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 
-    $Chosen = $Dispatcher.Ask()
+    $Chosen = $Menu.Prompt()
     if (-not $Chosen) {
         Write-Host ""
         Write-Host "[ABORT] Operation cancelled by user. Nothing was run." -ForegroundColor (Get-MessageColour success)
         exit 0
-    }
-} else {
-    # The command line is routed the same way the menu is: the word names its
-    # command, whatever its case. A word nobody knows is said here, with the
-    # table it should have come from.
-    $Chosen = $Dispatcher.Dispatch("$($args[0])")
-    if (-not $Chosen) {
-        Write-Host ""
-        Write-Host "[ABORT] Invalid command '$($args[0])'. Available commands:" -ForegroundColor (Get-MessageColour error)
-        foreach ($Command in $Commands) {
-            Write-Host "          $($Command.Name)" -ForegroundColor (Get-MessageColour hint)
-        }
-        exit 1
     }
 }
 
@@ -134,15 +142,13 @@ $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 # Whatever followed the command is handed over as it came: a command that has
 # options keeps them, the others ignore them. With the scripts' folder and the
 # manager above, that is the run context the gesture takes its parameters from.
-$Rest = @()
-if ($args.Count -gt 1) { $Rest = $args[1..($args.Count - 1)] }
 $Run = @{
     Scripts = $Scripts
-    Args    = $Rest
+    Args    = $RemainingArgs
     Manager = $Manager
 }
 
-$Chosen.Execute($Run)
+& $Chosen.Action $Chosen $Run
 
 if ($null -eq $LASTEXITCODE) { exit 0 }
 exit $LASTEXITCODE

@@ -24,8 +24,10 @@
 #
 # The ask hands the WslMenuItem back instead of running it: the engine is made
 # by the caller only once a command really is about to run, exactly as before,
-# and the gesture - WslMenuItem.Execute() - is what runs it, with the command
-# and the caller's context travelling in its parameters.
+# and the CALLER runs the gesture itself, at its own scope, with the command
+# and the caller's context travelling in its parameters. Never through a class
+# method: a method collects what it runs and takes the console away from every
+# native underneath - a build's whiptail could not draw (measured).
 # ==============================================================================
 
 # Loaded here too: suites drive this file on its own, and lines are drawn by
@@ -56,16 +58,6 @@ class WslMenuItem {
         $this.Value = $Value
     }
 
-    # The gesture, run wherever the command was picked - the menu or the
-    # command line. The command hands ITSELF and the caller's context to the
-    # gesture, both as parameters: a gesture reads nothing from a scope at
-    # call time - measured: a closure that read its variables by name came up
-    # empty on a machine where the same code ran on another. A class method
-    # hands back only its return value and lets Write-Host through; the
-    # commands print through Write-Host, so none of their lines is lost here.
-    [void] Execute([object]$Context) {
-        & $this.Action $this $Context
-    }
 }
 
 # The console, as the menu's only collaborator. The real one touches the real
@@ -140,7 +132,7 @@ class WslConsole {
 }
 
 # One list asked = one WslMenu: what is offered, where the choice starts and
-# stands, what is ticked, the note under the block. Ask() walks the arrows;
+# stands, what is ticked, the note under the block. Prompt() walks the arrows;
 # with no keyboard it falls back to the numbered prompt. The answer is a
 # WslMenuItem (or the ticked ones), never a loose value - and $null, which
 # every caller reads as "the user cancelled". Dispatch() routes a word from
@@ -170,6 +162,12 @@ class WslMenu {
         return $this
     }
 
+    # The same row for a command - the word, the line, the gesture - so the
+    # sixteen can be declared in one fluent chain in wsl.ps1.
+    [WslMenu] Add([string]$Key, [string]$Description, [scriptblock]$Action) {
+        return $this.Add([WslMenuItem]::new($Key, $Description, $Action))
+    }
+
     # The command a typed word names, or $null. The word's case does not
     # matter; the caller says which word found nothing.
     [WslMenuItem] Dispatch([string]$Key) {
@@ -181,12 +179,12 @@ class WslMenu {
     }
 
     # The ask. An empty list asks nothing.
-    [object] Ask() {
+    [object] Prompt() {
         if ($this.Items.Count -eq 0) { return $null }
         if ($this.Console.HasKeyboard()) {
-            return $this.AskWithArrows()
+            return $this.PromptArrows()
         }
-        return $this.AskByNumber()
+        return $this.PromptNumbers()
     }
 
     # One row, as it is drawn: the marker says where the choice is, the box
@@ -230,7 +228,7 @@ class WslMenu {
 
     # The rows are drawn once and repainted in place - every label keeps its
     # length, so nothing has to be erased, and no Clear-Host.
-    hidden [object] AskWithArrows() {
+    hidden [object] PromptArrows() {
         $Count = $this.Items.Count
         # An index that is not in the list is the first one: a default is a
         # favour, not a way to fail.
@@ -349,7 +347,7 @@ class WslMenu {
     # typed, an empty answer cancelling. Read-Host returns an empty string
     # when its input is closed, so a run with no console can never loop
     # forever.
-    hidden [object] AskByNumber() {
+    hidden [object] PromptNumbers() {
         $Count = $this.Items.Count
         $Texts = @($this.Items | ForEach-Object { $_.Text })
 
@@ -401,7 +399,7 @@ class WslMenu {
             $this.Console.Line("  '$Answer' is not one of the numbers above.", "warning")
         }
 
-        # Never reached, like the one in AskWithArrows: for the parser, not for
+        # Never reached, like the one in PromptArrows: for the parser, not for
         # the console.
         return $null
     }
@@ -495,7 +493,7 @@ function Select-FromList {
     $Menu.Note = $Note
     # An index that is not in the list is the first one: the list's own rule.
     if ($DefaultIndex -ge 0 -and $DefaultIndex -lt $Menu.Items.Count) { $Menu.Current = $DefaultIndex }
-    $Picked = $Menu.Ask()
+    $Picked = $Menu.Prompt()
 
     if ($null -eq $Picked) { return $null }
     if ($Multi) {
@@ -527,7 +525,7 @@ function Select-Distro {
         $null = $Menu.Add([WslMenuItem]::new(
             ("{0,-30} {1,-8} {2,10}" -f $Instance.Name, $State, (Format-Size (Get-VhdxSize $Instance.Path))), $Instance))
     }
-    $Picked = $Menu.Ask()
+    $Picked = $Menu.Prompt()
 
     if ($null -eq $Picked) {
         if ($AllowCancel) { return $null }

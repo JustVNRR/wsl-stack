@@ -56,7 +56,7 @@ function Run-Menu {
     $Menu = New-List "T" (ItemsOf $Items) $false
     $Menu.Console = $Console
     $Menu.Current = $Default
-    return $Menu.Ask()
+    return $Menu.Prompt()
 }
 
 function Run-Multi {
@@ -66,7 +66,7 @@ function Run-Multi {
     foreach ($Key in $Keys) { $Console.Keys.Enqueue($Key) }
     $Menu = New-List "T" (ItemsOf $Values $Checked) $true
     $Menu.Console = $Console
-    $Picked = $Menu.Ask()
+    $Picked = $Menu.Prompt()
     if ($null -eq $Picked) { return $null }
     # The comma: this is a function, and "nothing checked" has to arrive as an
     # empty list, not as no output at all - the same trap the menu itself
@@ -91,7 +91,7 @@ Check "the key 9 (off the list) -> ignored" `
 Check "any other key            -> ignored" `
     ((Run-Menu @([ConsoleKey]::A, [ConsoleKey]::Enter) $Items).Value) "a"
 Check "empty list               -> nothing, and nothing is asked" `
-    ((New-List "T" @() $false).Ask()) ""
+    ((New-List "T" @() $false).Prompt()) ""
 Check "a custom label           -> hands back the object, not the label" `
     (& {
         $Console = [FakeConsole]::new()
@@ -100,7 +100,7 @@ Check "a custom label           -> hands back the object, not the label" `
         $Console.Keys.Enqueue([ConsoleKey]::Enter)
         $Menu = New-List "T" @([WslMenuItem]::new("L-1", 1), [WslMenuItem]::new("L-2", 2)) $false
         $Menu.Console = $Console
-        ($Menu.Ask()).Value
+        ($Menu.Prompt()).Value
     }) "2"
 Check "default: Enter takes it without moving" `
     ((Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") 2).Value) "c"
@@ -135,17 +135,17 @@ Check "a host that says no width cuts none " (@([WslMenu]::Fit(@("x" * 400 -join
 Write-Output ""
 Write-Output "--- no console (numbered fallback, answers read from standard input) ---"
 Check "fallback: answer 2       -> the second" `
-    ((New-List "T" (ItemsOf $Items) $false).Ask().Value) "b"
+    ((New-List "T" (ItemsOf $Items) $false).Prompt().Value) "b"
 Check "fallback: empty answer   -> nothing" `
-    ((New-List "T" (ItemsOf $Items) $false).Ask().Value) ""
+    ((New-List "T" (ItemsOf $Items) $false).Prompt().Value) ""
 Check "fallback multi: 1, 2 then v -> both" `
-    (((New-List "T" (ItemsOf $Items) $true).Ask() | ForEach-Object { $_.Value }) -join ",") "a,b"
+    (((New-List "T" (ItemsOf $Items) $true).Prompt() | ForEach-Object { $_.Value }) -join ",") "a,b"
 Check "fallback multi: v alone     -> an empty list, not a cancellation" `
-    ($null -eq (New-List "T" (ItemsOf $Items) $true).Ask()) "False"
+    ($null -eq (New-List "T" (ItemsOf $Items) $true).Prompt()) "False"
 Check "  ... and that list is really empty" `
-    (@((New-List "T" (ItemsOf $Items) $true).Ask()).Count) "0"
+    (@((New-List "T" (ItemsOf $Items) $true).Prompt()).Count) "0"
 Check "fallback multi: empty line  -> cancelled" `
-    ((New-List "T" (ItemsOf $Items) $true).Ask()) ""
+    ((New-List "T" (ItemsOf $Items) $true).Prompt()) ""
 
 Write-Output ""
 Write-Output "--- the drawing: the top of the block is read back AFTER it is drawn ---"
@@ -158,7 +158,7 @@ $Console.Keys.Enqueue([ConsoleKey]::DownArrow)
 $Console.Keys.Enqueue([ConsoleKey]::Enter)
 $Menu = New-List "T" (ItemsOf @("a", "b", "c", "d", "e")) $false
 $Menu.Console = $Console
-$Picked = $Menu.Ask()
+$Picked = $Menu.Prompt()
 
 Check "top read after (34..38, then 40) -> no drift" ($Console.Moves -join ",") "34,35,36,37,38,40"
 Check "and the choice is still right" $Picked.Value "b"
@@ -176,7 +176,7 @@ $Console.Keys.Enqueue([ConsoleKey]::Enter)
 $Menu = New-List "T" (ItemsOf @("a", "b", "c", "d", "e")) $false
 $Menu.Note = "Get more at https://example.test"
 $Menu.Console = $Console
-$Noted = $Menu.Ask()
+$Noted = $Menu.Prompt()
 Check "the rows (33..37) and the way out (40) count it" ($Console.Moves -join ",") "33,34,35,36,37,40"
 Check "  ... and the choice is still right" $Noted.Value "b"
 
@@ -232,7 +232,7 @@ foreach ($n in 1..6) { $Console.Keys.Enqueue([ConsoleKey]::DownArrow) }
 $Console.Keys.Enqueue([ConsoleKey]::Enter)
 $Menu = New-List "T" (ItemsOf @("i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9")) $false
 $Menu.Console = $Console
-$Picked = $Menu.Ask()
+$Picked = $Menu.Prompt()
 
 # The rows as recorded: the marker says where the choice is, so the current
 # row is the one carrying "> ".

@@ -5,7 +5,7 @@
 # and can say there is no keyboard. The gestures are counted, not run.
 #
 # The last checks spawn wsl.ps1 itself, where its words live: the invalid
-# command and its table, and the cancelled menu - both leave before the
+# command and its list, and the cancelled menu - both leave before the
 # engine is ever made, so nothing here needs wsl.exe.
 #
 # Usage:  pwsh -File tests\wslui-test.ps1
@@ -25,7 +25,7 @@ function Check {
     }
 }
 
-# The three rows the checks walk: the real words of the real table, so the
+# The three rows the checks walk: the real words of the real menu, so the
 # twelve-wide column and the marker are read the way the docs show them.
 function New-TestDispatcher {
     $D = [WslMenu]::new("WSL Stack")
@@ -45,8 +45,8 @@ function Run-Choice {
     $T.Keys = [System.Collections.Queue]::new()
     foreach ($Key in $Keys) { $T.Keys.Enqueue($Key) }
     $D.Console = $T
-    $Picked = $D.Ask()
-    if ($Picked) { $Picked.Execute($null) }
+    $Picked = $D.Prompt()
+    if ($Picked) { & $Picked.Action $Picked $null }
     return $Picked
 }
 
@@ -65,7 +65,7 @@ Check "the key 9 (off the list) -> ignored" `
 Check "any other key            -> ignored" `
     ((Run-Choice @([ConsoleKey]::A, [ConsoleKey]::Enter)).Key) "list"
 Check "empty list               -> nothing, and nothing is asked" `
-    (([WslMenu]::new("WSL Stack")).Ask()) ""
+    (([WslMenu]::new("WSL Stack")).Prompt()) ""
 
 Write-Output ""
 Write-Output "--- the block: the marker, the column, the words ---"
@@ -78,7 +78,7 @@ $T.SizeAnswer = @(80, 20)          # the window the docs' samples assume
 $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Console = $T
-$null = $D.Ask()
+$null = $D.Prompt()
 Check "the block, six lines, whole" ($T.Lines[0..5] -join "|") `
     "|WSL Stack|  > list         list our instances and the archives|    build        build an instance from the image|    start        start a stopped instance|  up/down to move, Enter to choose, Escape to cancel"
 
@@ -107,7 +107,7 @@ $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::DownArrow)
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Console = $T
-$Picked = $D.Ask()
+$Picked = $D.Prompt()
 Check "top read after (36..38, then 40) -> no drift" ($T.Moves -join ",") "36,37,38,40"
 Check "  ... and the choice is right" $Picked.Key "build"
 
@@ -124,7 +124,7 @@ $T.Keys = [System.Collections.Queue]::new()
 foreach ($n in 1..6) { $T.Keys.Enqueue([ConsoleKey]::DownArrow) }
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Console = $T
-$Picked = $D.Ask()
+$Picked = $D.Prompt()
 # A two-letter word in the twelve-wide column: eleven spaces between it and
 # its description.
 $Column = (" " * 11)
@@ -142,17 +142,20 @@ Check "a word nobody knows     -> nothing" ($D.Dispatch("nope")) ""
 Check "  ... and routing alone ran no gesture" ($script:Ran -join ",") ""
 
 Write-Output ""
-Write-Output "--- the gesture's context: everything arrives in its parameters ---"
-# wsl.ps1's own shape, pinned: one gesture block for every command, and the
-# command and the run context arrive as parameters - nothing is read from a
-# scope at call time (a closure that read its variables by name worked on one
-# machine and came up empty on another - measured). The context is made after
-# the block, like the manager.
-$Gesture = { param($Command, $Run) $script:Seen = "$($Command.Key):$($Run.Note)" }
+Write-Output "--- the gesture's context: the command and the late context arrive whole ---"
+# wsl.ps1's own shape, pinned: one gesture block, written in that file, and the
+# CALLER runs it at its own scope - never through a class method, which takes
+# the console away from every native the command starts (measured: under a
+# method the child loses its terminal and its stdout is thrown away). The
+# command and the run context arrive as parameters, the context made after the
+# block, like the manager; nothing is read from a scope at call time - a
+# closure that read its variables by name worked on one machine and came up
+# empty on another (measured).
+$Gesture = { param($Command, $Run) $Run.Seen = "$($Command.Key):$($Run.Note)" }
 $Cmd = [WslMenuItem]::new("list", "list our instances and the archives", $Gesture)
 $Run = @{ Note = "made-after" }
-$Cmd.Execute($Run)
-Check "the command and the late context arrive whole" $script:Seen "list:made-after"
+& $Cmd.Action $Cmd $Run
+Check "the command and the late context arrive whole" $Run.Seen "list:made-after"
 
 Write-Output ""
 Write-Output "--- no keyboard: the numbered prompt ---"
@@ -171,8 +174,8 @@ function New-NumberRun {
 }
 
 $Run = New-NumberRun @("2")
-$Picked = $Run[0].Ask()
-if ($Picked) { $Picked.Execute($null) }
+$Picked = $Run[0].Prompt()
+if ($Picked) { & $Picked.Action $Picked $null }
 Check "answer 2                 -> the second" $Picked.Key "build"
 Check "  ... and its gesture ran" ($script:Ran -join ",") "build"
 Check "the rows are numbered, the column holds" `
@@ -180,11 +183,11 @@ Check "the rows are numbered, the column holds" `
 Check "  ... and the question says what to type" ($Run[1].Prompts -join "|") "Which one? (0 to cancel)"
 
 $Run = New-NumberRun @("0")
-Check "answer 0                 -> nothing" ($Run[0].Ask()) ""
+Check "answer 0                 -> nothing" ($Run[0].Prompt()) ""
 $Run = New-NumberRun @("")
-Check "empty answer             -> nothing" ($Run[0].Ask()) ""
+Check "empty answer             -> nothing" ($Run[0].Prompt()) ""
 $Run = New-NumberRun @("x", "1")
-$Picked = $Run[0].Ask()
+$Picked = $Run[0].Prompt()
 Check "a word, then 1           -> the first" $Picked.Key "list"
 Check "  ... and the word was caught" `
     ($Run[1].Lines -contains "  'x' is not one of the numbers above.") "True"
