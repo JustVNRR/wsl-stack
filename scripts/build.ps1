@@ -170,8 +170,8 @@ function Resolve-InstallPath {
 
 # The user the instance opens as: asked with the rest, so the build knows it
 # before the machine starts. The shape is checked here, with the same rule the
-# onboarding applies; whether the image already carries the account is asked
-# of the image itself, just before the import.
+# onboarding applies; whether the account is already one of the image's is
+# read from the tar itself, just before the import.
 function Resolve-DefaultUser {
     param([string]$DistroName)
 
@@ -545,10 +545,19 @@ try {
     }
     New-Item -ItemType Directory -Path $InstallPath -Force | Out-Null
 
-    # The accounts the imported instance will carry are the image's own. The
-    # name is checked against them before anything is created, so the
-    # instance is born with one that passes - nothing corrects it after.
-    while (Test-NativeCommand { docker run --rm $ImageTag id $UserName }) {
+    # The accounts the imported instance will carry are the image's own, and
+    # the tar holds its /etc/passwd whole: the list is read from it, once,
+    # and the question below answers from that list. A tar that cannot be
+    # read yields no list - the import fails on it moments later anyway.
+    $Accounts = @()
+    $PreviousEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $Accounts = @(tar -xOf $TarPath etc/passwd 2>$null | ForEach-Object { ($_ -split ":")[0] })
+    } finally {
+        $ErrorActionPreference = $PreviousEAP
+    }
+    while ($Accounts -contains $UserName) {
         Write-Host "  The account '$UserName' already exists - pick another name." -ForegroundColor (Get-MessageColour warning)
         $UserName = Resolve-DefaultUser -DistroName $DistroName
     }
