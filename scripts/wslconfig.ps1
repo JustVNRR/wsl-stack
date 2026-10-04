@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # No parameter on purpose: there is one .wslconfig on a machine, and it is the
 # user's own file - no list, nothing to pick.
@@ -18,24 +21,14 @@ if (-not (Test-Path $InstanceLib)) {
 
 # The file WSL reads before it starts the virtual machine - the memory cap, the
 # processors, the DNS tunnel, the networking mode. Per machine, not per distro:
-# the instance's own wsl.conf is gmake's (wsl_config, from inside).
-$Path = Join-Path $env:USERPROFILE ".wslconfig"
+# the instance's own wsl.conf is gmake's (wsl_config, from inside). The engine
+# provides it, created commented when there was none: it documents itself, and
+# WSL reads no setting nobody asked for.
+$Report = $Manager.WslConfig()
+$Path = $Report.Path
 
 Write-Host ""
-if (-not (Test-Path $Path)) {
-    # Created commented: it documents itself, and WSL reads no setting nobody
-    # asked for.
-    @'
-# WSL's Windows-wide settings. Read when the WSL machine starts: `wsl --shutdown`
-# then a new start applies a change.
-#
-# The common keys: https://learn.microsoft.com/windows/wsl/wsl-config
-#
-# [wsl2]
-# memory=8GB          # the machine's memory cap
-# processors=4        # the CPUs it may use
-# dnsTunneling=true   # WSL answers the DNS itself
-'@ | Set-Content -Path $Path -Encoding ascii
+if ($Report.Created) {
     Write-Host "  * .wslconfig : " -NoNewline
     Write-Host "created - there was none" -ForegroundColor (Get-MessageColour success)
 } else {

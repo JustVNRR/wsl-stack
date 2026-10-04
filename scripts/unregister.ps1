@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # No parameter on purpose: the instance comes from the list, never from the
 # command line, and the removal asks for the name to be typed before anything
@@ -7,8 +10,8 @@ param ()
 
 $ErrorActionPreference = "Stop"
 
-# Where the instances live, for the one case the list cannot serve.
-$Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
+# Where the instances live, provided by the engine.
+$Root = $Manager.InstancesRoot
 
 # The family's shared half: the marker that tells our instances from any other -
 # a removal that cannot tell them apart targets whatever the registry holds.
@@ -25,7 +28,7 @@ if (-not (Test-Path $InstanceLib)) {
 # ==============================================================================
 # The list is the only way in. A folder left behind by an earlier removal is
 # deleted by hand, not by naming it here.
-$Ours = @([WslInstanceManager]::Ours())
+$Ours = @($Manager.OursHere())
 if ($Ours.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
@@ -36,70 +39,69 @@ if ($Ours.Count -eq 0) {
 }
 
 $Distro = Select-Distro
-$DistroName = $Distro.Name
+if (-not $Distro) {
+    Write-Host ""
+    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+    exit 0
+}
 
+$DistroName = $Distro.Name
 $InstallPath = $Distro.Path
 
 # ==============================================================================
 # 2. CONFIRMATION (destructive) - same style as build.ps1
 # ==============================================================================
-if ($Distro) {
-    [Console]::Beep(1000, 400)
-    Write-Host ""
-    Write-DangerBanner
-    Write-Host ""
-    Write-Host "  The WSL distribution '$DistroName' and ALL its data will be deleted:" -ForegroundColor (Get-MessageColour error)
-    Write-Host ""
-    Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
-    Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
-    Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
-    Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
-    Write-Host ""
-    Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
-    Write-Host ""
-    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-    Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
-    Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
-    $Confirmation = Read-Host " Confirm"
-    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-    Write-Host ""
+[Console]::Beep(1000, 400)
+Write-Host ""
+Write-DangerBanner
+Write-Host ""
+Write-Host "  The WSL distribution '$DistroName' and ALL its data will be deleted:" -ForegroundColor (Get-MessageColour error)
+Write-Host ""
+Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
+Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
+Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
+Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
+Write-Host ""
+Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
+Write-Host ""
+Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
+Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
+$Confirmation = Read-Host " Confirm"
+Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+Write-Host ""
 
-    # -cne, not -ne: PowerShell's -ne ignores case, while the banner above asks
-    # for the exact name.
-    if ($Confirmation -cne $DistroName) {
-        Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
+# -cne, not -ne: PowerShell's -ne ignores case, while the banner above asks
+# for the exact name.
+if ($Confirmation -cne $DistroName) {
+    Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
+    exit 0
+}
+
+# The last moment to take a copy. Handed to the engine via Unregister($Instance, $ArchiveFirst).
+Write-Host ""
+$ArchivePrompt = [string](Read-Host "Archive it before deleting? [y/N]")
+$ArchiveFirst = ($ArchivePrompt -match "^[yY]")
+
+# The same name is replaced without a word, otherwise - said, not quiet.
+if ($ArchiveFirst) {
+    $ArchiveDir = Join-Path $Manager.ArchivesRoot $DistroName
+    if (Test-Path $ArchiveDir) {
+        Write-Host "  '$DistroName' exists: replacing its archive." -ForegroundColor (Get-MessageColour warning)
     }
+}
 
-    # The last moment to take a copy. archive.ps1 writes it to <Root>\archives,
-    # stops the instance if needed, and leaves it stopped.
+Write-Host "==> Stopping the distro processes..." -ForegroundColor (Get-MessageColour info)
+Write-Host "==> Unregistering the distro..." -ForegroundColor (Get-MessageColour info)
+
+# Hand execution to the engine: executes Archive if requested, unregisters, cleans folders and refreshes state
+try {
+    $Report = $Manager.Unregister($Distro, $ArchiveFirst)
+    $Removed = $Report.Removed
+} catch {
     Write-Host ""
-    $ArchiveIt = [string](Read-Host "Archive it before deleting? [y/N]")
-    if ($ArchiveIt -match "^[yY]") {
-        $ArchiveScript = Join-Path $PSScriptRoot "archive.ps1"
-        if (-not (Test-Path $ArchiveScript)) {
-            Write-Host ""
-            Write-Host "[ABORT] archive.ps1 is not next to this script - not deleting anything." -ForegroundColor (Get-MessageColour error)
-            Write-Host "        The instance is untouched." -ForegroundColor (Get-MessageColour muted)
-            exit 1
-        }
-        & $ArchiveScript -DistroName $DistroName -Name $DistroName -AfterExport Leave
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host ""
-            Write-Host "[ABORT] The archive did not complete - not deleting anything." -ForegroundColor (Get-MessageColour error)
-            Write-Host "        The instance is untouched." -ForegroundColor (Get-MessageColour muted)
-            exit 1
-        }
-    }
-
-    # The destruction belongs to the instance now - the stop (its failure
-    # ignored: a distro half gone must not block its own removal), the
-    # unregister, the install folder and the Windows-side housekeeping; what
-    # it found comes back for the report below. The archive, when asked for
-    # above, was written by archive.ps1 - its own report and its own guards.
-    Write-Host "==> Stopping the distro processes..." -ForegroundColor (Get-MessageColour info)
-    Write-Host "==> Unregistering the distro..." -ForegroundColor (Get-MessageColour info)
-    $Removed = $Distro.Unregister($false)
+    Write-Host "[ERROR] Could not unregister '$DistroName': $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
+    exit 1
 }
 
 # ==============================================================================
@@ -138,7 +140,7 @@ if ($Removed.DockerError) {
 # ==============================================================================
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor (Get-MessageColour success)
-Write-Host "                WSL Stack Instance Removed!" -ForegroundColor (Get-MessageColour success)
+Write-Host "                WSL Stack Instance Removed!                 " -ForegroundColor (Get-MessageColour success)
 Write-Host "============================================================" -ForegroundColor (Get-MessageColour success)
 Write-Host ""
 Write-Host "  * Distro          : " -NoNewline; Write-Host "$DistroName" -ForegroundColor (Get-MessageColour info)
@@ -150,6 +152,11 @@ if ($Removed.FolderState -eq "removed") {
 }
 Write-Host "  * Terminal ghosts : " -NoNewline; Write-Host "$($Removed.GhostsPruned) pruned" -ForegroundColor (Get-MessageColour info)
 Write-Host "  * Fragments       : " -NoNewline; Write-Host "$($Removed.FragmentsRemoved) removed" -ForegroundColor (Get-MessageColour info)
+
+if ($Report.Archive) {
+    Write-Host "  * Backup archive  : " -NoNewline; Write-Host "$($Report.Archive.Destination)" -ForegroundColor (Get-MessageColour success)
+}
+
 Write-Host ""
 Write-Host " Restart Windows Terminal to refresh the profile list."
 Write-Host ""

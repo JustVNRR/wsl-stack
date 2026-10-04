@@ -14,11 +14,9 @@
 # scripts\instance.ps1 is not a command: it holds what the other scripts share,
 # and is not listed here.
 #
-# What this file loads, it loads once: the shared half (scripts\instance.ps1) -
-# the menu below asks through it, and a command's own types settle on it when
-# the command is called. Each command then runs on a manager of its own (the
-# default of its -Manager parameter); the day they all take one, this file
-# will hand over the single one.
+# What this file loads, it loads once: the shared half (scripts\instance.ps1),
+# and THE manager - the engine every command calls. The manager is made here
+# and handed to the command; a command run on its own makes its own.
 # ==============================================================================
 
 $Scripts = Join-Path $PSScriptRoot "scripts"
@@ -62,9 +60,9 @@ $Commands = @(
 )
 
 # The shared half - the classes, the menus, the packs, the marker - read once,
-# here: the question below asks through it, and the command dispatched at the
-# bottom settles its own types on it. Asking is scripts\menu.ps1's job, and it
-# must not be written a second time here.
+# here: the question below asks through it, the manager just under is built on
+# it, and the command dispatched at the bottom loads it anyway. Asking is
+# scripts\menu.ps1's job, and it must not be written a second time here.
 $InstanceLib = Join-Path $Scripts "instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
@@ -113,11 +111,16 @@ if (-not (Test-Path $Script)) {
     exit 1
 }
 
+# The engine, made once: every command receives this same manager - the command
+# asks, the manager acts through the model, and nothing else reaches the disk
+# or wsl.exe.
+$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+
 # Whatever followed the command is handed over as it came: a command that has
 # options keeps them, the others ignore them.
 $Rest = @()
 if ($args.Count -gt 1) { $Rest = $args[1..($args.Count - 1)] }
-& $Script @Rest
+& $Script @Rest -Manager $Manager
 
 if ($null -eq $LASTEXITCODE) { exit 0 }
 exit $LASTEXITCODE

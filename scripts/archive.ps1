@@ -196,7 +196,7 @@ if ($AfterExport -eq "Start") {
     if (Test-Path $UnregisterScript) {
         # unregister.ps1 takes no name: it lists and the user picks again.
         Write-Host "Pick '$DistroName' in the list below, and type its name to confirm." -ForegroundColor (Get-MessageColour muted)
-        & $UnregisterScript
+        & $UnregisterScript -Manager $Manager
         if ($LASTEXITCODE -eq 0) {
             Write-Host "The archive is the only copy of '$DistroName' left." -ForegroundColor (Get-MessageColour muted)
         }

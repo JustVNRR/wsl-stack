@@ -1,14 +1,16 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # No parameter on purpose: the instance comes from the list - a name typed by
 # heart is a name you can get wrong.
 
 $ErrorActionPreference = "Stop"
 
-# One working folder, no guessing: instances in <Root>\<name>, archives in
-# <Root>\archives - the family's rule.
-$Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
+# One working folder, no guessing: provided by the engine.
+$Root = $Manager.InstancesRoot
 
 # The family's shared half: the marker.
 $InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
@@ -21,11 +23,12 @@ if (-not (Test-Path $InstanceLib)) {
 
 # 1. Which instance
 $Distro = Select-Distro
+if (-not $Distro) {
+    Write-Host ""
+    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+    exit 0
+}
 $DistroName = $Distro.Name
-
-# Compacting works either way, but the archive does not - whatever we stop is
-# started again at the end.
-$WasRunning = (Get-DistroNames -Running) -contains $DistroName
 
 $BeforeBytes = Get-VhdxSize $Distro.Path
 
@@ -38,35 +41,34 @@ Write-Host "  freed over time comes back to Windows. Nothing inside is touched."
 
 # 2. A copy first, yes by default: compacting rewrites the disk's metadata -
 # exactly what a backup a minute before turns into a non-event.
-$ArchiveScript = Join-Path $PSScriptRoot "archive.ps1"
 Write-Host ""
 $ArchiveFirst = [string](Read-Host "Archive it first? [Y/n]")
 if ($ArchiveFirst -match "^[nN]") {
     Write-Host "  No archive - compacting on its own." -ForegroundColor (Get-MessageColour muted)
 } else {
-    if (-not (Test-Path $ArchiveScript)) {
-        Write-Host ""
-        Write-Host "[ABORT] archive.ps1 is not next to this script - no archive, no operation." -ForegroundColor (Get-MessageColour error)
-        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
-        exit 1
+    # Typing an existing name is how an archive is replaced - said, not done
+    # quietly.
+    $ArchiveDir = Join-Path $Manager.ArchivesRoot $DistroName
+    if (Test-Path $ArchiveDir) {
+        Write-Host "  '$DistroName' exists: replacing its archive." -ForegroundColor (Get-MessageColour warning)
     }
-    # Leave: shrink decides what the instance does next, not the archive step.
-    & $ArchiveScript -DistroName $DistroName -Name $DistroName -AfterExport Leave
-    if ($LASTEXITCODE -ne 0) {
+    try {
+        Write-Host "==> Creating safety archive..." -ForegroundColor (Get-MessageColour info)
+        $null = $Manager.Archive($Distro, $DistroName, "tar.gz")
+    } catch {
         Write-Host ""
-        Write-Host "[ABORT] The archive did not complete - nothing was compacted." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] The archive did not complete - nothing was compacted: $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
         Write-Host "        The instance is exactly as it was." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
 }
 
-# 3. Compact. One command, in place, working on a running instance; it refuses
-# on its own if the disk cannot be compacted - nothing to prepare, nothing to
-# undo.
+# 3. Compact. Delegated to the engine: it compacts the disk, tracks the delta,
+# and automatically restarts the instance if it was running beforehand.
 Write-Host ""
 Write-Host "==> Compacting the virtual disk..." -ForegroundColor (Get-MessageColour info)
 try {
-    $Result = $Distro.Shrink()
+    $Result = $Manager.Shrink($Distro)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
@@ -88,12 +90,11 @@ if ($Result.Freed -gt 0) {
     Write-Host "nothing - the disk held no space to give back" -ForegroundColor (Get-MessageColour muted)
 }
 
-# 4. Left the way it was found.
-if ($WasRunning) {
-    try {
-        $Distro.Start()
+# 4. Left the way it was found (reported from the engine's return).
+if ($Result.WasRunning) {
+    if ($Result.Restarted) {
         Write-Host "'$DistroName' is running again." -ForegroundColor (Get-MessageColour success)
-    } catch {
+    } else {
         Write-Host "Could not start '$DistroName' - start it with: wsl -d $DistroName" -ForegroundColor (Get-MessageColour warning)
     }
     Write-Host ""
