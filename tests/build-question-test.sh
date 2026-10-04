@@ -13,6 +13,8 @@
 #   - the user name is asked with the other questions (after the checklist,
 #     before the build), and refused names come back to the question - the
 #     case ('Root'), and the leading underscore adduser would not take
+#   - an empty answer takes the proposed Windows name, cleaned into one the
+#     rule accepts
 #   - an empty checklist, applied or cancelled, means no pack, says so, and is
 #     asked no confirmation
 #   - a pack chosen is installed later, so the failure report names it
@@ -29,6 +31,9 @@ RepoTemplate=$(cd "$TestsDir/.." && pwd)
 Run=$(cygpath -w "$TestsDir/fake-docker-run.ps1")
 # The engine under test: PowerShell 7, or what PS_ENGINE names.
 PS=${PS_ENGINE:-pwsh}
+# The Windows account name the build proposes: dotted and cased, so the
+# cleaning is exercised wherever the suite runs - the sandbox is not Windows.
+export USERNAME="Jean.Dupont"
 
 Failures=0
 Out=$(mktemp)
@@ -62,8 +67,12 @@ before() {
 }
 
 echo "--- cancelled at the checklist (answer 0)"
-run_build 'pack-qtest-1\n\n0\nqtestuser\n'
+# The user name is left empty: the proposed Windows name must be taken. The
+# name after it is the fallback for a build that fails to propose - the check
+# on the hint is what tells the two apart.
+run_build 'pack-qtest-1\n\n0\n\nqtestuser\n'
 check "says no pack was selected"     "$(contains "[OK] No pack selected: 'pack-qtest-1' will be built without one.")" "yes"
+check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
 check "the run stops on the deployment"  "$(contains '[ERROR] DURING DEPLOYMENT')" "yes"
 check "and says the deployment failed"   "$(contains 'WSL import failed.')" "yes"

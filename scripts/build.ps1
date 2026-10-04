@@ -168,19 +168,38 @@ function Resolve-InstallPath {
     return $InstallPath
 }
 
+# The Windows account's name, cleaned into one the rule accepts: lowercase,
+# accents unfolded, and whatever separators were left turning into single
+# dashes. Nothing is proposed when what remains does not pass - a name made
+# up by the build would be worse than no proposal.
+function Get-WindowsUserProposal {
+    $Name = "$env:USERNAME".ToLower()
+    $Name = $Name.Normalize([Text.NormalizationForm]::FormD) -replace '\p{Mn}', ''
+    $Name = $Name -replace '[^a-z0-9_-]+', '-'
+    $Name = $Name.Trim('-', '_')
+    if ($Name -cmatch '^[a-z][a-z0-9_-]*$') { return $Name }
+    return ""
+}
+
 # The user the instance opens as: asked with the rest, so the build knows it
-# before the machine starts. The shape is checked here, with the same rule the
-# onboarding applies; whether the account is already one of the image's is
-# read from the tar itself, just before the import.
+# before the machine starts. The Windows account's name is offered as the
+# answer when it cleans into one; the shape is checked here, with the same
+# rule the onboarding applies; and whether the account is already one of the
+# image's is read from the tar itself, just before the import.
 function Resolve-DefaultUser {
-    param([string]$DistroName)
+    param([string]$DistroName, [string]$Proposed = "")
+
+    $Prompt = "User name for '$DistroName' (CTRL+C to abort)"
+    if ($Proposed) { $Prompt = "User name for '$DistroName' [$Proposed] (CTRL+C to abort)" }
 
     $UserName = $null
     while (-not $UserName) {
-        $Answer = [string](Read-Host "User name for '$DistroName' (CTRL+C to abort)")
+        $Answer = [string](Read-Host $Prompt)
         # Interpolated first: Read-Host at end of input hands back null, and
         # Trim() on it would throw instead of falling back to the question.
         $Answer = "$Answer".Trim()
+        # An empty answer takes the proposal, when there is one to take.
+        if (-not $Answer -and $Proposed) { $Answer = $Proposed }
         # -cmatch, not -match: PowerShell's -match ignores case, and 'Root'
         # would pass here only to be refused inside.
         if ($Answer -cmatch '^[a-z][a-z0-9_-]*$') {
@@ -502,7 +521,7 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
 # nothing asks again once the machine starts working - the answer waits in a
 # variable, the instance is born with it at step 5, and the onboarding
 # receives it at step 6.
-$UserName = Resolve-DefaultUser -DistroName $DistroName
+$UserName = Resolve-DefaultUser -DistroName $DistroName -Proposed (Get-WindowsUserProposal)
 
 # What this run has done, for the finally block and the exit code to read:
 # whether the instance that was there went away, whether this run registered
