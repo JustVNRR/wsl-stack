@@ -10,6 +10,8 @@
 #                  there records the ORDER, which is the whole design: the
 #                  newcomer's folder is placed BEFORE a remove.sh asks its
 #                  question, so a shared package is left where it is.
+#                  Get-InstanceHome is stubbed below: the root-side scripts
+#                  ask it directly, and it would otherwise reach the machine.
 #
 # Run it with tests\packs-select-test.answers on standard input: the answers,
 # one per line, in the order they are read - and in these exact counts, because
@@ -187,6 +189,12 @@ function Invoke-InInstance {
 function Reset { $script:Calls = @(); $script:FailCommand = ""; $script:FailCode = 1; $script:FailAfter = 1; $script:FailSeen = 0 }
 function Commands { return @($script:Calls | ForEach-Object { ($_ -split " :: ", 2)[1] }) }
 
+# The root-side moves ask the instance for the user's home through wsl.exe
+# directly - outside the stand-in - and Enable-PackSudo reads the user name out
+# of it. Answered here: the machine running this suite has no such instance to
+# ask, and an unanswered call arrived as wsl's own error text.
+function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
+
 $Add = @([PSCustomObject]@{ Name = "fake-a"; Path = "X:\packs\fake-a"; Description = "d" })
 $Directory = "/home/u/.config/packs"
 
@@ -199,22 +207,31 @@ Check "the install comes after the removal" `
     ($script:Calls.IndexOf("$Directory/fake-a :: bash install.sh") -gt
      $script:Calls.IndexOf("~ :: rm -rf $Directory/fake-b")) "True"
 Check "and the dependencies are taken back last" `
-    ((@($script:Calls[-3..-1] | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ")) `
-    "cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh"
+    ((@($script:Calls[-4..-1] | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ")) `
+    "cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | env HOME=/home/u bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh | rm -f /etc/sudoers.d/90-wsl-stack-packs"
 Check "nothing failed" ($null -eq $Result) "True"
 Check "  ... and the instance's own words are not in the answer" ("$Result".Contains("INSTANCE-SAYS")) "False"
+
+# The door the installs run behind: one rule, written through visudo's own
+# check, opened before them and removed after - and the rule names the user
+# the stub's home gives. The line carries a newline: printf writes whole lines.
+$DoorOpen = "bash -c printf '%s`n' 'u ALL=(ALL) NOPASSWD: ALL' > /tmp/wsl-stack-pack-sudo" +
+    " && chmod 0440 /tmp/wsl-stack-pack-sudo" +
+    " && visudo -cf /tmp/wsl-stack-pack-sudo > /dev/null" +
+    " && mv /tmp/wsl-stack-pack-sudo /etc/sudoers.d/90-wsl-stack-packs"
+$DoorClose = "rm -f /etc/sudoers.d/90-wsl-stack-packs"
 
 Reset
 $Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
 Check "nothing to remove -> no removal, and no cleanup" `
-    ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | bash install.sh"
+    ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | $DoorOpen | bash install.sh | $DoorClose"
 
 Reset
 $script:FailCommand = "test -f"
 $Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToRemove @("fake-b")
 Check "no remove.sh -> the folder leaves, no script runs" `
     ((Commands) -join " | ") `
-    "test -f $Directory/fake-b/remove.sh | rm -rf $Directory/fake-b | cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh"
+    "test -f $Directory/fake-b/remove.sh | rm -rf $Directory/fake-b | cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | env HOME=/home/u bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh"
 
 Reset
 $script:FailCommand = "cp -r ."
@@ -244,7 +261,7 @@ Check "  ... its folder goes back out" `
      $script:Calls.IndexOf("$Directory/fake-a :: bash install.sh")) "True"
 
 Reset
-$script:FailCommand = "bash remove.sh"
+$script:FailCommand = "env HOME=/home/u bash remove.sh"
 $Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add -ToRemove @("fake-b")
 Check "a failed remove.sh names that pack" "$($Result.Pack)" "fake-b"
 Check "  ... and nothing is installed after it" `
