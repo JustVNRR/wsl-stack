@@ -115,7 +115,11 @@ class WslInstance {
     # exit code comes back - handed over, not read.
     [int] Shell() {
         $Arguments = '-d {0} --cd ~' -f $this.Name
-        $Process = Start-Process wsl.exe -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
+        # -Wait waits on the process AND its descendants: a WSL helper that
+        # outlives the shell holds the hand back. The session's own process is
+        # the one to wait for.
+        $Process = Start-Process wsl.exe -ArgumentList $Arguments -NoNewWindow -PassThru
+        $Process.WaitForExit()
         return $Process.ExitCode
     }
 
@@ -410,11 +414,13 @@ class WslInstance {
     # home the instance names - a tilde only expands inside a shell.
     [void] RefreshPacks() {
         $this.InstalledPacks = @()
-        $home = @(& wsl.exe -d $this.Name -- printenv HOME 2>$null |
+        # Not named $home: HOME is a PowerShell automatic variable, and the
+        # assignment is refused - read-only.
+        $InstanceHome = @(& wsl.exe -d $this.Name -- printenv HOME 2>$null |
             ForEach-Object { ($_ -replace "`0", "").Trim() } | Where-Object { $_ })
-        if (-not $home) { return }
+        if (-not $InstanceHome) { return }
 
-        $packsDirectory = "$($home[0])/.config/packs"
+        $packsDirectory = "$($InstanceHome[0])/.config/packs"
         $found = & wsl.exe -d $this.Name -- find $packsDirectory -mindepth 2 -maxdepth 2 -name pack.conf 2>$null
         foreach ($conf in @($found)) {
             $clean = "$conf".Trim()

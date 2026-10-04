@@ -1,5 +1,5 @@
-# Drives the ask/apply pair of scripts\packs.ps1 with no instance and no
-# terminal.
+# Drives the ask/apply pair - the checklist in scripts\prompts.ps1, the
+# applying in scripts\packs.ps1 - with no instance and no terminal.
 #
 #   Select-Packs   is answered on standard input: with no console the numbered
 #                  prompt is what runs, and it reads its answers from there.
@@ -33,6 +33,7 @@
 #
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
+. (Join-Path $PSScriptRoot "..\scripts\prompts.ps1")
 
 $Failures = 0
 function Check {

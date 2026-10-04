@@ -288,6 +288,8 @@ the repository at runtime.
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
 │   ├── message.ps1          #   and the colour a message takes, read from the
 │                            #   colour scheme of the window it is printed in
+│   ├── prompts.ps1          # The questions a command asks: the instance's full
+│                            #   name, its packs checklist, the user it opens as
 │   ├── theme.ps1            # What `theme` opens, and the menu it asks with
 │   ├── icon.ps1             #   the icon alone: its letters, its colours, an image
 │   ├── font.ps1             #   the font alone

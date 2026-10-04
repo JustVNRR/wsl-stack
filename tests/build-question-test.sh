@@ -71,7 +71,7 @@ echo "--- cancelled at the checklist (answer 0)"
 # name after it is the fallback for a build that fails to propose - the check
 # on the hint is what tells the two apart.
 run_build 'pack-qtest-1\n\n0\n\nqtestuser\n'
-check "says no pack was selected"     "$(contains "[OK] No pack selected: 'pack-qtest-1' will be built without one.")" "yes"
+check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
 check "the run stops on the deployment"  "$(contains '[ERROR] DURING DEPLOYMENT')" "yes"
@@ -81,7 +81,7 @@ check "exit code 1"                      "$Code" "1"
 echo ""
 echo "--- empty checklist, applied (answer v)"
 run_build 'pack-qtest-2\n\nv\nqtestuser\n'
-check "says no pack was selected"     "$(contains "[OK] No pack selected: 'pack-qtest-2' will be built without one.")" "yes"
+check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
 check "exit code 1"                      "$Code" "1"
 
@@ -111,7 +111,7 @@ echo ""
 echo "--- the folder question's other answers: n, an unusable path, cancel"
 run_build 'path-qtest-1\nn\nx<y\n\n'
 check "says the path is unusable" "$(contains "'x<y' is not a usable path.")" "yes"
-check "and cancels on the empty answer" "$(contains '[ABORT] Operation cancelled by user. Nothing was modified.')" "yes"
+check "and cancels on the empty answer" "$(contains '[ABORT] Operation cancelled by user.')" "yes"
 check "nothing is built"                "$(contains '==> 1. Building Docker')" "no"
 check "exit code 0"                     "$Code" "0"
 

@@ -30,6 +30,16 @@ if (-not (Test-Path $UserNameLib)) {
 }
 . $UserNameLib
 
+# The questions - the instance's full name, its packs, its user - live in
+# their own file: the build asks all of them, and manage_packs the packs one.
+$PromptsLib = Join-Path $PSScriptRoot "prompts.ps1"
+if (-not (Test-Path $PromptsLib)) {
+    Write-Host ""
+    Write-Host "[ABORT] scripts\prompts.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
+. $PromptsLib
+
 if ($Ignored) {
     Write-Host ""
     Write-Host "[ABORT] This command takes no options." -ForegroundColor (Get-MessageColour error)
@@ -109,184 +119,6 @@ function Assert-DestructionStillMatches {
     }
 
     return $Here
-}
-
-# The folder question, whole: the proposal, the three refusals, the folder
-# asked again, and the two checks the erasing below depends on. An empty answer
-# cancels the run, like the question it replaces.
-function Resolve-InstallPath {
-    param([string]$DistroName, [string]$Root, [object[]]$Registered)
-
-    $Folder = $Root
-    $InstallPath = $null
-    while (-not $InstallPath) {
-        # A path Windows refuses is a typo, not a reason to stop. The refused
-        # characters are spelled out: .NET Framework - 5.1 - threw on them from
-        # inside GetFullPath, .NET Core - 7 - walks past them.
-        $Full = $null
-        $Refused = ($Folder.IndexOfAny([char[]]'"<>|') -ge 0) -or ($Folder -match '[\x00-\x1f]')
-        if (-not $Refused) {
-            try {
-                $Full = [System.IO.Path]::GetFullPath((Join-Path $Folder $DistroName)).TrimEnd('\')
-            } catch { }
-        }
-
-        # Step 4 erases this path recursively: a folder holding another instance
-        # would take that instance with it.
-        $Elsewhere = $null
-        if ($Full) {
-            $Elsewhere = $Registered | Where-Object {
-                $_.Name -ne $DistroName -and
-                ($_.Path -eq $Full -or $_.Path.StartsWith("$Full\", [System.StringComparison]::OrdinalIgnoreCase))
-            } | Select-Object -First 1
-        }
-
-        # The rebuild is the only case where this folder is ours to erase, and
-        # the instance's own name is what says so.
-        $ItsOwn = $Registered | Where-Object { $_.Name -eq $DistroName -and $_.Path -eq $Full } | Select-Object -First 1
-        $Occupied = $false
-        if ($Full -and (Test-Path $Full) -and (-not $ItsOwn)) {
-            $Occupied = @(Get-ChildItem -Path $Full -Force -ErrorAction SilentlyContinue).Count -gt 0
-        }
-
-        if (-not $Full) {
-            Write-Host "  '$Folder' is not a usable path." -ForegroundColor (Get-MessageColour warning)
-        } elseif ($Elsewhere) {
-            Write-Host "  $Full is, or holds, the folder of '$($Elsewhere.Name)'." -ForegroundColor (Get-MessageColour warning)
-            Write-Host "  Erasing it would take that instance with it." -ForegroundColor (Get-MessageColour warning)
-        } elseif ($Occupied) {
-            Write-Host "  $Full already exists, please choose another location." -ForegroundColor (Get-MessageColour warning)
-        } else {
-            # Shown before it is created; a no is a change of mind about the
-            # location - nothing has been written yet.
-            $Answer = [string](Read-Host "Create [$Full]? [Y/n]")
-            if ($Answer -notmatch "^[nN]") {
-                $InstallPath = $Full
-                continue
-            }
-        }
-
-        # Another folder, asked the same way; an empty answer cancels.
-        $Answer = [string](Read-Host "Folder for '$DistroName' (or Enter to cancel)")
-        if ([string]::IsNullOrWhiteSpace($Answer)) {
-            Write-Host ""
-            Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-            exit 0
-        }
-        $Folder = $Answer.Trim()
-    }
-    return $InstallPath
-}
-
-# The user the instance opens as: asked with the rest, so the build knows it
-# before the machine starts. The Windows account's name is offered as the
-# answer when it cleans into one; the shape is checked here, with the same
-# rule the onboarding applies; and whether the account is already one of the
-# image's is read from the tar itself, just before the import.
-function Resolve-DefaultUser {
-    param([string]$DistroName, [string]$Proposed = "")
-
-    $Prompt = "User name for '$DistroName' (CTRL+C to abort)"
-    if ($Proposed) { $Prompt = "User name for '$DistroName' [$Proposed] (CTRL+C to abort)" }
-
-    $UserName = $null
-    while (-not $UserName) {
-        $Answer = [string](Read-Host $Prompt)
-        # Interpolated first: Read-Host at end of input hands back null, and
-        # Trim() on it would throw instead of falling back to the question.
-        $Answer = "$Answer".Trim()
-        # An empty answer takes the proposal, when there is one to take.
-        if (-not $Answer -and $Proposed) { $Answer = $Proposed }
-        # -cmatch, not -match: PowerShell's -match ignores case, and 'Root'
-        # would pass here only to be refused inside.
-        if ($Answer -cmatch '^[a-z][a-z0-9_-]*$') {
-            $UserName = $Answer
-        } else {
-            Write-Host "  Lowercase letters, digits, '_' and '-' only, starting with a letter." -ForegroundColor (Get-MessageColour hint)
-        }
-    }
-    return $UserName
-}
-
-# The instance's full name, resolved: which instance it is, where it will
-# live, and - when Windows already carries the name - the destruction that
-# takes. One question after the other, all of it before the machine starts;
-# the checks hold on a first build too, where no distribution exists yet and
-# the banner never shows. An empty answer anywhere, or a name not retyped,
-# cancels the run with nothing modified. Answers the name, the folder, and
-# whether Windows already had the name.
-function Resolve-InstanceIdentity {
-    param([string]$Root)
-
-    $DistroName = $null
-    while (-not $DistroName) {
-        $Answer = [string](Read-Host "Name of the instance (CTRL+C to abort)")
-        if ([string]::IsNullOrWhiteSpace($Answer)) {
-            Write-Host ""
-            Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-            exit 0
-        }
-        $Answer = $Answer.Trim()
-        if ($Answer -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
-            $DistroName = $Answer
-        } else {
-            Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
-        }
-    }
-
-    # What Windows already knows, read once and read strictly: this one list
-    # answers "is this path another instance's folder" below, "is this name
-    # taken" for the banner, and "may this still be erased" just before the
-    # erasing. A list that cannot be read stops the run rather than passing
-    # for an empty one.
-    try {
-        $Registered = @(Get-RegisteredDistros)
-    } catch {
-        Write-Host ""
-        Write-Host "[ABORT] The list of registered WSL distributions cannot be read." -ForegroundColor (Get-MessageColour error)
-        Write-Host "        See what 'wsl --list --verbose' says, then run this script again." -ForegroundColor (Get-MessageColour hint)
-        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
-        exit 1
-    }
-    $WasRegistered = [bool]($Registered | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1)
-
-    $InstallPath = Resolve-InstallPath -DistroName $DistroName -Root $Root -Registered $Registered
-
-    # The safety check: a name Windows already carries is destroyed only once
-    # the exact name is typed back - the banner asks for it, and a reflexive
-    # Enter aborts.
-    if ($WasRegistered) {
-        [Console]::Beep(1000, 400)
-        Write-Host ""
-        Write-DangerBanner
-        Write-Host ""
-        Write-Host "  A WSL distribution named '$DistroName' ALREADY exists." -ForegroundColor (Get-MessageColour error)
-        Write-Host ""
-        Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
-        Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - Erasing the install folder: $InstallPath" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
-        Write-Host ""
-        Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
-        Write-Host ""
-        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-        Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
-        Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
-        $Confirmation = Read-Host " Confirm"
-        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-        Write-Host ""
-
-        # -cne, not -ne: PowerShell's -ne ignores case, while the banner above
-        # asks for the exact name. The point is that the name is read and
-        # typed, not that a reflexive Enter carries through.
-        if ($Confirmation -cne $DistroName) {
-            Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
-            exit 0
-        }
-    }
-
-    return [PSCustomObject]@{ Name = $DistroName; InstallPath = $InstallPath; WasRegistered = $WasRegistered }
 }
 
 # The deployment's steps, named one by one: each goes through the checked
@@ -528,7 +360,7 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
 
     if ($null -eq $PackSelection -or $PackSelection.ToAdd.Count -eq 0) {
         Write-Host ""
-        Write-Host "[OK] No pack selected: '$DistroName' will be built without one." -ForegroundColor (Get-MessageColour success)
+        Write-Host "[OK] No pack selected." -ForegroundColor (Get-MessageColour success)
         $PackSelection = $null
     }
 }
@@ -693,10 +525,16 @@ finally {
             Write-Host "The Docker image was kept: the next run reuses it and rebuilds only what changed." -ForegroundColor (Get-MessageColour muted)
         }
 
-        # The packs were chosen before the machine started; the deployment
-        # stopped before they could be installed, and the variable still says
-        # which ones, so the news is exact rather than a guess.
-        if ($null -ne $PackSelection) {
+        # What became of the packs is told from the run itself: the report
+        # exists the moment the install ran - whatever failed after it - and
+        # only before it is the chosen list the whole news.
+        if ($null -ne $PackResult) {
+            Write-Host "The packs chosen earlier: " -NoNewline
+            Write-Host "$($PackResult.Report[0])" -ForegroundColor $PackResult.Colour
+            foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
+                Write-Host "  $Line" -ForegroundColor $PackResult.Colour
+            }
+        } elseif ($null -ne $PackSelection) {
             $WantedPacks = ($PackSelection.ToAdd | ForEach-Object { $_.Name }) -join ", "
             Write-Host "The packs chosen earlier ($WantedPacks) were not installed: the build stopped before them." -ForegroundColor (Get-MessageColour warning)
             if ($RegisteredNow) {
