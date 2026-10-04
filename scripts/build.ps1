@@ -599,9 +599,11 @@ try {
     # is wiped before anyone can read it.
     $ProfileResult = $Instance.ApplyTerminalProfile()
 
-    # Installed after the instance exists; the news lands in the summary below
-    # and on the screen the shell opens on.
+    # Installed after the instance exists; the instance then reads what it
+    # carries - its description says so - and the failures are told in the
+    # summary below and on the screen the shell opens on.
     $PackResult = Install-SelectedPacks -DistroName $DistroName -PackSelection $PackSelection
+    $Instance.RefreshPacks()
 
     Clear-Host
     Write-Host "============================================================" -ForegroundColor (Get-MessageColour success)
@@ -616,10 +618,9 @@ try {
     if (-not $ProfileResult.Applied) {
         Write-Host "  * Terminal profile  : not automated - configure the appearance manually (Ctrl+,)" -ForegroundColor (Get-MessageColour hint)
     }
-    Write-Host "  * Packs             : " -NoNewline
-    if ($PackResult.Report.Count -eq 0) {
-        Write-Host "none" -ForegroundColor "DarkGray"
-    } else {
+    # What it carries is in the description above; only the failures are news.
+    if ($PackResult.Colour -eq "Red") {
+        Write-Host "  * Packs             : " -NoNewline
         Write-Host "$($PackResult.Report[0])" -ForegroundColor $PackResult.Colour
         foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
             Write-Host "$(' ' * 24)$Line" -ForegroundColor $PackResult.Colour

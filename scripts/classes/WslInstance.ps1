@@ -33,18 +33,20 @@ class WslInstance {
     # belongs to the callers that actually need it (RefreshState).
     WslInstance() {}
 
-    # The instance as a block of lines, its look included - whose description
-    # is the theme's own. Whoever shows it decides where and when; one
-    # Write-Host is enough.
+    # The instance as a block of lines, its look and its packs included -
+    # whose description is the theme's own. Whoever shows it decides where
+    # and when; one Write-Host is enough.
     [string] ToString() {
         # Not named $Look: that is this class's own member (and PowerShell does
         # not tell the two cases apart).
         $LookLine = if ($this.Look) { "$($this.Look)" } else { "-" }
+        $PacksLine = if ($this.InstalledPacks.Count -eq 0) { "none" } else { $this.InstalledPacks -join ", " }
         $Lines = @(
             "  * Distribution Name : $($this.Name)",
             "  * Default User      : $($this.DefaultUser)",
             "  * Install Path      : $($this.Path)",
-            "  * Look              : $LookLine"
+            "  * Look              : $LookLine",
+            "  * Packs             : $PacksLine"
         )
         return ($Lines -join "`n")
     }
