@@ -595,11 +595,9 @@ try {
     Stop-WslDistro -Name $DistroName
 
     # The profile - the font, the icon, the fragment, the tab - belongs to the
-    # instance; what it could not do is said here.
+    # instance; what it could not do is said in the summary below - this screen
+    # is wiped before anyone can read it.
     $ProfileResult = $Instance.ApplyTerminalProfile()
-    foreach ($Note in $ProfileResult.Warnings) {
-        Write-Host "  * Terminal profile  : $Note" -ForegroundColor (Get-MessageColour warning)
-    }
 
     # Installed after the instance exists; the news lands in the summary below
     # and on the screen the shell opens on.
@@ -614,6 +612,9 @@ try {
     Write-Host ""
     # The instance describes itself; one call shows the lot.
     Write-Host "$Instance"
+    foreach ($Note in $ProfileResult.Warnings) {
+        Write-Host "  * Terminal profile  : $Note" -ForegroundColor (Get-MessageColour warning)
+    }
     if (-not $ProfileResult.Applied) {
         Write-Host "  * Terminal profile  : not automated - configure the appearance manually (Ctrl+,)" -ForegroundColor (Get-MessageColour hint)
     }
