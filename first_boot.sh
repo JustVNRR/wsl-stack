@@ -100,7 +100,10 @@ usermod -aG docker "$NEW_USER"
 
 echo ""
 echo "${C_CYAN}Configuring timezone...${C_RESET}"
-dpkg-reconfigure -f readline tzdata
+# The dialog frontend (whiptail): the list one entry per line, walked with the
+# arrows. The readline frontend packs the same list into columns across the
+# whole window, which the eye cannot follow.
+dpkg-reconfigure -f dialog tzdata
 clear
 
 # The WSL configuration the onboarding knows. No [boot] block: the image ships

@@ -47,6 +47,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     adduser \
     sudo \
     tzdata \
+    # The dialog frontend debconf draws its lists with, one entry per line:
+    # first_boot.sh's timezone question asks for it by name, and without it
+    # debconf quietly falls back to the columned readline list.
+    whiptail \
     zsh \
     nano \
     git \
