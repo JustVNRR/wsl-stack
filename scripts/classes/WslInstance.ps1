@@ -421,8 +421,15 @@ class WslInstance {
     # back whole: the drawing settles the parts the recipe left open.
     [object] SetIcon([object]$Recipe) {
         $IconPath = Join-Path $this.Path "terminal-icon.png"
+        # Key by key, not a table merge: "Name" travels in the recipe too, and
+        # a hashtable += over a key already there throws - a plain drawing must
+        # not die on that.
         $Draw = @{ Name = $this.Name }
-        $Draw += $Recipe
+        if ($Recipe) {
+            foreach ($Key in @($Recipe.Keys)) {
+                if ("$Key" -ne "Name") { $Draw[$Key] = $Recipe[$Key] }
+            }
+        }
         $Drawn = & (Join-Path $PSScriptRoot "..\..\assets\make-icon.ps1") @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
 
         $Icon = @{

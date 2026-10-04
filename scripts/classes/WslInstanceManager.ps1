@@ -179,9 +179,11 @@ class WslInstanceManager {
     # The packs an instance carries, by name - or $null when it cannot say
     # where its user's home is (the caller says so and stops).
     [object] InstalledPacks([WslInstance]$Instance) {
-        $Home = Get-InstanceHome -DistroName $Instance.Name
-        if (-not $Home) { return $null }
-        $PacksDirectory = "$Home/.config/packs"
+        # Not named $home: HOME is a PowerShell automatic variable, read-only,
+        # and the assignment throws - paid once already, in RefreshPacks.
+        $InstanceHome = Get-InstanceHome -DistroName $Instance.Name
+        if (-not $InstanceHome) { return $null }
+        $PacksDirectory = "$InstanceHome/.config/packs"
         return @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
     }
 
@@ -430,7 +432,14 @@ class WslInstanceManager {
     [object] Unregister([WslInstance]$Instance, [bool]$ArchiveFirst) {
         $ArchiveReport = $null
         if ($ArchiveFirst) {
-            $ArchiveReport = $this.Archive($Instance, $Instance.Name, "tar.gz")
+            # The copy is the last moment to keep something: a failed archive
+            # stops here, and the sentence says nothing of the instance was
+            # touched - the old command said as much before it handed over.
+            try {
+                $ArchiveReport = $this.Archive($Instance, $Instance.Name, "tar.gz")
+            } catch {
+                throw "The archive did not complete - nothing was destroyed. $($_.Exception.Message)"
+            }
         }
 
         $Removed = $Instance.Unregister($false)
