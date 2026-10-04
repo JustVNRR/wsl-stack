@@ -285,9 +285,9 @@ already in a terminal.
 The instance comes from the list, like everywhere else:
 
 ```text
-Instances of this template:
-   1.  template-bac       running       1.1 GB  D:\WSL\template-bac
-   2.  ubuntu-template    stopped       2.4 GB  D:\WSL\ubuntu-template
+Our Instances
+   1.  template-bac                   running      1.1 GB
+   2.  ubuntu-template                stopped      2.4 GB
    0.  Cancel
 ```
 
@@ -312,16 +312,16 @@ environment samples.
 Two lists, then it installs:
 
 ```text
-Instances of this template:
-   1.  template-bac       running       1.1 GB  D:\WSL\template-bac
-   2.  ubuntu-template    stopped       2.4 GB  D:\WSL\ubuntu-template
+Our Instances
+   1.  template-bac                   running      1.1 GB
+   2.  ubuntu-template                stopped      2.4 GB
    0.  Cancel
 Which one? (0 to cancel) 2
 
+       Already in 'ubuntu-template': python
 Packs available for 'ubuntu-template':
-   1.  gcp           The Google Cloud CLI (about 409 MB installed)
+   1.  gcp          The Google Cloud CLI (about 409 MB installed)
    0.  Cancel
-       Already there: python
 Which one? (0 to cancel) 1
 
 ==> Installing 'gcp' in 'ubuntu-template'...
@@ -383,10 +383,8 @@ Packs installed in 'ubuntu-template':
    0.  Cancel
 Which one? (0 to cancel) 1
 
-==> Removing 'gcp' from 'ubuntu-template'...
-    Its own remove.sh runs first - what it installed leaves the system.
-    Then its folder leaves, and the gmake menu loses its commands.
-Remove 'gcp'? [y/N] y
+==> Removing from 'ubuntu-template': gcp
+Remove 'gcp'? [Y/n] y
 ```
 
 The list comes from the instance, not from this repository: a pack installed by
@@ -397,8 +395,6 @@ installed. It leaves with the last pack that requires it:
 
 ```text
 ==> Removing from 'ubuntu-template': python, devops
-    Each pack's own remove.sh runs first - what it installed leaves the system.
-    Then its folder leaves, and the gmake menu loses its commands.
     'devops' goes with 'python': nothing installed requires it any more.
 Remove python, devops? [Y/n]
 ```
@@ -468,8 +464,7 @@ when it has something in it, and one question covers them both:
 Will install : python, devops
                (devops: required by python)
 Will remove  : gcp
-               Their tools leave the system, and with them the dependencies
-               nothing needs any more.
+               Their tools leave, and the dependencies nothing needs any more.
 
 Proceed? [Y/n]
 ```
@@ -695,14 +690,15 @@ Once the archive is written, it asks what should happen to the instance:
 
 ```text
 What should happen to 'ubuntu-template' now?
-  a. Start it
-  b. Delete it (the archive stays)
-  c. Leave it stopped
+  > Start it  (default)
+    Delete it (the archive stays)
+    Leave it stopped
+  up/down to move, Enter to choose, Escape to cancel
 ```
 
-The default is the state it was found in. Answering **b** goes through
-`unregister`, so the exact name has to be typed again — the archive is what
-remains.
+The default is the state it was found in — the row says `(default)`, and
+Escape takes it too. Answering **Delete it** goes through `unregister`, so the
+exact name has to be typed again — the archive is what remains.
 
 ---
 

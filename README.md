@@ -288,15 +288,24 @@ the repository at runtime.
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
 │   ├── message.ps1          #   and the colour a message takes, read from the
 │                            #   colour scheme of the window it is printed in
+│   ├── menu.ps1             # The menu itself: the items, the console, the
+│                            #   questions - and the doors the scripts call
+│   ├── packs.ps1            # The pack moves: copying a pack in, installing it,
+│                            #   taking it out again
 │   ├── prompts.ps1          # The questions a command asks: the instance's full
 │                            #   name, its packs checklist, the user it opens as
+│   ├── user-name.ps1        # The Windows account's name, cleaned into a user name
 │   ├── theme.ps1            # What `theme` opens, and the menu it asks with
 │   ├── icon.ps1             #   the icon alone: its letters, its colours, an image
 │   ├── font.ps1             #   the font alone
 │   ├── color.ps1            #   the colours alone
-│   └── *.ps1                # list, build, start, stop, shell, add_pack,
-│                            # remove_pack, manage_packs, theme, unregister,
-│                            # archive, restore, duplicate, shrink
+│   ├── classes/             # The model, one file per class: the manager (one
+│                            #   door per command), the instance, the packs, the
+│                            #   theme, the state
+│   └── *.ps1                # list, build, start, stop, restart, shell,
+│                            # add_pack, remove_pack, manage_packs, theme,
+│                            # unregister, archive, restore, duplicate,
+│                            # shrink, wslconfig
 ├── tests/                   # The suites that RUN the code: the arrow menu with a
 │                            # scripted keyboard, the pack checklist, build's
 │                            # questions over a stand-in docker, the icon a name
