@@ -128,9 +128,53 @@ function Copy-PackIntoInstance {
 # going into the variable that held the answer. Out-Host writes to the screen
 # and leaves the value where it was. (It may ask for a password - another
 # reason the lines must reach the console.)
+# -AsRoot, for the remove.sh scripts: through this tool sudo's question never
+# crossed the pipe (its prompt carries no line of its own, and the capture only
+# ever showed whole lines), so the call hung on a password nobody could type.
+# A removal only takes things away, so the script runs as root, with the user's
+# home in HOME so the files it names are still theirs.
 function Invoke-PackScript {
-    param([string]$DistroName, [string]$Target, [string]$Script, [ref]$ExitCode)
+    param([string]$DistroName, [string]$Target, [string]$Script, [ref]$ExitCode, [switch]$AsRoot)
+
+    if ($AsRoot) {
+        # Not named $home: the automatic is read-only, and the assignment throws.
+        $UserHome = Get-InstanceHome -DistroName $DistroName
+        Invoke-InInstance -DistroName $DistroName -Command @("env", "HOME=$UserHome", "bash", $Script) `
+            -WorkingDirectory $Target -RunAs "root" -ExitCode $ExitCode | Out-Host
+        return
+    }
+
     Invoke-InInstance -DistroName $DistroName -Command @("bash", $Script) -WorkingDirectory $Target -ExitCode $ExitCode | Out-Host
+}
+
+# The passwordless door, opened for a run: WSL trusts its Windows side with
+# root and no password (wsl -u root), and the pack scripts run as the
+# instance's user - their files must be his. The engine opens that same door to
+# sudo for the length of the installs and closes it after: sudo inside a pack
+# asks nothing, and nothing of it remains once the run ends.
+#
+# Written through visudo's own check, never beside it: a broken rule in
+# /etc/sudoers.d breaks sudo itself. -Quiet: the answer is this function's.
+function Enable-PackSudo {
+    param([string]$DistroName)
+
+    $User = Split-Path -Leaf (Get-InstanceHome -DistroName $DistroName)
+    if (-not $User) { return $false }
+    $Command = "printf '%s`n' '$User ALL=(ALL) NOPASSWD: ALL' > /tmp/wsl-stack-pack-sudo" +
+        " && chmod 0440 /tmp/wsl-stack-pack-sudo" +
+        " && visudo -cf /tmp/wsl-stack-pack-sudo > /dev/null" +
+        " && mv /tmp/wsl-stack-pack-sudo /etc/sudoers.d/90-wsl-stack-packs"
+
+    $Code = 0
+    Invoke-InInstance -DistroName $DistroName -Command @("bash", "-c", $Command) -RunAs "root" -ExitCode ([ref]$Code) -Quiet
+    return ($Code -eq 0)
+}
+
+function Disable-PackSudo {
+    param([string]$DistroName)
+
+    $Code = 0
+    Invoke-InInstance -DistroName $DistroName -Command @("rm", "-f", "/etc/sudoers.d/90-wsl-stack-packs") -RunAs "root" -ExitCode ([ref]$Code) -Quiet
 }
 
 # The folder, and with it the pack: the Makefile loads whatever folder is there,
@@ -171,7 +215,7 @@ function Invoke-PackOrphanCleanup {
         -WorkingDirectory $PSScriptRoot -ExitCode ([ref]$Sent) -Quiet
     if ($Sent -ne 0) { return $false }
 
-    Invoke-PackScript -DistroName $DistroName -Target "/tmp" -Script "cleanup_orphans.sh" -ExitCode $ExitCode
+    Invoke-PackScript -DistroName $DistroName -Target "/tmp" -Script "cleanup_orphans.sh" -ExitCode $ExitCode -AsRoot
     $Cleaned = $ExitCode.Value
 
     $Gone = 0
@@ -224,7 +268,7 @@ function Invoke-PackApply {
         Write-Host ""
         if (Test-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code)) {
             Write-Host "==> Removing '$Name'..." -ForegroundColor (Get-MessageColour info)
-            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code)
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code) -AsRoot
             if ($Code -ne 0) {
                 $RemoveCode = $Code
                 Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs $Placed -ExitCode ([ref]$Code)
@@ -251,64 +295,71 @@ function Invoke-PackApply {
         }
     }
 
-    # 3. What arrives: the folders are already there, so this is their install.sh.
-    for ($Index = 0; $Index -lt $ToAdd.Count; $Index++) {
-        $Pack = $ToAdd[$Index]
-        $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Pack.Name
-        Write-Host ""
-        Write-Host "==> Installing '$($Pack.Name)' in '$DistroName'..." -ForegroundColor (Get-MessageColour info)
-        Write-Host "    Your password may be asked." -ForegroundColor (Get-MessageColour muted)
-        Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
-
-        # Exit code 2 is the pack's way of saying it asked a question and the
-        # answer was no - the claude pack asks before adding a second copy of a
-        # program that is already installed on Windows. Its folder goes back out,
-        # because the folder is what the menu reads and a pack with no tool
-        # behind it is a menu that lies; but nothing failed, and the run goes on:
-        # the packs after it still arrive, and the callers have no failure to
-        # report. The code is spelled out here rather than guessed from the
-        # output, because a pack that failed must not be mistaken for one that
-        # was declined, nor the other way round (docs/packs.md).
-        if ($Code -eq 2) {
-            $Declined = 0
-            Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Declined)
-            Write-Host "       Its files were removed: the pack is not installed." -ForegroundColor (Get-MessageColour hint)
-            continue
-        }
-
-        # A half-installed pack is worse than none, exactly as in add_pack: the
-        # folder is what the menu reads, so it goes back out, and what the
-        # install had already written to the system stays.
-        if ($Code -ne 0) {
-            # Kept aside before the folder goes back out: Remove-PackFolder
-            # answers through the same [ref], and the code this run reports has
-            # to be the install's - a failed install that says 0 is a failure
-            # the caller cannot see.
-            $InstallCode = $Code
+    # The installs run behind WSL's own door: passwordless sudo for
+    # their length, nothing of it after - their files stay the user's.
+    $sudoWindow = $false
+    if ($ToAdd.Count -gt 0) { $sudoWindow = Enable-PackSudo -DistroName $DistroName }
+    try {
+        # 3. What arrives: the folders are already there, so this is their install.sh.
+        for ($Index = 0; $Index -lt $ToAdd.Count; $Index++) {
+            $Pack = $ToAdd[$Index]
+            $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Pack.Name
             Write-Host ""
-            Write-Host "[FAIL] The installation of '$($Pack.Name)' did not complete (exit code $InstallCode)." -ForegroundColor (Get-MessageColour error)
-            Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Code)
-            # The packs after it were placed but never ran: their folders go
-            # back out too, or the menu reads them as installations that never
-            # were. The queue is ordered, so the position says as much.
-            Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs @($ToAdd | Select-Object -Skip ($Index + 1)) -ExitCode ([ref]$Code)
-            Write-Host "       Its files were removed, and the folders of the packs that had not run yet." -ForegroundColor (Get-MessageColour hint)
-            Write-Host "       The packs before it are installed." -ForegroundColor (Get-MessageColour hint)
-            Write-Host "       $ResumeHint" -ForegroundColor (Get-MessageColour hint)
-            return [PSCustomObject]@{ Pack = $Pack.Name; ExitCode = $InstallCode }
-        }
-    }
+            Write-Host "==> Installing '$($Pack.Name)' in '$DistroName'..." -ForegroundColor (Get-MessageColour info)
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
 
-    # 4. The dependencies the removals left behind, taken back only where
-    # nothing can still need them. Nothing to ask when nothing left.
-    if ($ToRemove.Count -gt 0) {
-        Write-Host ""
-        Write-Host "==> Taking back what the removed packs left on the system side..." -ForegroundColor (Get-MessageColour info)
-        $CleanupCode = 0
-        if (-not (Invoke-PackOrphanCleanup -DistroName $DistroName -ExitCode ([ref]$CleanupCode))) {
-            Write-Host "[WARN] The cleanup stopped early (exit code $CleanupCode)." -ForegroundColor (Get-MessageColour warning)
-            Write-Host "       The packs are in place; some dependencies may remain." -ForegroundColor (Get-MessageColour hint)
+            # Exit code 2 is the pack's way of saying it asked a question and the
+            # answer was no - the claude pack asks before adding a second copy of a
+            # program that is already installed on Windows. Its folder goes back out,
+            # because the folder is what the menu reads and a pack with no tool
+            # behind it is a menu that lies; but nothing failed, and the run goes on:
+            # the packs after it still arrive, and the callers have no failure to
+            # report. The code is spelled out here rather than guessed from the
+            # output, because a pack that failed must not be mistaken for one that
+            # was declined, nor the other way round (docs/packs.md).
+            if ($Code -eq 2) {
+                $Declined = 0
+                Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Declined)
+                Write-Host "       Its files were removed: the pack is not installed." -ForegroundColor (Get-MessageColour hint)
+                continue
+            }
+
+            # A half-installed pack is worse than none, exactly as in add_pack: the
+            # folder is what the menu reads, so it goes back out, and what the
+            # install had already written to the system stays.
+            if ($Code -ne 0) {
+                # Kept aside before the folder goes back out: Remove-PackFolder
+                # answers through the same [ref], and the code this run reports has
+                # to be the install's - a failed install that says 0 is a failure
+                # the caller cannot see.
+                $InstallCode = $Code
+                Write-Host ""
+                Write-Host "[FAIL] The installation of '$($Pack.Name)' did not complete (exit code $InstallCode)." -ForegroundColor (Get-MessageColour error)
+                Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Code)
+                # The packs after it were placed but never ran: their folders go
+                # back out too, or the menu reads them as installations that never
+                # were. The queue is ordered, so the position says as much.
+                Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs @($ToAdd | Select-Object -Skip ($Index + 1)) -ExitCode ([ref]$Code)
+                Write-Host "       Its files were removed, and the folders of the packs that had not run yet." -ForegroundColor (Get-MessageColour hint)
+                Write-Host "       The packs before it are installed." -ForegroundColor (Get-MessageColour hint)
+                Write-Host "       $ResumeHint" -ForegroundColor (Get-MessageColour hint)
+                return [PSCustomObject]@{ Pack = $Pack.Name; ExitCode = $InstallCode }
+            }
         }
+
+        # 4. The dependencies the removals left behind, taken back only where
+        # nothing can still need them - silently: only an early stop is worth a
+        # line. Nothing to ask when nothing left.
+        if ($ToRemove.Count -gt 0) {
+            $CleanupCode = 0
+            if (-not (Invoke-PackOrphanCleanup -DistroName $DistroName -ExitCode ([ref]$CleanupCode))) {
+                Write-Host ""
+                Write-Host "[WARN] The cleanup stopped early (exit code $CleanupCode)." -ForegroundColor (Get-MessageColour warning)
+                Write-Host "       The packs are in place; some dependencies may remain." -ForegroundColor (Get-MessageColour hint)
+            }
+        }
+    } finally {
+        if ($sudoWindow) { Disable-PackSudo -DistroName $DistroName }
     }
 
     return $null

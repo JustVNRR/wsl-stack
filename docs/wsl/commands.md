@@ -325,7 +325,6 @@ Packs available for 'ubuntu-template':
 Which one? (0 to cancel) 1
 
 ==> Installing 'gcp' in 'ubuntu-template'...
-    Your password may be asked.
 ```
 
 Only the packs the instance does not have yet are offered. The packs are the
@@ -345,15 +344,15 @@ it, before it, in the same run:
 ```text
 ==> Installing 'devops' in 'ubuntu-template'...
     It comes with 'gcp', which requires it.
-    Your password may be asked.
 
 ==> Installing 'gcp' in 'ubuntu-template'...
-    Your password may be asked.
 ```
 
-**It asks for your password.** The packages and the APT address belong to root;
-the pack's `install.sh` runs as you and takes `sudo` where it needs to. An
-instance built with [passwordless sudo](#build) asks nothing at all.
+**It asks nothing.** The packages and the APT address belong to root, and the
+pack's `install.sh` takes `sudo` where it needs to - but the engine opens
+WSL's own passwordless root door to `sudo` for the length of the installs, and
+closes it after: the run never stops to ask. (Run `install.sh` by hand inside
+the instance and `sudo` asks as usual.)
 
 Nothing has to be reopened afterwards: `gmake` reads the pack's files at every
 run, and `fcheat` re-reads its cheatsheets at every opening.
@@ -401,15 +400,16 @@ installed. It leaves with the last pack that requires it:
     Each pack's own remove.sh runs first - what it installed leaves the system.
     Then its folder leaves, and the gmake menu loses its commands.
     'devops' goes with 'python': nothing installed requires it any more.
-Remove python, devops? [y/N]
+Remove python, devops? [Y/n]
 ```
 
 The chosen pack goes first, and the packs it held up follow: that order is what
 lets a `remove.sh` ask whether a neighbour still claims its packages and get
 the right answer.
 
-Your password is asked here too. What the pack left in your files is not
-touched: your `gcloud` logins, the variables it copied into `.env.global`.
+No password is asked: the removal runs behind WSL's own root door. What the
+pack left in your files is not touched: your `gcloud` logins, the variables it
+copied into `.env.global`.
 
 A pack installed before packs carried a `remove.sh` is a special case: the
 command says so, and deleting its files undoes nothing on the system side.
@@ -430,7 +430,6 @@ A program apt knows nothing about — a venv, a binary you built — stops the
 cleanup, and the command names it:
 
 ```text
-==> Taking back what 'vision' left on the system side...
     Kept in place: something outside apt still links what would go.
 
     /usr/local/bin/mytool links libtesseract5, liblept5, libtiff6

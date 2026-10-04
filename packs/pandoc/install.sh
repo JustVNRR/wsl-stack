@@ -20,6 +20,11 @@ fi
 
 here=$(cd "$(dirname "$0")" && pwd)
 
-sudo bash "$here/install_root.sh"
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
+
+sudo -p "$sudo_prompt" bash "$here/install_root.sh"
 
 success "Pandoc and XeLaTeX are ready."

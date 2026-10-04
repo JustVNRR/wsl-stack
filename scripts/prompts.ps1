@@ -148,7 +148,7 @@ function Resolve-InstanceIdentity {
         # asks for the exact name. The point is that the name is read and
         # typed, not that a reflexive Enter carries through.
         if ($Confirmation -cne $DistroName) {
-            Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
+            Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour warning)
             exit 0
         }
     }

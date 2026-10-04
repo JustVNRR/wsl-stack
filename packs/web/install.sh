@@ -25,7 +25,12 @@ fi
 
 here=$(cd "$(dirname "$0")" && pwd)
 
-sudo bash "$here/install_root.sh"
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
+
+sudo -p "$sudo_prompt" bash "$here/install_root.sh"
 
 # The boot hook, installed with the pack: it puts the base resolver back at
 # each start. vpn_auto_on/off only decide whether it also raises the tunnel.
@@ -38,13 +43,13 @@ fi
 # default turns it off (about:config wins). remove.sh takes the file back.
 pref_file=/usr/lib/firefox/defaults/pref/wslg-audio.js
 if [ -d /usr/lib/firefox/defaults/pref ]; then
-    sudo tee "$pref_file" > /dev/null <<'PREF'
+    sudo -p "$sudo_prompt" tee "$pref_file" > /dev/null <<'PREF'
 // Set by the web pack: the sound of a WSLg window goes through PulseAudio, and
 // the audio sandbox keeps the browser away from the socket WSLg serves. This is
 // a default - a value set in about:config wins over it.
 pref("media.cubeb.sandbox", false);
 PREF
-    sudo chmod 0644 "$pref_file"
+    sudo -p "$sudo_prompt" chmod 0644 "$pref_file"
     echo "The sound reaches WSLg (media.cubeb.sandbox off, as a default)."
 else
     echo "No /usr/lib/firefox/defaults/pref: the sound was left alone."

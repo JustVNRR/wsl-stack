@@ -20,6 +20,11 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
 packages=$(sed -n 's/^PACK_PACKAGES *:=[[:space:]]*//p' "$here/pack.conf")
 
 if [ -z "$packages" ]; then
@@ -64,10 +69,12 @@ done
 # and the script goes on to the fonts below. With no package lists,
 # `apt-get remove` answers "Unable to locate package" even for an installed
 # one - a `set -e` script would stop there and leave the rest behind.
-if [ ${#to_remove[@]} -gt 0 ] && ! sudo apt-get remove -y "${to_remove[@]}"; then
+apt_failed=0
+if [ ${#to_remove[@]} -gt 0 ] && ! sudo -p "$sudo_prompt" apt-get remove -y "${to_remove[@]}"; then
+    apt_failed=1
     echo "apt could not remove: ${to_remove[*]} - left where they are."
-    echo "(apt needs its package lists: run 'sudo apt-get update' inside the"
-    echo "instance, then remove the pack again.)"
+    echo "(If the run was just interrupted, run the removal again. If apt's"
+    echo "lists are missing: 'sudo apt-get update' inside, then again.)"
 fi
 
 echo "Removing the Arial files copied from Windows..."
@@ -80,6 +87,13 @@ done
 # empty folder behind. fc-cache notices the files are gone at the next build.
 rmdir "$fonts_dir" 2>/dev/null || true
 fc-cache -f >/dev/null 2>&1 || true
+
+if [ "$apt_failed" = 1 ]; then
+    # The pack stays: the tool must not be told "removed" while the
+    # packages are still installed - the folder is what says so.
+    echo "The Arial copy is gone; the packages above are still installed - the pack stays."
+    exit 1
+fi
 
 echo "Pandoc, XeLaTeX and the Arial copy are gone."
 echo "   Your documents and their PDFs are where they were."

@@ -16,6 +16,11 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
 packages=$(sed -n 's/^PACK_PACKAGES *:=[[:space:]]*//p' "$here/pack.conf")
 
 if [ -z "$packages" ]; then
@@ -35,7 +40,7 @@ for package in $packages; do
         echo "$package: another installed pack claims it - left in place."
         continue
     fi
-    sudo apt-get remove -y "$package"
+    sudo -p "$sudo_prompt" apt-get remove -y "$package"
 done
 
 echo "ffmpeg, ImageMagick and Tesseract are gone."

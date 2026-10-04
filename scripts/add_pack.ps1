@@ -8,10 +8,10 @@ param (
 # typing either by heart is a name you can get wrong.
 #
 # Then the pack's folder is copied into the instance and its install script runs
-# there, in front of you. It may ask for your password - the packages belong to
-# root - and the prompt does travel through wsl.exe: no sudoers rule is written.
-# The copies and the runs are the engine's; the questions and the lines are
-# here.
+# there, in front of you. The packages belong to root, and the engine opens
+# WSL's own passwordless root door to sudo for the length of the installs - the
+# run never stops to ask, and nothing of it remains after. The copies and the
+# runs are the engine's; the questions and the lines are here.
 
 $ErrorActionPreference = "Stop"
 
@@ -93,15 +93,13 @@ foreach ($Name in @($Catalog.ResolveSelection(@($PackName), $Installed))) {
 }
 
 # 4. Each pack's folder copied in, then what it does to install itself from
-# inside it - the engine's gesture, and it says nothing: the lines come first,
-# so "Your password may be asked" stays above the prompts it announces.
+# inside it - the engine's gesture, and it says nothing: the lines come first.
 foreach ($Entry in $ToInstall) {
     Write-Host ""
     Write-Host "==> Installing '$($Entry.Name)' in '$DistroName'..." -ForegroundColor (Get-MessageColour info)
     if ($Entry.Name -ne $PackName) {
         Write-Host "    It comes with '$PackName', which requires it." -ForegroundColor (Get-MessageColour muted)
     }
-    Write-Host "    Your password may be asked." -ForegroundColor (Get-MessageColour muted)
 }
 
 $Report = $Manager.AddPack($Distro, $PackName)
@@ -133,12 +131,4 @@ if ($Report.Outcome -eq "failed") {
     exit $Report.ExitCode
 }
 
-Write-Host ""
-Write-Host "==> '$PackName' is installed in '$DistroName'." -ForegroundColor (Get-MessageColour success)
-# The pack's samples travelled with its folder, but nothing merged them into
-# the user's .env files - those are theirs, and no install writes into them.
-# Said once, and only when a sample travelled.
-if (@($ToInstall | Where-Object { $_.ShipsSamples() }).Count -gt 0) {
-    Write-Host "    Then, in there:  gmake env_global_enable   (adds the pack's variables)" -ForegroundColor (Get-MessageColour muted)
-}
 exit 0

@@ -80,7 +80,6 @@ $Missing = @($Plan.Missing)
 # nothing is undone on the system side - said, not discovered afterwards.
 Write-Host ""
 Write-Host "==> Removing from '$DistroName': $($ToRemove -join ', ')" -ForegroundColor (Get-MessageColour info)
-Write-Host "    What each pack installed leaves the system, and the gmake menu loses its commands." -ForegroundColor (Get-MessageColour muted)
 foreach ($Name in $Also) {
     Write-Host "    '$Name' goes with '$PackName': nothing installed requires it any more." -ForegroundColor (Get-MessageColour muted)
 }
@@ -89,9 +88,9 @@ if ($Missing.Count -gt 0) {
     Write-Host "    Nothing of it is undone on the system side: only its files leave." -ForegroundColor (Get-MessageColour hint)
     Write-Host "    To take its tool out by hand, open a shell in '$DistroName'." -ForegroundColor (Get-MessageColour hint)
 }
-$Confirm = [string](Read-Host "Remove $($ToRemove -join ', ')? [y/N]")
+$Confirm = [string](Read-Host "Remove $($ToRemove -join ', ')? [Y/n]")
 
-if ($Confirm -notmatch "^[yY]") {
+if ($Confirm -match "^[nN]") {
     Write-Host ""
     Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
     exit 0
@@ -126,16 +125,8 @@ if ($Report.Outcome -eq "folder-failed") {
     exit $Report.ExitCode
 }
 
-# 5. What the packs left on the system side: the dependencies their remove.sh
-# never named. scripts\cleanup_orphans.sh asks apt and ldd before taking
-# anything - the engine ran it once, at the end: a question about the instance,
-# not about a pack.
-Write-Host ""
-Write-Host "==> Taking back what the removed packs left on the system side..." -ForegroundColor (Get-MessageColour info)
-Write-Host "    Their remove.sh scripts named what they installed; what remains is what" -ForegroundColor (Get-MessageColour muted)
-Write-Host "    came in as a dependency. Nothing goes that apt - or a program outside" -ForegroundColor (Get-MessageColour muted)
-Write-Host "    apt - still needs." -ForegroundColor (Get-MessageColour muted)
-
+# 5. The dependencies their remove.sh never named are taken back here, by the
+# engine, silently: only a cleanup that stopped early is worth a line.
 if (-not $Report.Cleaned) {
     # The packs are out either way; this is the tidy-up, not the removal.
     Write-Host ""
@@ -144,5 +135,5 @@ if (-not $Report.Cleaned) {
 }
 
 Write-Host ""
-Write-Host "==> Removed from '$DistroName': $($ToRemove -join ', ')." -ForegroundColor (Get-MessageColour success)
+Write-Host "$($ToRemove -join ', ') successfully uninstalled." -ForegroundColor (Get-MessageColour success)
 exit 0

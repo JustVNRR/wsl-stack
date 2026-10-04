@@ -336,38 +336,46 @@ class WslInstanceManager {
             if ($null -ne $Entry) { $ToInstall += $Entry }
         }
 
-        $Steps = @()
-        foreach ($Entry in $ToInstall) {
-            $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Entry.Name
-            $Code = 0
+        # The installs run behind WSL's own door: passwordless sudo for their
+        # length, nothing of it after - their files stay the user's.
+        $SudoWindow = $false
+        if ($ToInstall.Count -gt 0) { $SudoWindow = Enable-PackSudo -DistroName $Instance.Name }
+        try {
+            $Steps = @()
+            foreach ($Entry in $ToInstall) {
+                $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Entry.Name
+                $Code = 0
 
-            if (-not (Copy-PackIntoInstance -DistroName $Instance.Name -PackPath $Entry.Path -Target $Target -ExitCode ([ref]$Code))) {
-                return [PSCustomObject]@{ Outcome = "copy-failed"; Steps = $Steps; Entry = $Entry; ExitCode = $Code; ToInstall = $ToInstall }
+                if (-not (Copy-PackIntoInstance -DistroName $Instance.Name -PackPath $Entry.Path -Target $Target -ExitCode ([ref]$Code))) {
+                    return [PSCustomObject]@{ Outcome = "copy-failed"; Steps = $Steps; Entry = $Entry; ExitCode = $Code; ToInstall = $ToInstall }
+                }
+
+                Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
+                $InstallCode = $Code
+
+                # Exit code 2: the pack asked a question and the answer was no
+                # (the claude pack asks about a second copy installed on Windows).
+                # Its folder goes back out; nothing is broken.
+                if ($InstallCode -eq 2) {
+                    Remove-PackFolder -DistroName $Instance.Name -Target $Target -ExitCode ([ref]$Code)
+                    $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = 2; Related = ($Entry.Name -ne $PackName) }
+                    return [PSCustomObject]@{ Outcome = "declined"; Steps = $Steps; Entry = $Entry; ExitCode = 0; ToInstall = $ToInstall }
+                }
+
+                # The folder goes back out - and only it: what the install already
+                # wrote stays, and running this again picks up there.
+                if ($InstallCode -ne 0) {
+                    Remove-PackFolder -DistroName $Instance.Name -Target $Target -ExitCode ([ref]$Code)
+                    $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = $InstallCode; Related = ($Entry.Name -ne $PackName) }
+                    return [PSCustomObject]@{ Outcome = "failed"; Steps = $Steps; Entry = $Entry; ExitCode = $InstallCode; ToInstall = $ToInstall }
+                }
+
+                $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = 0; Related = ($Entry.Name -ne $PackName) }
             }
-
-            Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
-            $InstallCode = $Code
-
-            # Exit code 2: the pack asked a question and the answer was no
-            # (the claude pack asks about a second copy installed on Windows).
-            # Its folder goes back out; nothing is broken.
-            if ($InstallCode -eq 2) {
-                Remove-PackFolder -DistroName $Instance.Name -Target $Target -ExitCode ([ref]$Code)
-                $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = 2; Related = ($Entry.Name -ne $PackName) }
-                return [PSCustomObject]@{ Outcome = "declined"; Steps = $Steps; Entry = $Entry; ExitCode = 0; ToInstall = $ToInstall }
-            }
-
-            # The folder goes back out - and only it: what the install already
-            # wrote stays, and running this again picks up there.
-            if ($InstallCode -ne 0) {
-                Remove-PackFolder -DistroName $Instance.Name -Target $Target -ExitCode ([ref]$Code)
-                $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = $InstallCode; Related = ($Entry.Name -ne $PackName) }
-                return [PSCustomObject]@{ Outcome = "failed"; Steps = $Steps; Entry = $Entry; ExitCode = $InstallCode; ToInstall = $ToInstall }
-            }
-
-            $Steps += [PSCustomObject]@{ Name = $Entry.Name; Code = 0; Related = ($Entry.Name -ne $PackName) }
+            return [PSCustomObject]@{ Outcome = "installed"; Steps = $Steps; Entry = $null; ExitCode = 0; ToInstall = $ToInstall }
+        } finally {
+            if ($SudoWindow) { Disable-PackSudo -DistroName $Instance.Name }
         }
-        return [PSCustomObject]@{ Outcome = "installed"; Steps = $Steps; Entry = $null; ExitCode = 0; ToInstall = $ToInstall }
     }
 
     # remove_pack - each pack's own remove.sh runs from inside its folder (it
@@ -384,7 +392,7 @@ class WslInstanceManager {
             $Code = 0
 
             if ($Plan.Missing -notcontains $Name) {
-                Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code)
+                Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code) -AsRoot
                 # The folder stays when the script failed: the pack is still
                 # half in place, and its files are what a second attempt needs.
                 if ($Code -ne 0) {

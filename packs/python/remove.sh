@@ -20,6 +20,11 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
 packages=$(sed -n 's/^PACK_PACKAGES *:=[[:space:]]*//p' "$here/pack.conf")
 
 if [ -z "$packages" ]; then
@@ -48,6 +53,7 @@ claimed_elsewhere() {
 }
 
 echo "Removing the compilation tools..."
+apt_failed=0
 for package in $packages; do
     if claimed_elsewhere "$package"; then
         echo "$package: another installed pack claims it - left in place."
@@ -57,10 +63,11 @@ for package in $packages; do
     # about, and the script goes on to what it can (uv, below). With no package
     # lists, `apt-get remove` answers "Unable to locate package" even for an
     # installed one.
-    if ! sudo apt-get remove -y "$package"; then
+    if ! sudo -p "$sudo_prompt" apt-get remove -y "$package"; then
+        apt_failed=1
         echo "$package: apt could not remove it - left where it is."
-        echo "   (apt needs its package lists: run 'sudo apt-get update' inside the"
-        echo "   instance, then remove the pack again.)"
+        echo "   (If the run was just interrupted, run the removal again. If apt's"
+        echo "   lists are missing: 'sudo apt-get update' inside, then again.)"
     fi
 done
 
@@ -95,6 +102,13 @@ else
            "$HOME/.local/bin/ccds" \
            "$HOME/.local/share/uv" \
            "$HOME/.cache/uv"
+fi
+
+if [ "$apt_failed" = 1 ]; then
+    # The pack stays: the tool must not be told "removed" while some
+    # packages are still installed - the folder is what says so.
+    echo "Some packages above are still installed - the pack stays."
+    exit 1
 fi
 
 echo "Python 3 and its tools are gone."

@@ -694,10 +694,15 @@ function Invoke-InInstance {
         [string[]]$Command,
         [string]$WorkingDirectory,
         [ref]$ExitCode,
-        [switch]$Quiet
+        [switch]$Quiet,
+        # "root" runs the command as the root user - WSL's own door, no
+        # password: the pack removal's way in, where sudo's question never
+        # crossed the pipe.
+        [string]$RunAs
     )
 
     $WslArgs = @("-d", $DistroName)
+    if ($RunAs) { $WslArgs += @("-u", $RunAs) }
     if ($WorkingDirectory) { $WslArgs += @("--cd", $WorkingDirectory) }
     $WslArgs += @("--") + $Command
 

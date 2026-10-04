@@ -11,6 +11,11 @@
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
 declared=$(sed -n 's/^PACK_PACKAGES *:=[[:space:]]*//p' "$here/pack.conf")
 
 if [ -z "$declared" ]; then
@@ -36,33 +41,33 @@ for package in $declared; do
     fi
     if [ "$package" = openresolv ]; then
         # No candidate in Ubuntu 24.04: it came from Debian's package.
-        sudo dpkg -r openresolv
+        sudo -p "$sudo_prompt" dpkg -r openresolv
         continue
     fi
-    sudo apt-get remove -y "$package"
+    sudo -p "$sudo_prompt" apt-get remove -y "$package"
 done
 
 # Libraries installed beside the browser: marked automatic, they become
 # orphans for the cleanup remove_pack runs next.
 echo "Leaving the browser's decoder and its sound client to the cleanup that follows..."
-sudo apt-mark auto libavcodec60 libpulse0 2>/dev/null || true
+sudo -p "$sudo_prompt" apt-mark auto libavcodec60 libpulse0 2>/dev/null || true
 
 # What the pack wrote in the browser's directory: the sound preference, and the
 # privacy link with the file it points at.
 echo "Removing the sound preference and the privacy link..."
-sudo rm -f /usr/lib/firefox/defaults/pref/wslg-audio.js \
+sudo -p "$sudo_prompt" rm -f /usr/lib/firefox/defaults/pref/wslg-audio.js \
            /usr/lib/firefox/defaults/pref/fox-privacy.js
 rm -f "$HOME/.config/fox-privacy.js"
 
 echo "Removing Mozilla's repository..."
-sudo rm -f /etc/apt/sources.list.d/mozilla.list \
+sudo -p "$sudo_prompt" rm -f /etc/apt/sources.list.d/mozilla.list \
            /etc/apt/preferences.d/mozilla \
            /etc/apt/preferences.d/firefox-no-snap \
            /etc/apt/keyrings/packages.mozilla.org.asc
 
 # Regenerated at every mount - not a file of the user's.
 echo "Removing the profile the pack generated..."
-sudo rm -f /etc/wireguard/vpn.conf
+sudo -p "$sudo_prompt" rm -f /etc/wireguard/vpn.conf
 
 echo "The tunnel and the browser are gone, and Mozilla's repository with them."
 echo "Left alone: your servers (~/.config/vpn), the VPN_* lines in .env.global,"
