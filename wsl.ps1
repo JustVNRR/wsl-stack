@@ -88,7 +88,7 @@ $Gesture = {
     & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Extra -Manager $Run.Manager
 }
 foreach ($Command in $Commands) {
-    $null = $Dispatcher.Add($Command.Name, $Command.What, $Gesture)
+    $null = $Dispatcher.Add([WslCommand]::new($Command.Name, $Command.What, $Gesture))
 }
 
 # Bare, the repository asks its first question - which command - and it is a
@@ -98,7 +98,7 @@ if ($args.Count -eq 0) {
     Write-Host ""
     Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 
-    $Chosen = $Dispatcher.Prompt()
+    $Chosen = $Dispatcher.Ask()
     if (-not $Chosen) {
         Write-Host ""
         Write-Host "[ABORT] Operation cancelled by user. Nothing was run." -ForegroundColor (Get-MessageColour success)

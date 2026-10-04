@@ -29,9 +29,9 @@ function Check {
 # twelve-wide column and the marker are read the way the docs show them.
 function New-TestDispatcher {
     $D = [WslDispatcher]::new("WSL Stack")
-    $null = $D.Add("list",  "list our instances and the archives", { $script:Ran += "list" })
-    $null = $D.Add("build", "build an instance from the image",    { $script:Ran += "build" })
-    $null = $D.Add("start", "start a stopped instance",            { $script:Ran += "start" })
+    $null = $D.Add([WslCommand]::new("list",  "list our instances and the archives", { $script:Ran += "list" }))
+    $null = $D.Add([WslCommand]::new("build", "build an instance from the image",    { $script:Ran += "build" }))
+    $null = $D.Add([WslCommand]::new("start", "start a stopped instance",            { $script:Ran += "start" }))
     return $D
 }
 
@@ -45,7 +45,7 @@ function Run-Choice {
     $T.Keys = [System.Collections.Queue]::new()
     foreach ($Key in $Keys) { $T.Keys.Enqueue($Key) }
     $D.Terminal = $T
-    $Picked = $D.Prompt()
+    $Picked = $D.Ask()
     if ($Picked) { $Picked.Execute($null) }
     return $Picked
 }
@@ -65,7 +65,7 @@ Check "the key 9 (off the list) -> ignored" `
 Check "any other key            -> ignored" `
     ((Run-Choice @([ConsoleKey]::A, [ConsoleKey]::Enter)).Key) "list"
 Check "empty list               -> nothing, and nothing is asked" `
-    (([WslDispatcher]::new("WSL Stack")).Prompt()) ""
+    (([WslDispatcher]::new("WSL Stack")).Ask()) ""
 
 Write-Output ""
 Write-Output "--- the block: the marker, the column, the words ---"
@@ -78,7 +78,7 @@ $T.SizeAnswer = @(80, 20)          # the window the docs' samples assume
 $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Terminal = $T
-$null = $D.Prompt()
+$null = $D.Ask()
 Check "the block, six lines, whole" ($T.Lines[0..5] -join "|") `
     "|WSL Stack|  > list         list our instances and the archives|    build        build an instance from the image|    start        start a stopped instance|  up/down to move, Enter to choose, Escape to cancel"
 
@@ -107,7 +107,7 @@ $T.Keys = [System.Collections.Queue]::new()
 $T.Keys.Enqueue([ConsoleKey]::DownArrow)
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Terminal = $T
-$Picked = $D.Prompt()
+$Picked = $D.Ask()
 Check "top read after (36..38, then 40) -> no drift" ($T.Moves -join ",") "36,37,38,40"
 Check "  ... and the choice is right" $Picked.Key "build"
 
@@ -117,14 +117,14 @@ Write-Output "--- the window: a tall list scrolls ---"
 # drawn, and the window follows the choice - the current row carries the
 # marker.
 $D = [WslDispatcher]::new("WSL Stack")
-foreach ($Index in 0..9) { $null = $D.Add("c$Index", "d$Index", {}) }
+foreach ($Index in 0..9) { $null = $D.Add([WslCommand]::new("c$Index", "d$Index", {})) }
 $T = [FakeTerminal]::new()
 $T.SizeAnswer = @(40, 6)
 $T.Keys = [System.Collections.Queue]::new()
 foreach ($n in 1..6) { $T.Keys.Enqueue([ConsoleKey]::DownArrow) }
 $T.Keys.Enqueue([ConsoleKey]::Enter)
 $D.Terminal = $T
-$Picked = $D.Prompt()
+$Picked = $D.Ask()
 # A two-letter word in the twelve-wide column: eleven spaces between it and
 # its description.
 $Column = (" " * 11)
@@ -171,7 +171,7 @@ function New-NumberRun {
 }
 
 $Run = New-NumberRun @("2")
-$Picked = $Run[0].Prompt()
+$Picked = $Run[0].Ask()
 if ($Picked) { $Picked.Execute($null) }
 Check "answer 2                 -> the second" $Picked.Key "build"
 Check "  ... and its gesture ran" ($script:Ran -join ",") "build"
@@ -180,11 +180,11 @@ Check "the rows are numbered, the column holds" `
 Check "  ... and the question says what to type" ($Run[1].Prompts -join "|") "Which one? (0 to cancel)"
 
 $Run = New-NumberRun @("0")
-Check "answer 0                 -> nothing" ($Run[0].Prompt()) ""
+Check "answer 0                 -> nothing" ($Run[0].Ask()) ""
 $Run = New-NumberRun @("")
-Check "empty answer             -> nothing" ($Run[0].Prompt()) ""
+Check "empty answer             -> nothing" ($Run[0].Ask()) ""
 $Run = New-NumberRun @("x", "1")
-$Picked = $Run[0].Prompt()
+$Picked = $Run[0].Ask()
 Check "a word, then 1           -> the first" $Picked.Key "list"
 Check "  ... and the word was caught" `
     ($Run[1].Lines -contains "  'x' is not one of the numbers above.") "True"

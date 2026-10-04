@@ -1,45 +1,58 @@
 # ==============================================================================
-# THE WAY IN AS OBJECTS: THE COMMANDS, THE TERMINAL, AND THE DISPATCH
+# THE LISTS, AS OBJECTS: THE ROWS, THE TERMINAL, AND THE ASK
 # ==============================================================================
-# The trio wsl.ps1 asks its command list with:
+# The trio the repository asks everything with: the command list at the root,
+# and every question inside the commands (through menu.ps1's two doors).
 #
-#   WslCommand    - one command: the word that names it, the line that says
-#                   what it does, and the gesture that runs it.
+#   WslCommand    - one row: what it shows, what it carries, whether it is
+#                   ticked - and, for a command, the word that names it and
+#                   the gesture that runs it.
 #   WslTerminal   - the terminal: keyboard, cursor, window, and the one
 #                   line-writer everything goes through.
-#   WslDispatcher - the list itself: the commands, the ask (the arrows, or the
-#                   numbered prompt when the machine has no keyboard), and the
-#                   route by name for the command line.
+#   WslDispatcher - one list: the rows, the wonderings (Multi, Note, where
+#                   the choice starts), the ask - the arrows, or the numbered
+#                   prompt when the machine has no keyboard - and the route
+#                   by name for the command line.
 #
-# The names are temporary, like the copy they live beside: menu.ps1 defines
-# WslMenuItem, WslConsole and WslMenu for the questions, and two classes of one
-# name cannot coexist - the last one read wins, in silence, measured. The
-# painting below is that menu's of today, recopied word for word and colour
-# for colour; as the questions come over here, step by step, the old classes
+# The names are temporary, like the copy they live beside: menu.ps1 still
+# defines WslMenuItem, WslConsole and WslMenu - no caller left, waiting for
+# the step that takes them out - and two classes of one name cannot coexist:
+# the last one read wins, in silence, measured. The painting was recopied
+# from that menu, word for word and colour for colour; when the old classes
 # leave, one copy remains, and the names are decided again.
 #
-# Both ways in hand the WslCommand back instead of running it: the engine is
-# made by the caller only once a command really is about to run, exactly as
-# before, and the gesture - WslCommand.Execute() - is what runs it, with the
-# command and the caller's context travelling in its parameters.
+# The ask hands the WslCommand back instead of running it: the engine is made
+# by the caller only once a command really is about to run, exactly as before,
+# and the gesture - WslCommand.Execute() - is what runs it, with the command
+# and the caller's context travelling in its parameters.
 # ==============================================================================
 
 # Loaded here too: suites drive this file on its own, and lines are drawn by
 # asking the message palette for the colour.
 . (Join-Path $PSScriptRoot "message.ps1")
 
-# One command of the list: the word that names it, the line shown beside it,
-# and the gesture - a scriptblock, so the command scripts stay outside this
-# file.
+# One row of a list: the word that names it (a command; empty for a plain
+# choice), the line it shows, the value it carries (a choice), the tick (a
+# checklist row), and the gesture (a command).
 class WslCommand {
     [string]$Key
-    [string]$Description
+    [string]$Text
+    [object]$Value
+    [bool]$Checked = $false
     [scriptblock]$Action
 
+    # A command: the word, the line that says what it does, the gesture. The
+    # row shows the word in the twelve-wide column the documentation uses.
     WslCommand([string]$Key, [string]$Description, [scriptblock]$Action) {
-        $this.Key         = $Key
-        $this.Description = $Description
-        $this.Action      = $Action
+        $this.Key    = $Key
+        $this.Text   = "{0,-12} {1}" -f $Key, $Description
+        $this.Action = $Action
+    }
+
+    # A choice: the text shown, the value carried.
+    WslCommand([string]$Text, [object]$Value) {
+        $this.Text  = $Text
+        $this.Value = $Value
     }
 
     # The gesture, run wherever the command was picked - the menu or the
@@ -109,7 +122,7 @@ class WslTerminal {
     }
 
     # One line, and its colour comes from the message palette - "" is the
-    # plain line. Every line of the list goes through here; nothing else
+    # plain line. Every line of every list goes through here; nothing else
     # writes.
     [void] Line([string]$Text, [string]$Kind) {
         if ($Kind) {
@@ -125,16 +138,19 @@ class WslTerminal {
     }
 }
 
-# One list of commands = one WslDispatcher: the title, the rows, and the two
-# ways in. Prompt() asks - the arrows with a keyboard, the numbered prompt
-# without; Dispatch() routes a word from the command line. Both hand the
-# WslCommand back, or $null, which every caller reads as "there is nothing to
-# run"; running it is WslCommand.Execute(), left to the caller.
+# One list asked = one WslDispatcher: what is offered, where the choice starts
+# and stands, what is ticked, the note under the block. Ask() walks the
+# arrows; with no keyboard it falls back to the numbered prompt. The answer is
+# a WslCommand (or the ticked ones), never a loose value - and $null, which
+# every caller reads as "the user cancelled". Dispatch() routes a word from
+# the command line to the command it names.
 class WslDispatcher {
     [string]$Title
     [WslTerminal]$Terminal
     [System.Collections.Generic.List[WslCommand]]$Items
-    hidden [int]$Current = 0
+    [bool]$Multi = $false
+    [int]$Current = 0
+    [string]$Note = ""
 
     # The terminal is built here, not handed in: a class constructor takes no
     # default value - [WslDispatcher]::new("T") would find no overload with
@@ -146,10 +162,10 @@ class WslDispatcher {
         $this.Items    = [System.Collections.Generic.List[WslCommand]]::new()
     }
 
-    # The list is built by the file that owns the commands - wsl.ps1 - one row
-    # per command. The fluent return keeps the construction one statement.
-    [WslDispatcher] Add([string]$Key, [string]$Description, [scriptblock]$Action) {
-        $this.Items.Add([WslCommand]::new($Key, $Description, $Action))
+    # The list is built by the caller - wsl.ps1, or a door in menu.ps1 - one
+    # row per line. The fluent return keeps the construction one statement.
+    [WslDispatcher] Add([WslCommand]$Row) {
+        $this.Items.Add($Row)
         return $this
     }
 
@@ -164,27 +180,30 @@ class WslDispatcher {
     }
 
     # The ask. An empty list asks nothing.
-    [WslCommand] Prompt() {
+    [object] Ask() {
         if ($this.Items.Count -eq 0) { return $null }
         if ($this.Terminal.HasKeyboard()) {
-            return $this.PromptArrows()
+            return $this.AskWithArrows()
         }
-        return $this.PromptNumbers()
+        return $this.AskByNumber()
     }
 
-    # One row, as it is drawn: the word, and the line beside it, in the columns
-    # the documentation shows. The marker says where the choice is, so a
-    # terminal that renders no colour still reads correctly.
-    static [string] FormatRow([int]$Index, [int]$Current, [string[]]$Labels) {
+    # One row, as it is drawn: the marker says where the choice is, the box
+    # what is checked - two questions, two signs, so a terminal that renders
+    # no colour still reads correctly. $null checked flags = a single-choice
+    # list, where there is nothing to check.
+    static [string] FormatRow([int]$Index, [int]$Current, [string[]]$Labels, [bool[]]$Checked) {
         $Marker = if ($Index -eq $Current) { "  > " } else { "    " }
-        return ($Marker + $Labels[$Index])
+        if ($null -eq $Checked) { return ($Marker + $Labels[$Index]) }
+        $Box = if ($Checked[$Index]) { "[x] " } else { "[ ] " }
+        return ($Marker + $Box + $Labels[$Index])
     }
 
     # One row is one line, always: a wrapped row is a row whose neighbours are
     # no longer where the arithmetic says. The tail is cut rather than the
     # list refused; a window that will not say how wide it is gets no cutting
     # at all. -Prefix says what goes in front of the label: 4 for the marker,
-    # 0 for the title and the hint.
+    # 8 for a checklist row, 0 for the title and the hint.
     static [string[]] Fit([string[]]$Labels, [int]$Width, [int]$Prefix) {
         if ($Width -le 0) { return $Labels }
         $Room = $Width - 1
@@ -195,42 +214,46 @@ class WslDispatcher {
         })
     }
 
-    # The words of the rows, as the documentation spells them: the name in a
-    # twelve-wide column, then the description.
-    hidden [string[]] Labels() {
-        return @($this.Items | ForEach-Object { "{0,-12} {1}" -f $_.Key, $_.Description })
+    # The checked flags the row formatting reads - $null in a single-choice
+    # list, where there is nothing to check.
+    hidden [object] Flags() {
+        if (-not $this.Multi) { return $null }
+        return @($this.Items | ForEach-Object { $_.Checked })
     }
 
     # One row, now, in the right colour.
     hidden [void] DrawRow([int]$Index, [string[]]$Texts) {
         $Kind = if ($Index -eq $this.Current) { "info" } else { "" }
-        $this.Terminal.Line([WslDispatcher]::FormatRow($Index, $this.Current, $Texts), $Kind)
+        $this.Terminal.Line([WslDispatcher]::FormatRow($Index, $this.Current, $Texts, $this.Flags()), $Kind)
     }
 
     # The rows are drawn once and repainted in place - every label keeps its
     # length, so nothing has to be erased, and no Clear-Host.
-    hidden [WslCommand] PromptArrows() {
+    hidden [object] AskWithArrows() {
         $Count = $this.Items.Count
         # An index that is not in the list is the first one: a default is a
         # favour, not a way to fail.
         if ($this.Current -lt 0 -or $this.Current -ge $Count) { $this.Current = 0 }
 
-        $Texts = $this.Labels()
-        $Hint = "  up/down to move, Enter to choose, Escape to cancel"
+        $Texts = @($this.Items | ForEach-Object { $_.Text })
+        $Hint = if ($this.Multi) { "  up/down to move, space to check, Enter to apply, Escape to cancel" }
+                else { "  up/down to move, Enter to choose, Escape to cancel" }
         $Size = $this.Terminal.Size()
         # Every line of the block is cut to the window, title and hint
         # included: one line that wraps moves the rows below by one, and the
-        # arithmetic below is written for exactly Visible + 3 lines. A line
-        # the arithmetic does not know about is the bug this file was written
-        # against.
-        $Shown = [WslDispatcher]::Fit($Texts, $Size[0], 4)
+        # arithmetic below is written for exactly Visible + 3 lines, plus the
+        # note when there is one. A line the arithmetic does not know about is
+        # the bug this file was written against.
+        $Extra = if ($this.Note) { 1 } else { 0 }
+        $Shown = [WslDispatcher]::Fit($Texts, $Size[0], $(if ($this.Multi) { 8 } else { 4 }))
         $ShownTitle = @([WslDispatcher]::Fit(@($this.Title), $Size[0], 0))[0]
         $ShownHint = @([WslDispatcher]::Fit(@($Hint), $Size[0], 0))[0]
+        $ShownNote = @([WslDispatcher]::Fit(@($this.Note), $Size[0], 0))[0]
 
         # A list taller than the window scrolls rather than refuse: only the
         # rows that fit are drawn, and the window follows the choice. Three
-        # lines kept for the blank and the hint.
-        $Visible = if ($Size[1] -gt 0) { [Math]::Min($Count, [Math]::Max(1, $Size[1] - 3)) } else { $Count }
+        # lines kept for the blank and the hint, one more for the note.
+        $Visible = if ($Size[1] -gt 0) { [Math]::Min($Count, [Math]::Max(1, $Size[1] - 3 - $Extra)) } else { $Count }
         # The choice starts in the middle when it can: it is where the eye
         # goes.
         $First = [Math]::Max(0, [Math]::Min($this.Current - [int](($Visible - 1) / 2), $Count - $Visible))
@@ -243,9 +266,10 @@ class WslDispatcher {
         if ($ShownTitle) { $this.Terminal.Line($ShownTitle, "info") }
         for ($Row = 0; $Row -lt $Visible; $Row++) { $this.DrawRow($First + $Row, $Shown) }
         $this.Terminal.Line($ShownHint, "muted")
+        if ($ShownNote) { $this.Terminal.Line($ShownNote, "muted") }
 
         $Cursor = $this.Terminal.Top()
-        $Top = if ($null -ne $Cursor) { $Cursor - ($Visible + 1) } else { 0 }
+        $Top = if ($null -ne $Cursor) { $Cursor - ($Visible + 1 + $Extra) } else { 0 }
         # No cursor reading (a test, a host that will not say): the loop still
         # answers the keys, it simply does not repaint - there is nothing to
         # paint on.
@@ -260,21 +284,36 @@ class WslDispatcher {
                 $this.Current = if ($this.Current -eq 0) { $Last } else { $this.Current - 1 }
             } elseif ($Key -eq [ConsoleKey]::DownArrow) {
                 $this.Current = if ($this.Current -eq $Last) { 0 } else { $this.Current + 1 }
+            } elseif ($Key -eq [ConsoleKey]::Spacebar -and $this.Multi) {
+                # Space checks and unchecks where the cursor is. In a
+                # single-choice list it means nothing, and nothing is what it
+                # does.
+                $this.Items[$this.Current].Checked = -not $this.Items[$this.Current].Checked
             } elseif ($Key -eq [ConsoleKey]::Enter) {
-                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1) }
+                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
+                if ($this.Multi) {
+                    # No comma, unlike the function this came from: a method
+                    # hands its value back whole, where a function's output is
+                    # unrolled into the pipeline. The empty list arrives as
+                    # itself - "I checked none" stays different from "I
+                    # cancelled".
+                    return @($this.Items | Where-Object { $_.Checked })
+                }
                 return $this.Items[$this.Current]
             } elseif ($Key -eq [ConsoleKey]::Escape) {
-                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1) }
+                if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
                 return $null
             } elseif (($Key -ge [ConsoleKey]::D1 -and $Key -le [ConsoleKey]::D9) -or
                       ($Key -ge [ConsoleKey]::NumPad1 -and $Key -le [ConsoleKey]::NumPad9)) {
-                # A digit picks its row, no Enter needed - the numbers the
-                # numbered prompt shows are the same rows.
                 $Wanted = if ($Key -ge [ConsoleKey]::NumPad1) { [int]$Key - [int][ConsoleKey]::NumPad1 }
                           else { [int]$Key - [int][ConsoleKey]::D1 }
                 if ($Wanted -lt $Count) {
-                    if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1) }
-                    return $this.Items[$Wanted]
+                    if ($this.Multi) {
+                        $this.Items[$Wanted].Checked = -not $this.Items[$Wanted].Checked    # a digit checks, it does not leave
+                    } else {
+                        if ($CanPaint) { $null = $this.Terminal.SetTop($Top + $Visible + 1 + $Extra) }
+                        return $this.Items[$Wanted]
+                    }
                 }
             } else {
                 $Moved = $false                   # a key the menu has no use for
@@ -305,13 +344,42 @@ class WslDispatcher {
         return $null
     }
 
-    # The prompt for a machine with no keyboard: numbered rows, a number
+    # The prompt every command used before the arrows: numbered rows, a number
     # typed, an empty answer cancelling. Read-Host returns an empty string
     # when its input is closed, so a run with no console can never loop
     # forever.
-    hidden [WslCommand] PromptNumbers() {
+    hidden [object] AskByNumber() {
         $Count = $this.Items.Count
-        $Texts = $this.Labels()
+        $Texts = @($this.Items | ForEach-Object { $_.Text })
+
+        if ($this.Multi) {
+            while ($true) {
+                # The list is written again at every turn: a box that changed
+                # has to be seen, and with no console to paint on there is
+                # nowhere else to put it.
+                $this.Terminal.Line("", "")
+                if ($this.Title) { $this.Terminal.Line($this.Title, "info") }
+                for ($Index = 0; $Index -lt $Count; $Index++) {
+                    $Box = if ($this.Items[$Index].Checked) { "[x]" } else { "[ ]" }
+                    $this.Terminal.Line(("  {0,2}.  {1} {2}" -f ($Index + 1), $Box, $Texts[$Index]), "")
+                }
+                $this.Terminal.Line("   0.  Cancel", "")
+                if ($this.Note) { $this.Terminal.Line("  $($this.Note)", "muted") }
+
+                $Answer = $this.Terminal.Prompt("Number toggles, v applies, 0 cancels")
+                if ([string]::IsNullOrWhiteSpace($Answer) -or $Answer.Trim() -eq "0") { return $null }
+                if ($Answer.Trim() -match "^[vV]$") {
+                    return @($this.Items | Where-Object { $_.Checked })
+                }
+                $Number = 0
+                if ([int]::TryParse($Answer.Trim(), [ref]$Number) -and
+                    $Number -ge 1 -and $Number -le $Count) {
+                    $this.Items[$Number - 1].Checked = -not $this.Items[$Number - 1].Checked
+                    continue
+                }
+                $this.Terminal.Line("  '$Answer' is not one of the numbers above.", "warning")
+            }
+        }
 
         $this.Terminal.Line("", "")
         if ($this.Title) { $this.Terminal.Line($this.Title, "info") }
@@ -319,6 +387,7 @@ class WslDispatcher {
             $this.Terminal.Line(("  {0,2}.  {1}" -f ($Index + 1), $Texts[$Index]), "")
         }
         $this.Terminal.Line("   0.  Cancel", "")
+        if ($this.Note) { $this.Terminal.Line("  $($this.Note)", "muted") }
 
         while ($true) {
             $Answer = $this.Terminal.Prompt("Which one? (0 to cancel)")
@@ -331,7 +400,7 @@ class WslDispatcher {
             $this.Terminal.Line("  '$Answer' is not one of the numbers above.", "warning")
         }
 
-        # Never reached, like the one in PromptArrows: for the parser, not for
+        # Never reached, like the one in AskWithArrows: for the parser, not for
         # the console.
         return $null
     }

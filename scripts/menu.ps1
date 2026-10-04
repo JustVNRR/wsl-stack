@@ -1,7 +1,14 @@
 # ==============================================================================
-# ASKING: THE LIST, AS OBJECTS
+# ASKING: THE DOORS, AND THE CLASSES THEY LEFT BEHIND
 # ==============================================================================
-# Three classes, and the doors and helpers the commands call by name:
+# The questions are asked through scripts\WslUI.ps1's trio now - WslCommand,
+# WslTerminal, WslDispatcher - and the two doors at the bottom build it; the
+# command scripts still call the doors by those names, unchanged.
+#
+# The three classes below asked those questions until this step. They have no
+# caller left; they wait here for the step that takes them out, and the trio's
+# temporary names are decided for good then. Their notes stay with them until
+# they leave:
 #
 #   WslMenuItem - one row: the text shown, the value carried, the tick (in a
 #                 checklist).
@@ -11,16 +18,12 @@
 #                 the arrows (Ask) or at the numbered prompt when the machine
 #                 has no keyboard.
 #
-# The menu holds its console (one object, built by default), so the tests hand
-# it a subclass that answers canned keys and records the lines - nothing is
-# replaced by name any more, and no state travels between free functions.
-#
 # "$Host" in a method: the parser refuses the name; it is reached through
 # Get-Variable - measured. And a class is not data: a data class never draws;
 # WslMenu is the question itself, its console is its trade.
 #
-# This file defines the classes, the small helpers the commands call by name
-# (the keys and colour tests, the clean screen), and the thin doors
+# This file defines the classes above, the small helpers the commands call by
+# name (the keys and colour tests, the clean screen), and the thin doors
 # (Select-FromList, Select-Distro, at the bottom); it is not a command.
 # ==============================================================================
 
@@ -370,12 +373,12 @@ class WslMenu {
 }
 
 # ---------------------------------------------------------------------------
-# THE DOORS - WHAT THE SCRIPTS CALL, OVER THE CLASSES
+# THE DOORS - WHAT THE SCRIPTS CALL, OVER THE TRIO
 # ---------------------------------------------------------------------------
 # The same list, for the commands as they are written: Select-FromList builds
-# a WslMenu from raw items and a label; Select-Distro composes the one list
-# this family shows most. Thin on purpose - the day another interface replaces
-# the console, the doors go and the classes stay.
+# a WslDispatcher from raw items and a label; Select-Distro composes the one
+# list this family shows most. Thin on purpose - the day another interface
+# replaces the console, the doors go and the trio stays.
 
 # ---------------------------------------------------------------------------
 # THE SMALL HELPERS THE COMMANDS ALREADY CALLED
@@ -383,8 +386,8 @@ class WslMenu {
 # The commands ask these by name (theme.ps1 and the three children, icon, font
 # and color) - kept here, where they always lived, and spelled as functions
 # because that is how their callers know them. What a terminal can show, and
-# how it spells a colour: the console class above answers the same questions
-# for the menus. Test-KeyInput is that class's HasKeyboard twin - a method
+# how it spells a colour: the trio's terminal answers the same questions for
+# the lists. Test-KeyInput is WslTerminal's HasKeyboard twin - a method
 # cannot name $Host, measured, so the class reads it through Get-Variable and
 # this reads it directly.
 
@@ -435,7 +438,6 @@ function Select-FromList {
         [string]$Title = "",
         [object[]]$Items = @(),
         [scriptblock]$Label = { param($Item) [string]$Item },
-        [scriptblock]$KeyReader,
         [int]$DefaultIndex = 0,
         [switch]$Multi,
         [int[]]$CheckedIndexes = @(),
@@ -445,22 +447,20 @@ function Select-FromList {
     $Items = @($Items)
     if ($Items.Count -eq 0) { return $null }
 
-    $Rows = @()
+    $Dispatcher = [WslDispatcher]::new($Title)
     foreach ($Item in $Items) {
-        $Rows += [WslMenuItem]::new([string](& $Label $Item), $Item)
+        $null = $Dispatcher.Add([WslCommand]::new([string](& $Label $Item), $Item))
     }
     if ($Multi) {
         foreach ($Index in $CheckedIndexes) {
-            if ($Index -ge 0 -and $Index -lt $Rows.Count) { $Rows[$Index].Checked = $true }
+            if ($Index -ge 0 -and $Index -lt $Dispatcher.Items.Count) { $Dispatcher.Items[$Index].Checked = $true }
         }
     }
-
-    $Menu = [WslMenu]::new($Title, $Rows, [bool]$Multi)
-    $Menu.Note = $Note
-    $Menu.KeyReader = $KeyReader
-    # An index that is not in the list is the first one: the menu's own rule.
-    if ($DefaultIndex -ge 0 -and $DefaultIndex -lt $Rows.Count) { $Menu.Current = $DefaultIndex }
-    $Picked = $Menu.Ask()
+    $Dispatcher.Multi = [bool]$Multi
+    $Dispatcher.Note = $Note
+    # An index that is not in the list is the first one: the list's own rule.
+    if ($DefaultIndex -ge 0 -and $DefaultIndex -lt $Dispatcher.Items.Count) { $Dispatcher.Current = $DefaultIndex }
+    $Picked = $Dispatcher.Ask()
 
     if ($null -eq $Picked) { return $null }
     if ($Multi) {
@@ -486,12 +486,13 @@ function Select-Distro {
         exit 1
     }
 
-    $Rows = @()
+    $Dispatcher = [WslDispatcher]::new("Our Instances")
     foreach ($Instance in $All) {
         $State = if ($Instance.State -eq [WslState]::Running) { "running" } else { "stopped" }
-        $Rows += [WslMenuItem]::new(("{0,-30} {1,-8} {2,10}" -f $Instance.Name, $State, (Format-Size (Get-VhdxSize $Instance.Path))), $Instance)
+        $null = $Dispatcher.Add([WslCommand]::new(
+            ("{0,-30} {1,-8} {2,10}" -f $Instance.Name, $State, (Format-Size (Get-VhdxSize $Instance.Path))), $Instance))
     }
-    $Picked = [WslMenu]::new("Our Instances", $Rows, $false).Ask()
+    $Picked = $Dispatcher.Ask()
 
     if ($null -eq $Picked) {
         if ($AllowCancel) { return $null }

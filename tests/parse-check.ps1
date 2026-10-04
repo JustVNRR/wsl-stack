@@ -21,11 +21,10 @@ foreach ($ClassLib in $ClassOrder) {
 }
 
 # The menu file and the way in's trio carry classes of their own, and the
-# suites' fakes derive from them: read as one text after the classes - the
+# suites' fake derives from the trio: read as one text after the classes - the
 # order the runtime uses - and read nowhere else.
 $ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\menu.ps1")).FullName)
 $ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\WslUI.ps1")).FullName)
-$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "fake-console.ps1")).FullName)
 $ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "fake-terminal.ps1")).FullName)
 
 $errors = $null
