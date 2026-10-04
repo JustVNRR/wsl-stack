@@ -591,7 +591,7 @@ try {
     Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
     Invoke-WslFirstBoot -DistroName $DistroName -User $UserName
 
-    Write-Host "==> 7. Shutting down distro to persist systemd and user configuration..." -ForegroundColor (Get-MessageColour info)
+    Write-Host "==> 7. Shutting down distro so the next boot reads the user configuration..." -ForegroundColor (Get-MessageColour info)
     Stop-WslDistro -Name $DistroName
 
     # The profile - the font, the icon, the fragment, the tab - belongs to the
