@@ -183,10 +183,10 @@ function Resolve-DefaultUser {
         $Answer = "$Answer".Trim()
         # -cmatch, not -match: PowerShell's -match ignores case, and 'Root'
         # would pass here only to be refused inside.
-        if ($Answer -cmatch '^[a-z_][a-z0-9_-]*$') {
+        if ($Answer -cmatch '^[a-z][a-z0-9_-]*$') {
             $UserName = $Answer
         } else {
-            Write-Host "  Lowercase letters, digits, '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
+            Write-Host "  Lowercase letters, digits, '_' and '-' only, starting with a letter." -ForegroundColor (Get-MessageColour hint)
         }
     }
     return $UserName

@@ -11,7 +11,8 @@
 #   - the pack checklist is asked after the name and the folder, and before
 #     anything is created
 #   - the user name is asked with the other questions (after the checklist,
-#     before the build), and a refused name comes back to the question
+#     before the build), and refused names come back to the question - the
+#     case ('Root'), and the leading underscore adduser would not take
 #   - an empty checklist, applied or cancelled, means no pack, says so, and is
 #     asked no confirmation
 #   - a pack chosen is installed later, so the failure report names it
@@ -77,10 +78,11 @@ check "exit code 1"                      "$Code" "1"
 
 echo ""
 echo "--- one pack chosen (2 = the second in the list) and confirmed"
-# 'Root' first: a name the rule refuses, so the question's own re-ask shows in
-# the output. The Read-Host prompt itself cannot be asserted on - the runner's
-# pwsh does not write it to a captured stream, a Write-Host always is.
-run_build 'pack-qtest-3\n\n2\nv\n\nRoot\nqtestuser\n'
+# Two names the rule refuses first - 'Root' for the case, '_jean' for the
+# leading underscore adduser would not take - so the question's own re-ask
+# shows in the output. The Read-Host prompt itself cannot be asserted on -
+# the runner's pwsh does not write it to a captured stream, a Write-Host does.
+run_build 'pack-qtest-3\n\n2\nv\n\nRoot\n_jean\nqtestuser\n'
 # Which pack answer 2 chose is read from the run rather than written here: this
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
@@ -88,6 +90,7 @@ check "the checklist arrives before the build" "$(before "Packs for 'pack-qtest-
 check "and after the name" "$(before '==> Creating a new instance' "Packs for 'pack-qtest-3'")" "yes"
 check "the user name is asked after the checklist" "$(before "Packs for 'pack-qtest-3'" 'Lowercase letters, digits')" "yes"
 check "and a refused name is asked again" "$(contains 'Lowercase letters, digits')" "yes"
+check "both refused names come back to the question" "$(grep -ac 'Lowercase letters, digits' "$Out")" "2"
 check "and the build starts only after it" "$(before 'Lowercase letters, digits' '==> 1. Building Docker')" "yes"
 check "the one line of the summary names a pack" "$([ -n "$Chosen" ] && echo yes || echo no)" "yes"
 check "no empty 'Will remove' line"              "$(contains 'Will remove')" "no"

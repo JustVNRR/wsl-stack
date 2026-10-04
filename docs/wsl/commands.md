@@ -191,8 +191,8 @@ fails to install does not fail the build: the instance is built, the pack's
 files are taken back out, and the build names the pack and points at
 `.\wsl.ps1 manage_packs`. The shell that opens repeats the same news.
 
-The last question is the user the instance will open as — lowercase letters,
-digits, `_` and `-`. It is asked with the rest, so the instance is born with it
+The last question is the user the instance will open as — a lowercase letter
+first, then lowercase letters, digits, `_` and `-`. It is asked with the rest, so the instance is born with it
 and the first-boot onboarding does not ask again. The name is checked against
 the image's own accounts just before the import; a name the image already
 carries is asked again there, before anything is created.

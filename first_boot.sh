@@ -31,8 +31,8 @@ while true; do
     if [ -z "$NEW_USER" ]; then
         read -rp "${C_YELLOW}Enter your username: ${C_RESET}" NEW_USER
     fi
-    if [[ ! "$NEW_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
-        echo "${C_YELLOW}Invalid username (use lowercase letters, numbers, underscores, and dashes only).${C_RESET}"
+    if [[ ! "$NEW_USER" =~ ^[a-z][a-z0-9_-]*$ ]]; then
+        echo "${C_YELLOW}Invalid username (lowercase letters, numbers, underscores, and dashes only, starting with a letter).${C_RESET}"
         NEW_USER=''
     elif id "$NEW_USER" >/dev/null 2>&1; then
         echo "${C_YELLOW}The account '$NEW_USER' already exists - pick another name.${C_RESET}"
