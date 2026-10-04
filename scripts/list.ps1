@@ -1,15 +1,14 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # No parameter, and no question either: this command only reads, so it can be
 # run at any moment. Its exit code says whether there was anything to show - 1
 # when there is none, like the other commands' lists.
 
 $ErrorActionPreference = "Stop"
-
-# One working folder, no guessing: instances in <Root>\<name>, archives in
-# <Root>\archives - the family's rule.
-$Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
 
 # The family's shared half: the marker.
 $InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
@@ -21,10 +20,11 @@ if (-not (Test-Path $InstanceLib)) {
 . $InstanceLib
 
 # 1. Our instances, running or stopped, by name like every list in this family -
-# through the manager, which holds the whole fleet; what runs comes from its
-# batched question, asked once.
-$Manager = [WslInstanceManager]::new($Root)
-$All = @([WslInstanceManager]::Ours())
+# and, with them, the archives on disk and the folders left behind: the engine's
+# List() answers all three at once, what runs included (its batched question,
+# asked once).
+$Report = $Manager.List()
+$All = @($Report.Instances)
 if ($All.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
@@ -43,13 +43,8 @@ for ($Index = 0; $Index -lt $All.Count; $Index++) {
 
 # 2. The archives: everything in that folder was written by archive.ps1, so
 # there is nothing to tell apart.
-$ArchiveFolder = Join-Path $Root "archives"
-$Archives = @()
-if (Test-Path $ArchiveFolder) {
-    $Archives = @(Get-ChildItem -Path $ArchiveFolder -Directory |
-        Where-Object { (Get-ChildItem -Path $_.FullName -Filter "*.tar*" -File).Count -gt 0 } |
-        Sort-Object LastWriteTime -Descending)
-}
+$ArchiveFolder = $Manager.ArchivesRoot
+$Archives = @($Report.Archives)
 
 if ($Archives.Count -gt 0) {
     Write-Host ""
@@ -64,7 +59,7 @@ if ($Archives.Count -gt 0) {
 
 # 3. Marked folders that no instance claims - what an interrupted removal, or
 # an outside `wsl --unregister`, leaves behind. The one place they show.
-$Forgotten = @($Manager.ForgottenFolders)
+$Forgotten = @($Report.Forgotten)
 
 if ($Forgotten.Count -gt 0) {
     Write-Host ""

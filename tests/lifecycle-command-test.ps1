@@ -71,13 +71,18 @@ function Check {
 # The child's own exit code, beside its output: a refusal is a result too.
 $script:ChildExit = 0
 
+# The commands are driven through invoke-command.ps1: a fresh pwsh has no
+# classes, and a command's typed -Manager parameter is settled before the
+# command runs - the shared half must be loaded first, as wsl.ps1 does.
+$Invoker = Join-Path $PSScriptRoot "invoke-command.ps1"
+
 function Invoke-Child {
     param([string]$Script, [string[]]$Answers)
 
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Lines = $Answers | & $Engine -NoProfile -File $Script 2>&1
+        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script $Script 2>&1
         $script:ChildExit = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $Preference

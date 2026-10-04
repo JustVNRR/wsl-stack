@@ -303,26 +303,6 @@ class WslInstance {
     # INSTANCE METHODS: Terminal Appearance
     # =========================================================================
 
-    [void] SetFont([string]$fontName) {
-        if (-not $this.Look) { $this.Look = [WslTheme]::new() }
-        $this.Look.FontName = $fontName
-        $this.ApplyTerminalProfile()
-    }
-
-    [void] SetColorScheme([string]$schemeName) {
-        if (-not $this.Look) { $this.Look = [WslTheme]::new() }
-        $this.Look.ColorScheme = $schemeName
-        $this.ApplyTerminalProfile()
-    }
-
-    # The image case: a file of the user's replaces the icon. Changing the
-    # recipe (letters, colours) instead redraws it, with assets\make-icon.ps1.
-    [void] SetIcon([string]$iconPath) {
-        if (-not $this.Look) { $this.Look = [WslTheme]::new() }
-        $this.Look.IconPath = $iconPath
-        $this.ApplyTerminalProfile()
-    }
-
     # Makes the look live on the Windows side: the font it names (fetched when
     # missing, best effort), the icon drawn from the instance's own name, the
     # fragment Windows Terminal reads under the guid WSL gave the instance,
@@ -402,6 +382,63 @@ class WslInstance {
         Update-TerminalSettings
 
         return [PSCustomObject]@{ Applied = $Applied; Warnings = @($Warnings) }
+    }
+
+    # The four gestures of the look: what the theme's children change, one at a
+    # time. ApplyTerminalProfile above walks the same road (the profile's guid,
+    # the fragment, then the look - the icon recipe kept through: a font or
+    # colour change must not eat the tile; that was a real defect once); the
+    # two should share that walk one day instead of walking it twice.
+
+    [void] SetFont([string]$FontName) {
+        $Guid = Get-WslProfileGuid -Name $this.Name
+        if (-not $Guid) {
+            throw "Windows Terminal has no profile for '$($this.Name)' - the font cannot be applied."
+        }
+        $Theme = Get-InstanceAppearance -Name $this.Name
+        $Theme.FontName = $FontName
+        Set-InstanceFragment -Name $this.Name -Guid $Guid -Theme $Theme
+        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
+            -Icon (Get-IconRecipe -Name $this.Name))
+    }
+
+    [void] SetColourScheme([string]$SchemeName) {
+        $Guid = Get-WslProfileGuid -Name $this.Name
+        if (-not $Guid) {
+            throw "Windows Terminal has no profile for '$($this.Name)' - the colours cannot be applied."
+        }
+        $Theme = Get-InstanceAppearance -Name $this.Name
+        $Theme.ColorScheme = $SchemeName
+        Set-InstanceFragment -Name $this.Name -Guid $Guid -Theme $Theme
+        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
+            -Icon (Get-IconRecipe -Name $this.Name))
+    }
+
+    # The recipe is drawn to the instance's own icon file
+    # (terminal-icon.png, next to its disk), then worn. $PSScriptRoot in a
+    # class method is the class file's folder - scripts\classes - so the
+    # drawing script is two levels up, in assets. The drawn recipe comes
+    # back whole: the drawing settles the parts the recipe left open.
+    [object] SetIcon([object]$Recipe) {
+        $IconPath = Join-Path $this.Path "terminal-icon.png"
+        $Draw = @{ Name = $this.Name }
+        $Draw += $Recipe
+        $Drawn = & (Join-Path $PSScriptRoot "..\..\assets\make-icon.ps1") @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
+
+        $Icon = @{
+            Text      = $Drawn.Text
+            Top       = $Drawn.Top
+            Bottom    = $Drawn.Bottom
+            TextColor = $Drawn.TextColor
+        }
+        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name -Icon $Icon)
+        return $Icon
+    }
+
+    # A file replaces the picture; the drawing behind it (the recipe) stays,
+    # and comes back if the drawing is chosen again.
+    [void] SetIconImage([string]$Source) {
+        Copy-Item -LiteralPath $Source -Destination (Join-Path $this.Path "terminal-icon.png") -Force
     }
 
     # =========================================================================

@@ -13,6 +13,12 @@
 # marker - or, for start and stop, what can still be acted on, and you pick.
 # scripts\instance.ps1 is not a command: it holds what the other scripts share,
 # and is not listed here.
+#
+# What this file loads, it loads once: the shared half (scripts\instance.ps1) -
+# the menu below asks through it, and a command's own types settle on it when
+# the command is called. Each command then runs on a manager of its own (the
+# default of its -Manager parameter); the day they all take one, this file
+# will hand over the single one.
 # ==============================================================================
 
 $Scripts = Join-Path $PSScriptRoot "scripts"
@@ -55,20 +61,22 @@ $Commands = @(
     @{ Name = "wslconfig";  What = "open the Windows-wide WSL settings" }
 )
 
+# The shared half - the classes, the menus, the packs, the marker - read once,
+# here: the question below asks through it, and the command dispatched at the
+# bottom settles its own types on it. Asking is scripts\menu.ps1's job, and it
+# must not be written a second time here.
+$InstanceLib = Join-Path $Scripts "instance.ps1"
+if (-not (Test-Path $InstanceLib)) {
+    Write-Host ""
+    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
+. $InstanceLib
+
 # Bare, the repository asks its first question - which command - and it is a
 # question like the ones inside the commands: the same menu, walked with the
-# arrows, cancelled with Escape. The dispatcher loads what they load, for that
-# reason and no other: asking is scripts\menu.ps1's job, and it must not be
-# written a second time here.
+# arrows, cancelled with Escape.
 if ($args.Count -eq 0) {
-    $InstanceLib = Join-Path $Scripts "instance.ps1"
-    if (-not (Test-Path $InstanceLib)) {
-        Write-Host ""
-        Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-        exit 1
-    }
-    . $InstanceLib
-
     Write-Host ""
     Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 

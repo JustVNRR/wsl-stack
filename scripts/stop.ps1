@@ -1,7 +1,10 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
-# No parameter on purpose: the instance comes from the list of running ones - a
+# No instance parameter on purpose: the instance comes from the list of running ones - a
 # name typed by heart is a name you can get wrong.
 
 $ErrorActionPreference = "Stop"
@@ -18,7 +21,7 @@ if (-not (Test-Path $InstanceLib)) {
 # 1. Who can be stopped: our running instances, and only those - an
 # already-stopped one has nothing to do here. Sorted by name, like every list
 # in this family.
-$All = @([WslInstanceManager]::Ours())
+$All = @($Manager.OursHere())
 if ($All.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
@@ -65,7 +68,9 @@ if ($Confirm -match "^[nN]") {
 Write-Host ""
 Write-Host "==> Stopping '$DistroName'..." -ForegroundColor (Get-MessageColour info)
 try {
-    $Distro.Stop()
+    # Hand the gesture over to the engine - the one door every interface calls;
+    # the state moves on the instance itself.
+    $null = $Manager.Stop($Distro)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)

@@ -1,15 +1,19 @@
-# Drives scripts\menu.ps1 with a scripted keyboard: the arrow loop runs with no
-# terminal in sight, which is the only way to test it.
+# Drives the menu classes with a scripted console: the arrow loop runs with no
+# terminal in sight, which is the only way to test it. The console is a
+# WslConsole subclass (fake-console.ps1, next to this file) that answers
+# canned keys and records the lines - the tests replace the object, not
+# functions by name.
 #
 # Usage:  pwsh -File tests\menu-test.ps1 < tests\menu-test.answers
 #
-# The last checks use no -KeyReader at all - the no-console case: they read the
-# numbered prompt's answers from standard input. The .answers file is the ONLY
-# copy of them; a second copy is a copy that drifts, and that is exactly what
-# happened once.
+# The last checks use no fake at all - the no-console case: the menu builds
+# the real console, sees no keyboard, and reads the numbered prompt's answers
+# from standard input. The .answers file is the ONLY copy of them; a second
+# copy is a copy that drifts, and that is exactly what happened once.
 #
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\scripts\menu.ps1")
+. (Join-Path $PSScriptRoot "fake-console.ps1")
 
 $Failures = 0
 function Check {
@@ -22,45 +26,81 @@ function Check {
     }
 }
 
-function Run-Menu {
-    param([ConsoleKey[]]$Keys, [object[]]$Items, [scriptblock]$Label, [int]$Default = 0)
-    $script:Queue = New-Object System.Collections.Queue
-    foreach ($Key in $Keys) { $script:Queue.Enqueue($Key) }
-    $Reader = { $script:Queue.Dequeue() }
-    if ($Label) {
-        return Select-FromList -Title "T" -Items $Items -Label $Label -KeyReader $Reader -DefaultIndex $Default
+# Rows for a plain list: the text is the value, spelled plainly.
+function ItemsOf {
+    param([object[]]$Values, [int[]]$Checked = @())
+    $Out = @()
+    for ($Index = 0; $Index -lt $Values.Count; $Index++) {
+        $Item = [WslMenuItem]::new([string]$Values[$Index], $Values[$Index])
+        if ($Checked -contains $Index) { $Item.Checked = $true }
+        $Out += $Item
     }
-    return Select-FromList -Title "T" -Items $Items -KeyReader $Reader -DefaultIndex $Default
+    return ,$Out
+}
+
+# One menu, one scripted console, the answer.
+function Run-Menu {
+    param([ConsoleKey[]]$Keys, [object[]]$Items, [int]$Default = 0)
+    $Console = [FakeConsole]::new()
+    $Console.Keys = [System.Collections.Queue]::new()
+    foreach ($Key in $Keys) { $Console.Keys.Enqueue($Key) }
+    $Menu = [WslMenu]::new("T", (ItemsOf $Items), $false)
+    $Menu.Console = $Console
+    $Menu.Current = $Default
+    return $Menu.Ask()
+}
+
+function Run-Multi {
+    param([ConsoleKey[]]$Keys, [object[]]$Values, [int[]]$Checked = @())
+    $Console = [FakeConsole]::new()
+    $Console.Keys = [System.Collections.Queue]::new()
+    foreach ($Key in $Keys) { $Console.Keys.Enqueue($Key) }
+    $Menu = [WslMenu]::new("T", (ItemsOf $Values $Checked), $true)
+    $Menu.Console = $Console
+    $Picked = $Menu.Ask()
+    if ($null -eq $Picked) { return $null }
+    # The comma: this is a function, and "nothing checked" has to arrive as an
+    # empty list, not as no output at all - the same trap the menu itself
+    # avoids on the other side of the door.
+    return ,@($Picked | ForEach-Object { $_.Value })
 }
 
 $Items = @("a", "b", "c")
 
 Check "Down, Down, Enter        -> the third" `
-    (Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::Enter) $Items) "c"
+    ((Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::Enter) $Items).Value) "c"
 Check "Up from the first        -> the last (wrapping)" `
-    (Run-Menu @([ConsoleKey]::UpArrow, [ConsoleKey]::Enter) $Items) "c"
+    ((Run-Menu @([ConsoleKey]::UpArrow, [ConsoleKey]::Enter) $Items).Value) "c"
 Check "Down from the last       -> the first (wrapping)" `
-    (Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::Enter) $Items) "a"
+    ((Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::DownArrow, [ConsoleKey]::Enter) $Items).Value) "a"
 Check "Escape                   -> nothing" `
-    (Run-Menu @([ConsoleKey]::Escape) $Items) ""
+    ((Run-Menu @([ConsoleKey]::Escape) $Items).Value) ""
 Check "the key 2                -> the second, no Enter needed" `
-    (Run-Menu @([ConsoleKey]::D2) $Items) "b"
+    ((Run-Menu @([ConsoleKey]::D2) $Items).Value) "b"
 Check "the key 9 (off the list) -> ignored" `
-    (Run-Menu @([ConsoleKey]::D9, [ConsoleKey]::Enter) $Items) "a"
+    ((Run-Menu @([ConsoleKey]::D9, [ConsoleKey]::Enter) $Items).Value) "a"
 Check "any other key            -> ignored" `
-    (Run-Menu @([ConsoleKey]::A, [ConsoleKey]::Enter) $Items) "a"
+    ((Run-Menu @([ConsoleKey]::A, [ConsoleKey]::Enter) $Items).Value) "a"
 Check "empty list               -> nothing, and nothing is asked" `
-    (Run-Menu @() @()) ""
+    (([WslMenu]::new("T", @(), $false)).Ask()) ""
 Check "a custom label           -> hands back the object, not the label" `
-    (Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::Enter) @(1, 2) { param($i) "L-$i" }) "2"
+    (& {
+        $Console = [FakeConsole]::new()
+        $Console.Keys = [System.Collections.Queue]::new()
+        $Console.Keys.Enqueue([ConsoleKey]::DownArrow)
+        $Console.Keys.Enqueue([ConsoleKey]::Enter)
+        $Menu = [WslMenu]::new("T", @([WslMenuItem]::new("L-1", 1), [WslMenuItem]::new("L-2", 2)), $false)
+        $Menu.Console = $Console
+        ($Menu.Ask()).Value
+    }) "2"
 Check "default: Enter takes it without moving" `
-    (Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") $null 2) "c"
+    ((Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") 2).Value) "c"
 Check "default off the list     -> the first" `
-    (Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") $null 9) "a"
+    ((Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") 9).Value) "a"
 Check "negative default         -> the first" `
-    (Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") $null -1) "a"
+    ((Run-Menu @([ConsoleKey]::Enter) @("a", "b", "c") -1).Value) "a"
 Check "default = last, Down     -> wraps to the first" `
-    (Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::Enter) @("a", "b", "c") $null 2) "a"
+    ((Run-Menu @([ConsoleKey]::DownArrow, [ConsoleKey]::Enter) @("a", "b", "c") 2).Value) "a"
 
 Write-Output ""
 Write-Output "--- a row is one line, box or no box ---"
@@ -70,92 +110,73 @@ Write-Output "--- a row is one line, box or no box ---"
 # paints one line off. These checks are the invariant itself: marker, box and
 # label together never exceed the width the console gave.
 $Wide = @(("x" * 400 -join ""), ("y" * 400 -join ""))
-$Cut = Format-MenuLabels -Labels $Wide -Width 40
+$Cut = [WslMenu]::Fit($Wide, 40, 4)
 Check "a plain row fits the width          " `
     ((@($Cut | ForEach-Object { 4 + $_.Length }) | Measure-Object -Maximum).Maximum) "39"
-$Cut = Format-MenuLabels -Labels $Wide -Width 40 -Prefix 8
+$Cut = [WslMenu]::Fit($Wide, 40, 8)
 Check "a row with its box fits it too     " `
     ((@($Cut | ForEach-Object { 8 + $_.Length }) | Measure-Object -Maximum).Maximum) "39"
-$Cut = Format-MenuLabels -Labels $Wide -Width 40 -Prefix 0
+$Cut = [WslMenu]::Fit($Wide, 40, 0)
 Check "a title or a hint fits it too       " `
     ((@($Cut | ForEach-Object { $_.Length }) | Measure-Object -Maximum).Maximum) "39"
 Check "  ... and the cut shows as one      " ($Cut[0] -like "x*...") "True"
-Check "a short label is left alone         " (@(Format-MenuLabels -Labels @("court") -Width 40)[0]) "court"
-Check "a host that says no width cuts none " (@(Format-MenuLabels -Labels @("x" * 400 -join "") -Width 0)[0]).Length "400"
+Check "a short label is left alone         " (@([WslMenu]::Fit(@("court"), 40, 4))[0]) "court"
+Check "a host that says no width cuts none " (@([WslMenu]::Fit(@("x" * 400 -join ""), 0, 4))[0]).Length "400"
 
 Write-Output ""
 Write-Output "--- no console (numbered fallback, answers read from standard input) ---"
 Check "fallback: answer 2       -> the second" `
-    (Select-FromList -Title "T" -Items $Items) "b"
+    (([WslMenu]::new("T", (ItemsOf $Items), $false)).Ask().Value) "b"
 Check "fallback: empty answer   -> nothing" `
-    (Select-FromList -Title "T" -Items $Items) ""
+    (([WslMenu]::new("T", (ItemsOf $Items), $false)).Ask().Value) ""
 Check "fallback multi: 1, 2 then v -> both" `
-    ((Select-FromList -Title "T" -Items $Items -Multi) -join ",") "a,b"
+    ((([WslMenu]::new("T", (ItemsOf $Items), $true)).Ask() | ForEach-Object { $_.Value }) -join ",") "a,b"
 Check "fallback multi: v alone     -> an empty list, not a cancellation" `
-    ($null -eq (Select-FromList -Title "T" -Items $Items -Multi)) "False"
+    ($null -eq ([WslMenu]::new("T", (ItemsOf $Items), $true)).Ask()) "False"
 Check "  ... and that list is really empty" `
-    ((Select-FromList -Title "T" -Items $Items -Multi).Count) "0"
+    (@(([WslMenu]::new("T", (ItemsOf $Items), $true)).Ask()).Count) "0"
 Check "fallback multi: empty line  -> cancelled" `
-    (Select-FromList -Title "T" -Items $Items -Multi) ""
+    (([WslMenu]::new("T", (ItemsOf $Items), $true)).Ask()) ""
 
 Write-Output ""
 Write-Output "--- the drawing: the top of the block is read back AFTER it is drawn ---"
 # A console that scrolls while the block is written: it answers 20 before the
 # rows are drawn and 40 after. Read before drawing, 20 puts every row 20 lines
-# too high - the stand-in for Write-MenuRow tells the two moments apart.
-$script:Drawing = $false
-$script:Moves = @()
-function Write-MenuRow { param([int]$Index, [int]$Current, [string[]]$Labels) $script:Drawing = $true }
-function Get-ConsoleTop { if ($script:Drawing) { return 40 } return 20 }
-function Set-ConsoleTop { param([int]$Top) $script:Moves += $Top; return $true }
+# too high - the fake console tells the two moments apart.
+$Console = [FakeConsole]::new()
+$Console.Keys = [System.Collections.Queue]::new()
+$Console.Keys.Enqueue([ConsoleKey]::DownArrow)
+$Console.Keys.Enqueue([ConsoleKey]::Enter)
+$Menu = [WslMenu]::new("T", (ItemsOf @("a", "b", "c", "d", "e")), $false)
+$Menu.Console = $Console
+$Picked = $Menu.Ask()
 
-$script:Queue = New-Object System.Collections.Queue
-$script:Queue.Enqueue([ConsoleKey]::DownArrow)
-$script:Queue.Enqueue([ConsoleKey]::Enter)
-$Reader = { $script:Queue.Dequeue() }
-$Picked = Select-FromList -Title "T" -Items @("a", "b", "c", "d", "e") -KeyReader $Reader
-
-Check "top read after (34..38, then 40) -> no drift" ($script:Moves -join ",") "34,35,36,37,38,40"
-Check "and the choice is still right" $Picked "b"
+Check "top read after (34..38, then 40) -> no drift" ($Console.Moves -join ",") "34,35,36,37,38,40"
+Check "and the choice is still right" $Picked.Value "b"
 
 Write-Output ""
 Write-Output "--- -Note: one more line of the same block ---"
 # The note is one more line of the block, counted everywhere: where the rows
-# start, how many fit, and the line the cursor leaves on. Widened on purpose (20
-# lines for five rows) so the two halves read apart: without the note, rows at
-# 34 and the way out at 40.
-function Get-ConsoleSize { return @(40, 20) }
-$script:Moves = @()
-$script:Queue = New-Object System.Collections.Queue
-$script:Queue.Enqueue([ConsoleKey]::DownArrow)
-$script:Queue.Enqueue([ConsoleKey]::Enter)
-$Reader = { $script:Queue.Dequeue() }
-$Noted = Select-FromList -Title "T" -Items @("a", "b", "c", "d", "e") -KeyReader $Reader `
-    -Note "Get more at https://example.test"
-Check "the rows (33..37) and the way out (40) count it" ($script:Moves -join ",") "33,34,35,36,37,40"
-Check "  ... and the choice is still right" $Noted "b"
+# start, how many fit, and the line the cursor leaves on. Widened on purpose
+# (20 lines for five rows) so the two halves read apart: without the note, rows
+# at 34 and the way out at 40.
+$Console = [FakeConsole]::new()
+$Console.Keys = [System.Collections.Queue]::new()
+$Console.Keys.Enqueue([ConsoleKey]::DownArrow)
+$Console.Keys.Enqueue([ConsoleKey]::Enter)
+$Menu = [WslMenu]::new("T", (ItemsOf @("a", "b", "c", "d", "e")), $false)
+$Menu.Note = "Get more at https://example.test"
+$Menu.Console = $Console
+$Noted = $Menu.Ask()
+Check "the rows (33..37) and the way out (40) count it" ($Console.Moves -join ",") "33,34,35,36,37,40"
+Check "  ... and the choice is still right" $Noted.Value "b"
 
 # And it is really drawn: written under the list.
-$script:Queue = New-Object System.Collections.Queue
-$script:Queue.Enqueue([ConsoleKey]::Escape)
-$Reader = { $script:Queue.Dequeue() }
-$Drawn = @(Select-FromList -Title "T" -Items @("a", "b") -KeyReader $Reader -Note "Get more at https://example.test" 6>&1)
 Check "and it shows under the list" `
-    (@($Drawn | Where-Object { "$_" -like "*Get more at https://example.test*" }).Count) 1
+    (@($Console.Lines | Where-Object { "$_" -like "*Get more at https://example.test*" }).Count) 1
 
 Write-Output ""
 Write-Output "--- multi-select: space checks, Enter hands the list back ---"
-function Run-Multi {
-    param([ConsoleKey[]]$Keys, [object[]]$Items, [int[]]$Checked = @(), [scriptblock]$Label)
-    $script:Queue = New-Object System.Collections.Queue
-    foreach ($Key in $Keys) { $script:Queue.Enqueue($Key) }
-    $Reader = { $script:Queue.Dequeue() }
-    if ($Label) {
-        return Select-FromList -Title "T" -Items $Items -Label $Label -KeyReader $Reader -Multi -CheckedIndexes $Checked
-    }
-    return Select-FromList -Title "T" -Items $Items -KeyReader $Reader -Multi -CheckedIndexes $Checked
-}
-
 $PackItems = @("gcp", "vision", "python")
 Check "space checks                 -> the list handed back" `
     ((Run-Multi @([ConsoleKey]::Spacebar, [ConsoleKey]::Enter) $PackItems) -join ",") "gcp"
@@ -176,50 +197,46 @@ Check "  ... and that list is really empty" `
 Check "Escape                       -> nothing at all" `
     (Run-Multi @([ConsoleKey]::Escape) $PackItems) ""
 Check "single-select: space does nothing" `
-    ((Run-Menu @([ConsoleKey]::Spacebar, [ConsoleKey]::Enter) $PackItems) -join ",") "gcp"
+    ((Run-Menu @([ConsoleKey]::Spacebar, [ConsoleKey]::Enter) $PackItems).Value) "gcp"
 Check "the box shows in the row" `
-    ((Format-MenuRow -Index 1 -Current 0 -Labels $PackItems -Checked @($true, $false, $true)).Trim()) "[ ] vision"
+    (([WslMenu]::FormatRow(1, 0, $PackItems, @($true, $false, $true))).Trim()) "[ ] vision"
 
 Write-Output ""
 Write-Output "--- the window: rows are cut, a tall list scrolls ---"
 # A tiny window, and the menu must still work: the long label is cut rather
 # than wrapping, and the list scrolls instead of refusing to draw.
-$script:Drawn = @()
-function Write-MenuRow {
-    param([int]$Index, [int]$Current, [string[]]$Labels)
-    if ($Index -eq $Current) { $script:Drawn += ("#" + $Labels[$Index]) }
-    else { $script:Drawn += $Labels[$Index] }
-}
-function Get-ConsoleSize { return @(40, 6) }
-
 $Long = "remove_pack  uninstall optional tooling from an instance, dependencies included"
 # @() around each: a one-element list unrolls to its element, and [0] on a
 # string is its first LETTER - the same trap, met again in the test.
-$Cut = @(Format-MenuLabels -Labels @($Long) -Width 40)[0]
-$Short = @(Format-MenuLabels -Labels @("short") -Width 40)[0]
-$NoWidth = @(Format-MenuLabels -Labels @($Long) -Width 0)[0]
+$Cut = @([WslMenu]::Fit(@($Long), 40, 4))[0]
+$Short = @([WslMenu]::Fit(@("short"), 40, 4))[0]
+$NoWidth = @([WslMenu]::Fit(@($Long), 0, 4))[0]
 Check "cut to the width (39 max)" ($Cut.Length -le 39) $true
 Check "cut: the end becomes ..." ($Cut.EndsWith("...")) $true
 Check "a short label stays whole" $Short "short"
 Check "unknown width (0): nothing is cut" $NoWidth $Long
 
-$script:Queue = New-Object System.Collections.Queue
-foreach ($n in 1..6) { $script:Queue.Enqueue([ConsoleKey]::DownArrow) }
-$script:Queue.Enqueue([ConsoleKey]::Enter)
-$Reader = { $script:Queue.Dequeue() }
-$script:Drawn = @()
-$Picked = Select-FromList -Title "T" -Items @("i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9") -KeyReader $Reader
+$Console = [FakeConsole]::new()
+$Console.SizeAnswer = @(40, 6)
+$Console.Keys = [System.Collections.Queue]::new()
+foreach ($n in 1..6) { $Console.Keys.Enqueue([ConsoleKey]::DownArrow) }
+$Console.Keys.Enqueue([ConsoleKey]::Enter)
+$Menu = [WslMenu]::new("T", (ItemsOf @("i0", "i1", "i2", "i3", "i4", "i5", "i6", "i7", "i8", "i9")), $false)
+$Menu.Console = $Console
+$Picked = $Menu.Ask()
 
-$Last = $script:Drawn[-3..-1] -join "|"
-Check "the window followed the choice (i6 current)" $Last "i4|i5|#i6"
-Check "and the choice is still right" $Picked "i6"
+# The rows as recorded: the marker says where the choice is, so the current
+# row is the one carrying "> ".
+$Last = $Console.Lines[-3..-1] -join "|"
+Check "the window followed the choice (i6 current)" $Last "    i4|    i5|  > i6"
+Check "and the choice is still right" ($Picked.Value) "i6"
 
 Write-Output ""
 Write-Output "--- a clean screen between levels ---"
 # One call, and that is the point: the version before remembered each menu's
 # rows and blanked exactly those - a row number is absolute and the console
 # moves, so one scroll drew the next menu over the prompt. Replaced by this.
-Check "clearing the screen is safe without one" (& { Clear-MenuScreen; "survived" }) "survived"
+Check "clearing the screen is safe without one" (& { [WslConsole]::new().Clear(); "survived" }) "survived"
 
 Write-Output ""
 Write-Output ("failures: " + $Failures)

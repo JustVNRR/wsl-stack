@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # No parameter on purpose: the instance comes from the list of running ones - a
 # name typed by heart is a name you can get wrong.
@@ -17,7 +20,7 @@ if (-not (Test-Path $InstanceLib)) {
 
 # 1. Who can be restarted: our running instances, and only those - a stopped
 # one has `start`. Sorted by name, like every list in this family.
-$All = @([WslInstanceManager]::Ours())
+$All = @($Manager.OursHere())
 if ($All.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
@@ -63,11 +66,12 @@ if ($Confirm -match "^[nN]") {
 
 # 3. In the order that makes the second half a fresh boot: WSL reads
 # /etc/wsl.conf and /etc/resolv.conf when the instance boots - the point of the
-# command.
+# command. Gesture by gesture: each half fails on its own, and each failure
+# gets the line that says where the instance stands.
 Write-Host ""
 Write-Host "==> Stopping '$DistroName'..." -ForegroundColor (Get-MessageColour info)
 try {
-    $Distro.Stop()
+    $null = $Manager.Stop($Distro)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
@@ -78,7 +82,7 @@ try {
 Write-Host ""
 Write-Host "==> Starting '$DistroName'..." -ForegroundColor (Get-MessageColour info)
 try {
-    $Distro.Start()
+    $null = $Manager.Start($Distro)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)

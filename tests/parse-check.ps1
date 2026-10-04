@@ -20,6 +20,12 @@ foreach ($ClassLib in $ClassOrder) {
     if (Test-Path $ClassPath) { $ClassPaths += (Get-Item $ClassPath).FullName }
 }
 
+# The menu file carries classes of its own, and the suites' fake console
+# derives from one of them: read as one text after the classes - the order the
+# runtime uses - and read nowhere else.
+$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\menu.ps1")).FullName)
+$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "fake-console.ps1")).FullName)
+
 $errors = $null
 $ClassText = (@($ClassPaths | ForEach-Object { Get-Content -Path $_ -Raw }) -join "`n")
 [void][System.Management.Automation.Language.Parser]::ParseInput($ClassText, [ref]$null, [ref]$errors)
