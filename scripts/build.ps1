@@ -208,6 +208,87 @@ function Resolve-DefaultUser {
     return $UserName
 }
 
+# The instance's full name, resolved: which instance it is, where it will
+# live, and - when Windows already carries the name - the destruction that
+# takes. One question after the other, all of it before the machine starts;
+# the checks hold on a first build too, where no distribution exists yet and
+# the banner never shows. An empty answer anywhere, or a name not retyped,
+# cancels the run with nothing modified. Answers the name, the folder, and
+# whether Windows already had the name.
+function Resolve-InstanceIdentity {
+    param([string]$Root)
+
+    $DistroName = $null
+    while (-not $DistroName) {
+        $Answer = [string](Read-Host "Name of the instance (CTRL+C to abort)")
+        if ([string]::IsNullOrWhiteSpace($Answer)) {
+            Write-Host ""
+            Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+            exit 0
+        }
+        $Answer = $Answer.Trim()
+        if ($Answer -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+            $DistroName = $Answer
+        } else {
+            Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
+        }
+    }
+
+    # What Windows already knows, read once and read strictly: this one list
+    # answers "is this path another instance's folder" below, "is this name
+    # taken" for the banner, and "may this still be erased" just before the
+    # erasing. A list that cannot be read stops the run rather than passing
+    # for an empty one.
+    try {
+        $Registered = @(Get-RegisteredDistros)
+    } catch {
+        Write-Host ""
+        Write-Host "[ABORT] The list of registered WSL distributions cannot be read." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        See what 'wsl --list --verbose' says, then run this script again." -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
+    }
+    $WasRegistered = [bool]($Registered | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1)
+
+    $InstallPath = Resolve-InstallPath -DistroName $DistroName -Root $Root -Registered $Registered
+
+    # The safety check: a name Windows already carries is destroyed only once
+    # the exact name is typed back - the banner asks for it, and a reflexive
+    # Enter aborts.
+    if ($WasRegistered) {
+        [Console]::Beep(1000, 400)
+        Write-Host ""
+        Write-DangerBanner
+        Write-Host ""
+        Write-Host "  A WSL distribution named '$DistroName' ALREADY exists." -ForegroundColor (Get-MessageColour error)
+        Write-Host ""
+        Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
+        Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
+        Write-Host "    - Erasing the install folder: $InstallPath" -ForegroundColor (Get-MessageColour muted)
+        Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
+        Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
+        Write-Host ""
+        Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
+        Write-Host ""
+        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+        Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
+        Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
+        $Confirmation = Read-Host " Confirm"
+        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+        Write-Host ""
+
+        # -cne, not -ne: PowerShell's -ne ignores case, while the banner above
+        # asks for the exact name. The point is that the name is read and
+        # typed, not that a reflexive Enter carries through.
+        if ($Confirmation -cne $DistroName) {
+            Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
+            exit 0
+        }
+    }
+
+    return [PSCustomObject]@{ Name = $DistroName; InstallPath = $InstallPath; WasRegistered = $WasRegistered }
+}
+
 # The deployment's steps, named one by one: each goes through the checked
 # wrapper, so a program that fails stops the run instead of writing a line the
 # script walks past.
@@ -401,49 +482,20 @@ if (-not $MutexHeld) {
 # failing here aborts with nothing confirmed and nothing touched.
 Assert-DockerReady
 
-# 0-bis. What is being built, asked: both answers checked here - before the
-# banner and before anything is created. The checks hold on a first build too,
-# where no distro exists yet and the banner never shows.
+# 0-bis. What is being built, asked: the name, the folder, and - when Windows
+# already carries the name - the destruction it takes. All of it resolved
+# before the machine starts, by its own function.
 Write-Host ""
 Write-Host "==> Creating a new instance" -ForegroundColor (Get-MessageColour info)
-
-$DistroName = $null
-while (-not $DistroName) {
-    $Answer = [string](Read-Host "Name of the instance (CTRL+C to abort)")
-    if ([string]::IsNullOrWhiteSpace($Answer)) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
-    $Answer = $Answer.Trim()
-    if ($Answer -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
-        $DistroName = $Answer
-    } else {
-        Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
-    }
-}
 
 # Where it will live. The proposal is the folder every command of this family
 # writes to, shown and confirmed rather than typed: the folder question is
 # there for a second drive, or a folder of your own.
 $Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
-
-# What Windows already knows, read once and read strictly: this one list
-# answers "is this path another instance's folder" below, "is this name taken"
-# for the banner, and "may this still be erased" just before the erasing. A
-# list that cannot be read stops the run rather than passing for an empty one.
-try {
-    $Registered = @(Get-RegisteredDistros)
-} catch {
-    Write-Host ""
-    Write-Host "[ABORT] The list of registered WSL distributions cannot be read." -ForegroundColor (Get-MessageColour error)
-    Write-Host "        See what 'wsl --list --verbose' says, then run this script again." -ForegroundColor (Get-MessageColour hint)
-    Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
-    exit 1
-}
-$WasRegistered = [bool]($Registered | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1)
-
-$InstallPath = Resolve-InstallPath -DistroName $DistroName -Root $Root -Registered $Registered
+$Identity = Resolve-InstanceIdentity -Root $Root
+$DistroName = $Identity.Name
+$InstallPath = $Identity.InstallPath
+$WasRegistered = $Identity.WasRegistered
 
 # 1. The export tar lands beside the install path - never on C:.
 $ParentInstallDir = Split-Path -Path $InstallPath -Parent
@@ -451,39 +503,6 @@ if (-not (Test-Path -Path $ParentInstallDir)) {
     New-Item -ItemType Directory -Path $ParentInstallDir -Force | Out-Null
 }
 $TarPath = Join-Path -Path $ParentInstallDir -ChildPath "$DistroName-rootfs.tar"
-
-# 2. Safety check: prevent accidental deletion of an existing distribution -
-# the list read above already answers it.
-if ($WasRegistered) {
-    [Console]::Beep(1000, 400)
-    Write-Host ""
-    Write-DangerBanner
-    Write-Host ""
-    Write-Host "  A WSL distribution named '$DistroName' ALREADY exists." -ForegroundColor (Get-MessageColour error)
-    Write-Host ""
-    Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
-    Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
-    Write-Host "    - Erasing the install folder: $InstallPath" -ForegroundColor (Get-MessageColour muted)
-    Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
-    Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
-    Write-Host ""
-    Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
-    Write-Host ""
-    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-    Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
-    Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
-    $Confirmation = Read-Host " Confirm"
-    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-    Write-Host ""
-
-    # -cne, not -ne: PowerShell's -ne ignores case, while the banner above asks
-    # for the exact name. The point is that the name is read and typed, not
-    # that a reflexive Enter carries through.
-    if ($Confirmation -cne $DistroName) {
-        Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
-}
 
 # 0-ter. The packs, asked here with everything else: nothing asks again once
 # the machine starts working - the answer waits in a variable and is applied
