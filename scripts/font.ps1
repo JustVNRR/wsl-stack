@@ -2,7 +2,11 @@
 param (
     # The instance, when the theme menu has already asked which one: how the
     # level above hands over. Not an option, and not documented as one.
-    [string]$DistroName
+    [string]$DistroName,
+
+    # Injected by wsl.ps1 (through theme.ps1), or instantiated on-demand if
+    # executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 )
 
 # What an instance is written in: the font of its Terminal profile - the whole
@@ -35,7 +39,7 @@ if (-not (Test-Path $InstanceLib)) {
 # 1. Which instance. Given, or asked.
 $HandedOver = [bool]$DistroName
 if ($HandedOver) {
-    $Distro = Get-Distros | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1
+    $Distro = $Manager.FindByName($DistroName)
     if (-not $Distro) {
         Write-Host ""
         Write-Host "[ABORT] No instance named '$DistroName' is registered here." -ForegroundColor (Get-MessageColour error)
@@ -221,20 +225,16 @@ while ($true) {
     $Default = [array]::IndexOf(@($Rows | ForEach-Object { $_.Name }), $Picked.Name)
 
     # The profile is ours to write: the icon and the colours stay, the font is
-    # the one just chosen.
-    $Guid = Get-WslProfileGuid -Name $DistroName
-    if (-not $Guid) {
+    # the one just chosen - the instance's own gesture, called through the
+    # engine. A machine without the profile throws, and its sentence says it.
+    try {
+        $null = $Manager.SetFont($Distro, $Picked.Name)
+    } catch {
         Write-Host ""
-        Write-Host "[ABORT] Windows Terminal has no profile for '$DistroName' - the font cannot be applied." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
         Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
-
-    $Theme = Get-InstanceAppearance -Name $DistroName
-    $Theme.FontName = $Picked.Name
-    Set-InstanceFragment -Name $DistroName -Guid $Guid -Theme $Theme
-    Set-InstanceLook -InstallPath $Distro.Path -Look (New-InstanceLook -Name $DistroName `
-        -Icon (Get-IconRecipe -Name $DistroName))
 
     if (-not (Test-FontInstalled $Picked.Name)) {
         Write-Host "  Not installed on Windows: '$($Picked.Name)' - the profile points at it anyway." -ForegroundColor (Get-MessageColour warning)

@@ -26,6 +26,10 @@ $FontScript = Join-Path $PSScriptRoot "..\scripts\font.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
+# The commands are driven through invoke-command.ps1: a fresh pwsh has no
+# classes, and a command's typed -Manager parameter is settled before the
+# command runs - the shared half must be loaded first, as wsl.ps1 does.
+$Invoker = Join-Path $PSScriptRoot "invoke-command.ps1"
 $Tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("font-command-test-" + [Guid]::NewGuid().ToString("N"))
 $FakeName = "font-command-test"
 $FakeFolder = Join-Path $Tmp "instance"
@@ -55,7 +59,7 @@ function Invoke-Font {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Lines = $Answers | & $Engine -NoProfile -File $FontScript 2>&1
+        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script $FontScript 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }
@@ -159,7 +163,7 @@ try {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Themed = @("$Pick", "2", "0", "0") | & $Engine -NoProfile -File (Join-Path $PSScriptRoot "..\scripts\theme.ps1") 2>&1
+        $Themed = @("$Pick", "2", "0", "0") | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\scripts\theme.ps1") 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }

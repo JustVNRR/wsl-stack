@@ -2,7 +2,11 @@
 param (
     # The instance, when the theme menu has already asked which one: how the
     # level above hands over. Not an option, and not documented as one.
-    [string]$DistroName
+    [string]$DistroName,
+
+    # Injected by wsl.ps1 (through theme.ps1), or instantiated on-demand if
+    # executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 )
 
 # What a terminal's colours are: the colour scheme of its profile - the
@@ -80,7 +84,7 @@ function Get-ColorSchemes {
 # 1. Which instance. Given, or asked.
 $HandedOver = [bool]$DistroName
 if ($HandedOver) {
-    $Distro = Get-Distros | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1
+    $Distro = $Manager.FindByName($DistroName)
     if (-not $Distro) {
         Write-Host ""
         Write-Host "[ABORT] No instance named '$DistroName' is registered here." -ForegroundColor (Get-MessageColour error)
@@ -165,20 +169,17 @@ while ($true) {
     $Default = [array]::IndexOf($Rows, $Picked)
 
     # The profile is ours to write: the icon and the font stay as they are, the
-    # scheme is the one just chosen.
-    $Guid = Get-WslProfileGuid -Name $DistroName
-    if (-not $Guid) {
+    # scheme is the one just chosen - the instance's own gesture, called through
+    # the engine. A machine without the profile throws, and its sentence says
+    # it.
+    try {
+        $null = $Manager.SetColourScheme($Distro, $Picked)
+    } catch {
         Write-Host ""
-        Write-Host "[ABORT] Windows Terminal has no profile for '$DistroName' - the colours cannot be applied." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
         Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
-
-    $Theme = Get-InstanceAppearance -Name $DistroName
-    $Theme.ColorScheme = $Picked
-    Set-InstanceFragment -Name $DistroName -Guid $Guid -Theme $Theme
-    Set-InstanceLook -InstallPath $Distro.Path -Look (New-InstanceLook -Name $DistroName `
-        -Icon (Get-IconRecipe -Name $DistroName))
 
     Clear-MenuScreen
     $Changed = $true

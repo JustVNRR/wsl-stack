@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # What an instance wears: its icon, its font and its colours - the three things
 # Windows Terminal takes from the profile this repository writes.
@@ -62,9 +65,9 @@ while ($true) {
 
         $Default = [array]::IndexOf($Choices, $Chosen)
 
-        # The command named takes the screen and clears it itself, the way it
-        # came in.
-        & (Join-Path $PSScriptRoot "$($Chosen.Name).ps1") -DistroName $DistroName
+        # The command named takes the screen and clears it itself, the way it came in.
+        # Hands both -DistroName and the shared -Manager over to the child command.
+        & (Join-Path $PSScriptRoot "$($Chosen.Name).ps1") -DistroName $DistroName -Manager $Manager
         $Visited = $true
     }
 }

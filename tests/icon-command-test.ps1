@@ -23,6 +23,10 @@ $IconScript = Join-Path $PSScriptRoot "..\scripts\icon.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
+# The commands are driven through invoke-command.ps1: a fresh pwsh has no
+# classes, and a command's typed -Manager parameter is settled before the
+# command runs - the shared half must be loaded first, as wsl.ps1 does.
+$Invoker = Join-Path $PSScriptRoot "invoke-command.ps1"
 $Tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("icon-command-test-" + [Guid]::NewGuid().ToString("N"))
 $FakeName = "icon-command-test"
 $FakeFolder = Join-Path $Tmp "instance"
@@ -50,7 +54,7 @@ function Invoke-Icons {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Lines = $Answers | & $Engine -NoProfile -File $IconScript 2>&1
+        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script $IconScript 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }
@@ -70,7 +74,7 @@ function Invoke-Theme {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Lines = $Answers | & $Engine -NoProfile -File (Join-Path $PSScriptRoot "..\scripts\theme.ps1") 2>&1
+        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\scripts\theme.ps1") 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }

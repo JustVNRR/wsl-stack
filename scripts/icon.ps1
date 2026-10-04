@@ -2,13 +2,18 @@
 param (
     # The instance, when the theme menu has already asked which one: how the
     # level above hands over. Not an option - and not a command of wsl.ps1.
-    [string]$DistroName
+    [string]$DistroName,
+
+    # Injected by wsl.ps1 (through theme.ps1), or instantiated on-demand if
+    # executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 )
 
 # The icon is a file, not a setting: terminal-icon.png in the instance's own
 # folder, the one the Terminal profile points at. This command draws another
-# over it, or copies an image there. Nothing has to be stopped for it: an icon
-# belongs to a tab as it is opened.
+# over it, or copies an image there - the instance owns the file and the path,
+# through the engine. Nothing has to be stopped for it: an icon belongs to a
+# tab as it is opened.
 #
 # It keeps asking - one change keeps the others, so two changes are one visit.
 # Escape leaves.
@@ -33,10 +38,10 @@ if (-not (Test-Path $IconScript)) {
     exit 1
 }
 
-# 1. Which instance, and where its icon lives. Given, or asked.
+# 1. Which instance. Given, or asked.
 $HandedOver = [bool]$DistroName
 if ($HandedOver) {
-    $Distro = Get-Distros | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1
+    $Distro = $Manager.FindByName($DistroName)
     if (-not $Distro) {
         Write-Host ""
         Write-Host "[ABORT] No instance named '$DistroName' is registered here." -ForegroundColor (Get-MessageColour error)
@@ -46,7 +51,6 @@ if ($HandedOver) {
     $Distro = Select-Distro
     $DistroName = $Distro.Name
 }
-$IconPath = Join-Path $Distro.Path "terminal-icon.png"
 
 # The menus it came through come off the screen: a visit of four turns is one
 # screen, not four stacked menus.
@@ -82,8 +86,8 @@ function Read-Answer {
     return $Answer
 }
 
-# One turn of the menu: ask what the choice needs, then draw the icon or copy
-# the image there, and note what it is made of in the instance's own file.
+# One turn of the menu: ask what the choice needs, then have the instance draw
+# the icon or take the image in - and note what it is made of in its own file.
 #
 # A drawing that fails leaves the icon that was there: the drawing script
 # writes the picture once, at the end.
@@ -180,25 +184,21 @@ function Invoke-IconChoice {
     # Nothing is announced: the menu comes straight back, and the icon in the
     # tab is the answer. A failure is the one thing worth saying.
     if ($Source) {
-        Copy-Item -LiteralPath $Source -Destination $IconPath -Force
-        # The recipe stays: an image replaces the picture, not the drawing
-        # behind it.
+        # The instance takes the file in - its own terminal-icon.png. The
+        # recipe stays: an image replaces the picture, not the drawing behind
+        # it.
+        $null = $Manager.SetIconImage($Distro, $Source)
     } else {
         try {
-            $Drawn = & $IconScript @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
+            # The instance draws the recipe and wears it - the drawn recipe
+            # comes back settled.
+            $null = $Manager.SetIcon($Distro, $Draw)
         } catch {
             Write-Host ""
             Write-Host "[ABORT] The icon could not be drawn: $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
             Write-Host "        The icon that was there is still there." -ForegroundColor (Get-MessageColour muted)
             exit 1
         }
-        $Icon = @{
-            Text      = $Drawn.Text
-            Top       = $Drawn.Top
-            Bottom    = $Drawn.Bottom
-            TextColor = $Drawn.TextColor
-        }
-        Set-InstanceLook -InstallPath $Distro.Path -Look (New-InstanceLook -Name $DistroName -Icon $Icon)
     }
 }
 
