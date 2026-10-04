@@ -168,6 +168,28 @@ function Resolve-InstallPath {
     return $InstallPath
 }
 
+# The user the instance opens as: asked with the rest, so the build knows it
+# before the machine starts. The shape is checked here, with the same rule the
+# onboarding applies; whether the image already carries that account is the
+# machine's own answer (step 6).
+function Resolve-DefaultUser {
+    param([string]$DistroName)
+
+    $UserName = $null
+    while (-not $UserName) {
+        $Answer = [string](Read-Host "User name for '$DistroName' (CTRL+C to abort)")
+        $Answer = $Answer.Trim()
+        # -cmatch, not -match: PowerShell's -match ignores case, and 'Root'
+        # would pass here only to be refused inside.
+        if ($Answer -cmatch '^[a-z_][a-z0-9_-]*$') {
+            $UserName = $Answer
+        } else {
+            Write-Host "  Lowercase letters, digits, '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
+        }
+    }
+    return $UserName
+}
+
 # The deployment's steps, named one by one: each goes through the checked
 # wrapper, so a program that fails stops the run instead of writing a line the
 # script walks past.
@@ -192,28 +214,8 @@ function Stop-WslDistro {
 }
 
 function Invoke-WslFirstBoot {
-    param([string]$DistroName)
-    Invoke-NativeCommand { wsl.exe -d $DistroName -u root /root/first_boot.sh } "The first_boot.sh configuration script failed."
-}
-
-# The user the instance will open as: read from the file the bootstrap wrote,
-# the file then taken away - the answer and the cleanup both read, not assumed.
-function Get-ConfiguredWslUser {
-    param([string]$DistroName)
-
-    $PreviousEAP = $ErrorActionPreference
-    $ErrorActionPreference = "Continue"
-    $Answer = wsl.exe -d $DistroName -u root cat /tmp/installed_user 2>$null
-    $ExitCode = $LASTEXITCODE
-    $ErrorActionPreference = $PreviousEAP
-
-    $User = "$Answer".Trim()
-    if ($ExitCode -ne 0 -or -not $User) {
-        throw "The onboarding script did not say which user it configured."
-    }
-    Invoke-NativeCommand { wsl.exe -d $DistroName -u root rm -f /tmp/installed_user } `
-        "Could not remove the temporary file in '$DistroName'." -SuppressOutput
-    return $User
+    param([string]$DistroName, [string]$User)
+    Invoke-NativeCommand { wsl.exe -d $DistroName -u root /root/first_boot.sh $User } "The first_boot.sh configuration script failed."
 }
 
 # Best effort, and nothing here may raise: the finally block calls this after a
@@ -494,6 +496,12 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
     }
 }
 
+# 0-quater. The user the instance opens as, asked here with everything else:
+# nothing asks again once the machine starts working - the answer waits in a
+# variable, the instance is born with it at step 5, and the onboarding
+# receives it at step 6.
+$UserName = Resolve-DefaultUser -DistroName $DistroName
+
 # What this run has done, for the finally block and the exit code to read:
 # whether the instance that was there went away, whether this run registered
 # one, and whether it reached the end. Read from the run rather than asked of
@@ -538,17 +546,26 @@ try {
     Write-Host "==> 5. Importing into WSL ($DistroName)..." -ForegroundColor (Get-MessageColour info)
     # The import and the marker in one gesture, on the model: the instance is
     # marked the moment it is registered, before the steps that can still
-    # fail - a build that stops at the font step leaves a real instance
-    # behind, not an invisible one. It is born with its look, the default one;
-    # the icon joins it when the profile is applied.
-    $Instance = [WslInstance]::Build($DistroName, $InstallPath, $TarPath, "", [WslTheme]::Default($DistroName))
+    # fail - a build that stops later leaves a real instance behind, not an
+    # invisible one. It is born with what the questions answered - its user,
+    # and its look, the default one; the icon joins it when the profile is
+    # applied.
+    $Instance = [WslInstance]::Build($DistroName, $InstallPath, $TarPath, $UserName, [WslTheme]::Default($DistroName))
     $Deployment.DistroRegistered = $true
 
     Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
-    Invoke-WslFirstBoot -DistroName $DistroName
-    $ConfiguredUser = Get-ConfiguredWslUser -DistroName $DistroName
-    # Born without one at step 5: the instance learns its user here.
-    $Instance.DefaultUser = $ConfiguredUser
+
+    # The questions checked the name's shape; only the machine knows the
+    # accounts its image carries. The answer is put to it here, where a
+    # refusal can still be answered.
+    while (Test-NativeCommand { wsl.exe -d $DistroName -u root id $UserName }) {
+        Write-Host "  The account '$UserName' already exists - pick another name." -ForegroundColor (Get-MessageColour warning)
+        $UserName = Resolve-DefaultUser -DistroName $DistroName
+        # Born with the refused name: the instance takes the one that passes.
+        $Instance.DefaultUser = $UserName
+    }
+
+    Invoke-WslFirstBoot -DistroName $DistroName -User $UserName
 
     Write-Host "==> 7. Shutting down distro to persist systemd and user configuration..." -ForegroundColor (Get-MessageColour info)
     Stop-WslDistro -Name $DistroName
@@ -670,7 +687,7 @@ if ($Deployment.Succeeded) {
     # A pack's welcome line (scaffold's points at fnew) comes from its own
     # pack.conf: no sentence of this script names a pack or a command.
     Clear-Host
-    Write-Host "Welcome, $ConfiguredUser." -ForegroundColor (Get-MessageColour success)
+    Write-Host "Welcome, $UserName." -ForegroundColor (Get-MessageColour success)
     Write-Host "You are now logged in to $DistroName." -ForegroundColor (Get-MessageColour success)
     if ($null -ne $PackSelection) {
         foreach ($Pack in $PackSelection.ToAdd) {

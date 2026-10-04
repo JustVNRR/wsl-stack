@@ -10,6 +10,8 @@
 # What it proves:
 #   - the pack checklist is asked after the name and the folder, and before
 #     anything is created
+#   - the user name is asked with the other questions, after the checklist
+#     and before the build starts
 #   - an empty checklist, applied or cancelled, means no pack, says so, and is
 #     asked no confirmation
 #   - a pack chosen is installed later, so the failure report names it
@@ -59,7 +61,7 @@ before() {
 }
 
 echo "--- cancelled at the checklist (answer 0)"
-run_build 'pack-qtest-1\n\n0\n'
+run_build 'pack-qtest-1\n\n0\nqtestuser\n'
 check "says no pack was selected"     "$(contains "[OK] No pack selected: 'pack-qtest-1' will be built without one.")" "yes"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
 check "the run stops on the deployment"  "$(contains '[ERROR] DURING DEPLOYMENT')" "yes"
@@ -68,19 +70,21 @@ check "exit code 1"                      "$Code" "1"
 
 echo ""
 echo "--- empty checklist, applied (answer v)"
-run_build 'pack-qtest-2\n\nv\n'
+run_build 'pack-qtest-2\n\nv\nqtestuser\n'
 check "says no pack was selected"     "$(contains "[OK] No pack selected: 'pack-qtest-2' will be built without one.")" "yes"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
 check "exit code 1"                      "$Code" "1"
 
 echo ""
 echo "--- one pack chosen (2 = the second in the list) and confirmed"
-run_build 'pack-qtest-3\n\n2\nv\n\n'
+run_build 'pack-qtest-3\n\n2\nv\n\nqtestuser\n'
 # Which pack answer 2 chose is read from the run rather than written here: this
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
 check "the checklist arrives before the build" "$(before "Packs for 'pack-qtest-3'" '==> 1. Building Docker')" "yes"
 check "and after the name" "$(before '==> Creating a new instance' "Packs for 'pack-qtest-3'")" "yes"
+check "the user name is asked after the checklist" "$(before "Packs for 'pack-qtest-3'" "User name for 'pack-qtest-3'")" "yes"
+check "and before the build starts" "$(before "User name for 'pack-qtest-3'" '==> 1. Building Docker')" "yes"
 check "the one line of the summary names a pack" "$([ -n "$Chosen" ] && echo yes || echo no)" "yes"
 check "no empty 'Will remove' line"              "$(contains 'Will remove')" "no"
 check "the failure names the pack it could not install" \

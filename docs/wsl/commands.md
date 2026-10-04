@@ -132,16 +132,18 @@ Folders left behind by an instance that is gone:
 
 ## `build`
 
-Builds a new instance from the rootfs image, walks you through the first-boot
-onboarding (username, password or passwordless sudo, timezone), applies the
-Windows Terminal profile, and opens a shell in it.
+Builds a new instance from the rootfs image, asks for the user the instance
+will open as, walks you through the first-boot onboarding (password or
+passwordless sudo, timezone), applies the Windows Terminal profile, and opens
+a shell in it.
 
 ```powershell
 .\wsl.ps1 build
 ```
 
-It takes no options: it asks for the name, for the folder, and — when this
-checkout carries packs — which of them the instance should start with.
+It takes no options: it asks for the name, for the folder, for the user the
+instance will open as, and — when this checkout carries packs — which of them
+the instance should start with.
 
 ```text
 ==> Creating a new instance
@@ -169,7 +171,7 @@ before asking anything and says so.
 If an instance already carries the name, it shows the red warning and asks you
 to **type the exact name**: a rebuild erases that instance and everything in it.
 
-The packs are the last question, asked before anything is created:
+The packs are asked before anything is created:
 
 ```text
 Packs for 'ubuntu-ml-dev'
@@ -188,6 +190,12 @@ They are installed **once the instance exists** — after the deployment, and th
 fails to install does not fail the build: the instance is built, the pack's
 files are taken back out, and the build names the pack and points at
 `.\wsl.ps1 manage_packs`. The shell that opens repeats the same news.
+
+The last question is the user the instance will open as — lowercase letters,
+digits, `_` and `-`. It is asked with the rest, so the instance is born with it
+and the first-boot onboarding does not ask again. The name is checked against
+the image's own accounts the moment the instance is imported; a name the image
+already carries is asked again there, before the onboarding starts.
 
 ---
 

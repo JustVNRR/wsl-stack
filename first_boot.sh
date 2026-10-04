@@ -21,14 +21,22 @@ echo "            Welcome to your WSL Stack environment"
 echo "============================================================"
 echo ""
 
+# The build asks the name with its other questions and hands it here; the root
+# shell that triggers this script passes nothing, and is asked below.
+NEW_USER="${1:-}"
+
 # A name no account uses yet: adduser fails on a taken one (root, daemon,
 # www-data...), and set -e would abort the whole onboarding on its raw error.
 while true; do
-    read -rp "${C_YELLOW}Enter your username: ${C_RESET}" NEW_USER
+    if [ -z "$NEW_USER" ]; then
+        read -rp "${C_YELLOW}Enter your username: ${C_RESET}" NEW_USER
+    fi
     if [[ ! "$NEW_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
         echo "${C_YELLOW}Invalid username (use lowercase letters, numbers, underscores, and dashes only).${C_RESET}"
+        NEW_USER=''
     elif id "$NEW_USER" >/dev/null 2>&1; then
         echo "${C_YELLOW}The account '$NEW_USER' already exists - pick another name.${C_RESET}"
+        NEW_USER=''
     else
         break
     fi
@@ -115,9 +123,6 @@ WSLCONF
 # No Python here: uv and the interpreter come with the `python` pack, the
 # scaffolding tools with `scaffold` - they arrive on the instance that asks,
 # with `.\wsl.ps1 add_pack` or by being chosen while the instance is built.
-
-# Export username for build script display
-echo -n "$NEW_USER" > /tmp/installed_user
 
 # The pages cache is a convenience: a machine without network must not lose the
 # run - and the script deletes itself last, once nothing below can fail.
