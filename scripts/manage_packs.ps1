@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param ()
+param (
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+)
 
 # Several packs at once: every pack this checkout carries is shown, the ones
 # the instance already has arrive checked, and what comes back is applied - the
@@ -31,17 +34,14 @@ if (-not (Test-Path $PromptsLib)) {
 
 # 1. Which instance
 $Distro = Select-Distro
+if (-not $Distro) {
+    Write-Host ""
+    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+    exit 0
+}
 $DistroName = $Distro.Name
 
 Invoke-External { wsl.exe -d $DistroName --exec /bin/true } "Could not start '$DistroName'."
-
-$InstanceHome = Get-InstanceHome -DistroName $DistroName
-if (-not $InstanceHome) {
-    Write-Host ""
-    Write-Host "[ABORT] '$DistroName' did not say where its user's home is." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-$PacksDirectory = "$InstanceHome/.config/packs"
 
 # 2. Every pack this checkout carries, and what that instance already has
 $Catalog = Get-PackCatalog
@@ -51,10 +51,17 @@ if ($Catalog.AvailablePacks.Count -eq 0) {
     Write-Host "        A pack is a folder there carrying a pack.conf." -ForegroundColor (Get-MessageColour hint)
     exit 1
 }
-$Installed = @(Get-InstalledPacks -DistroName $DistroName -PacksDirectory $PacksDirectory)
+
+# The engine provides the packs installed on this instance (or $null if home is unreachable)
+$Installed = $Manager.InstalledPacks($Distro)
+if ($null -eq $Installed) {
+    Write-Host ""
+    Write-Host "[ABORT] '$DistroName' did not say where its user's home is." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
 
 # 3. The checklist, and what it says to do
-$Selection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $Catalog -Installed $Installed
+$Selection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $Catalog -Installed @($Installed)
 
 if ($null -eq $Selection) {
     Write-Host ""
@@ -67,14 +74,17 @@ if ($Selection.ToAdd.Count -eq 0 -and $Selection.ToRemove.Count -eq 0) {
     exit 0
 }
 
-# 4. What was asked for, in the one order that works
-$Failure = Invoke-PackApply -DistroName $DistroName -PacksDirectory $PacksDirectory `
-    -ToAdd $Selection.ToAdd -ToRemove $Selection.ToRemove
-if ($null -ne $Failure) { exit $Failure.ExitCode }
+# 4. Hand the changes over to the engine
+# $Manager.ManagePacks runs Invoke-PackApply internally and returns a structured report.
+# The 4th argument is the resume hint: "" lets the engine's own line stand.
+$Report = $Manager.ManagePacks($Distro, $Selection.ToAdd, $Selection.ToRemove, "")
 
-# 5. Where things stand, read back from the instance: the folder is the state -
-# what is there, not what this run meant to do.
-$Now = @(Get-InstalledPacks -DistroName $DistroName -PacksDirectory $PacksDirectory)
+if ($null -ne $Report.Failure) {
+    exit $Report.ExitCode
+}
+
+# 5. Where things stand, read back through the engine's report
+$Now = @($Report.Now)
 Write-Host ""
 Write-Host "==> '$DistroName' now carries: $(if ($Now.Count -gt 0) { $Now -join ', ' } else { 'no pack' })" -ForegroundColor (Get-MessageColour success)
 if ($Selection.ToAdd.Count -gt 0) {

@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param (
-    # An old command line lands in -Ignored, kept only so the refusal below can
-    # say so: PowerShell's own binding error would name a parameter and explain
-    # nothing.
+    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
+    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()),
+
+    # Must remain the VERY LAST parameter to allow valid PowerShell parsing
     [Parameter(ValueFromRemainingArguments = $true)]
     [object[]]$Ignored
 )
@@ -47,9 +48,6 @@ if ($Ignored) {
     exit 1
 }
 
-# Nerd Font (MesloLGS NF), per-user (HKCU, LocalAppData): no admin needed, and
-# the function never throws - the prompt looks worse without the font, and that
-# is not a failed deployment.
 # Step 0, as a piece of its own: Docker answers before the questions, and a
 # docker that does not aborts with nothing confirmed and nothing touched. It
 # exits rather than throws - there is nothing to catch above it.
@@ -165,9 +163,10 @@ function Remove-DeploymentArtifacts {
 # The packs, asked earlier and installed now - in a try of their own, because a
 # pack that fails must not reach the deployment's catch, which would announce
 # "[ERROR] DURING DEPLOYMENT" for an instance that is built, registered and
-# usable. Answers the lines to print and the colour they take.
+# usable. The applying itself is the engine's; what is left here is the story -
+# the lines to print and the colour they take.
 function Install-SelectedPacks {
-    param([string]$DistroName, [object]$PackSelection)
+    param([WslInstanceManager]$Manager, [WslInstance]$Instance, [object]$PackSelection)
 
     $Report = @()
     $Colour = "Green"
@@ -176,34 +175,32 @@ function Install-SelectedPacks {
     try {
         # Asked of the instance after the install rather than trusted from the
         # answer: a pack whose install failed took its folder back out.
-        $NewHome = Get-InstanceHome -DistroName $DistroName
-        if (-not $NewHome) { throw "'$DistroName' did not say where its user's home is." }
-        $PacksDirectory = "$NewHome/.config/packs"
+        $NewHome = Get-InstanceHome -DistroName $Instance.Name
+        if (-not $NewHome) { throw "'$($Instance.Name)' did not say where its user's home is." }
 
         Write-Host ""
         Write-Host "==> Installing the packs..." -ForegroundColor (Get-MessageColour info)
-        $PackFailure = Invoke-PackApply -DistroName $DistroName -PacksDirectory $PacksDirectory `
-            -ToAdd $PackSelection.ToAdd -ResumeHint "Run .\wsl.ps1 manage_packs to finish."
+        $Apply = $Manager.ManagePacks($Instance, $PackSelection.ToAdd, @(), "Run .\wsl.ps1 manage_packs to finish.")
 
-        $PacksNow = @(Get-InstalledPacks -DistroName $DistroName -PacksDirectory $PacksDirectory)
-        if ($null -ne $PackFailure) {
+        $PacksNow = @($Apply.Now)
+        if ($null -ne $Apply.Failure) {
             # Three facts, each only when it has something to say: what is
             # really installed, the pack that stopped the run, and the packs
             # that never ran - their folders went back out with it, so they
             # cannot be read as installed anywhere (packs.ps1).
             $Skipped = @($PackSelection.ToAdd |
-                Where-Object { $_.Name -ne $PackFailure.Pack -and $PacksNow -notcontains $_.Name } |
+                Where-Object { $_.Name -ne $Apply.Failure.Pack -and $PacksNow -notcontains $_.Name } |
                 ForEach-Object { $_.Name })
 
             $Report = @()
             if ($PacksNow.Count -gt 0) {
                 $Report += "$($PacksNow -join ', ') successfully installed."
             }
-            $Report += "'$($PackFailure.Pack)' installation failed."
+            $Report += "'$($Apply.Failure.Pack)' installation failed."
             if ($Skipped.Count -gt 0) {
                 $Report += "$($Skipped -join ', ') installation skipped."
             }
-            $Report += "Run .\wsl.ps1 manage_packs on '$DistroName' to finish."
+            $Report += "Run .\wsl.ps1 manage_packs on '$($Instance.Name)' to finish."
             $Colour = "Red"
         } else {
             # What is there now, and nothing else: falling back on the names
@@ -320,10 +317,8 @@ Assert-DockerReady
 Write-Host ""
 Write-Host "==> Creating a new instance" -ForegroundColor (Get-MessageColour info)
 
-# Where it will live. The proposal is the folder every command of this family
-# writes to, shown and confirmed rather than typed: the folder question is
-# there for a second drive, or a folder of your own.
-$Root = if (Test-Path "D:\") { "D:\WSL" } else { "$env:USERPROFILE\WSL" }
+# Uses the Manager's configured root folder directly.
+$Root = $Manager.InstancesRoot
 $Identity = Resolve-InstanceIdentity -Root $Root
 $DistroName = $Identity.Name
 $InstallPath = $Identity.InstallPath
@@ -393,7 +388,7 @@ try {
     Export-DockerContainer -Container $ContainerName -OutputPath $TarPath
 
     Write-Host "==> 4. Preparing installation folder: $InstallPath" -ForegroundColor (Get-MessageColour info)
-    
+
     # The image was built and exported in between: the machine may have moved.
     # The last look before anything is erased - an answer that cannot be
     # trusted stops the run.
@@ -430,13 +425,11 @@ try {
     }
 
     Write-Host "==> 5. Importing into WSL ($DistroName)..." -ForegroundColor (Get-MessageColour info)
-    # The import and the marker in one gesture, on the model: the instance is
-    # marked the moment it is registered, before the steps that can still
-    # fail - a build that stops later leaves a real instance behind, not an
-    # invisible one. It is born with what the questions answered - its user,
-    # and its look, the default one; the icon joins it when the profile is
-    # applied.
-    $Instance = [WslInstance]::Build($DistroName, $InstallPath, $TarPath, $UserName, [WslTheme]::Default($DistroName))
+    # The creation is the engine's: CreateNew imports, writes the marker and
+    # re-reads the fleet. -Replace is $WasRegistered - the name was just
+    # confirmed for destruction, so it is the build's to take back; a fresh
+    # name still passes the guard.
+    $Instance = $Manager.CreateNew($DistroName, $TarPath, $UserName, [WslTheme]::Default($DistroName), $WasRegistered)
     $Deployment.DistroRegistered = $true
 
     Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
@@ -453,7 +446,7 @@ try {
     # Installed after the instance exists; the instance then reads what it
     # carries - its description says so - and the failures are told in the
     # summary below and on the screen the shell opens on.
-    $PackResult = Install-SelectedPacks -DistroName $DistroName -PackSelection $PackSelection
+    $PackResult = Install-SelectedPacks -Manager $Manager -Instance $Instance -PackSelection $PackSelection
     $Instance.RefreshPacks()
 
     Clear-Host
@@ -564,9 +557,6 @@ if ($Deployment.Succeeded) {
     # The shell the user came for, in the fresh instance - the instance's own
     # gesture, the same one the shell command uses. Two lines first, so it
     # opens on "who am I, where, and what now" instead of an anonymous prompt.
-    #
-    # A pack's welcome line (scaffold's points at fnew) comes from its own
-    # pack.conf: no sentence of this script names a pack or a command.
     Clear-Host
     Write-Host "Welcome, $UserName." -ForegroundColor (Get-MessageColour success)
     Write-Host "You are now logged in to $DistroName." -ForegroundColor (Get-MessageColour success)
