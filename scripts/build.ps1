@@ -602,8 +602,6 @@ try {
     # Installed after the instance exists; the news lands in the summary below
     # and on the screen the shell opens on.
     $PackResult = Install-SelectedPacks -DistroName $DistroName -PackSelection $PackSelection
-    $PackReport = $PackResult.Report
-    $PackReportColour = $PackResult.Colour
 
     Clear-Host
     Write-Host "============================================================" -ForegroundColor (Get-MessageColour success)
@@ -619,12 +617,12 @@ try {
         Write-Host "  * Terminal profile  : not automated - configure the appearance manually (Ctrl+,)" -ForegroundColor (Get-MessageColour hint)
     }
     Write-Host "  * Packs             : " -NoNewline
-    if ($PackReport.Count -eq 0) {
+    if ($PackResult.Report.Count -eq 0) {
         Write-Host "none" -ForegroundColor "DarkGray"
     } else {
-        Write-Host "$($PackReport[0])" -ForegroundColor $PackReportColour
-        foreach ($Line in @($PackReport | Select-Object -Skip 1)) {
-            Write-Host "$(' ' * 24)$Line" -ForegroundColor $PackReportColour
+        Write-Host "$($PackResult.Report[0])" -ForegroundColor $PackResult.Colour
+        foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
+            Write-Host "$(' ' * 24)$Line" -ForegroundColor $PackResult.Colour
         }
     }
     Write-Host ""
@@ -719,10 +717,10 @@ if ($Deployment.Succeeded) {
             if ($Pack.Welcome) { Write-Host $Pack.Welcome -ForegroundColor (Get-MessageColour hint) }
         }
     }
-    if ($PackReport) {
-        Write-Host "Packs: $($PackReport[0])" -ForegroundColor $PackReportColour
-        foreach ($Line in @($PackReport | Select-Object -Skip 1)) {
-            Write-Host "       $Line" -ForegroundColor $PackReportColour
+    if ($PackResult.Report) {
+        Write-Host "Packs: $($PackResult.Report[0])" -ForegroundColor $PackResult.Colour
+        foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
+            Write-Host "       $Line" -ForegroundColor $PackResult.Colour
         }
     }
     if ($DockerReport) {
