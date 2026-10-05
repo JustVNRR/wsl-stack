@@ -303,7 +303,10 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
         $e.OriginalSource.Visibility = [System.Windows.Visibility]::Collapsed
     } catch { }
 
-    & $SetBusyState $true "Removing '$($inst.Name)'..."
+    # Breadcrumbs: the status line paints even when this thread blocks right
+    # after, so the text still on screen names the step where it stopped.
+    & $SetBusyState $true "Removing '$($inst.Name)'... [1/5]"
+    $txtStatus.Text = "Removing '$($inst.Name)'... [2/5 row marked]"
 
     # The same shape as Compact's: a runspace of its own, no class named - the
     # manager comes from the module's own factory, and everything else is
@@ -324,7 +327,9 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
         AddArgument([bool]$confirm.ArchiveFirst)
     $script:JobVerb = "remove"
     $script:JobName = $inst.Name
+    $txtStatus.Text = "Removing '$($inst.Name)'... [3/5 job built]"
     $script:JobHandle = $script:Job.BeginInvoke()
+    $txtStatus.Text = "Removing '$($inst.Name)'... [4/5 launched]"
 
     # 3. The window's shared watcher polls, on its own thread, where painting
     # happens. If watching cannot even start, that speaks too - the console is
@@ -334,6 +339,7 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
         $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
         $script:Poller.Add_Tick($WatchJob)
         $script:Poller.Start()
+        $txtStatus.Text = "Removing '$($inst.Name)'... [5/5 watching]"
     } catch {
         $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
         & $SetBusyState $false $null
@@ -348,8 +354,9 @@ $btnCompact.Add_Click({
     $selected = $lstInstances.SelectedItem
     if (-not $selected) { return }
 
-    # 1. Lock the window, show the bar
-    & $SetBusyState $true "Compacting '$($selected.Name)' (this may take a few minutes)..."
+    # 1. Lock the window, show the bar. Breadcrumbs, like the trash's: the
+    # status line paints even when this thread blocks right after.
+    & $SetBusyState $true "Compacting '$($selected.Name)'... [1/4]"
 
     # 2. The work goes to a runspace of its own, and names no class at all: a
     # fresh runspace resolves no type literal - "Unable to find type
@@ -371,7 +378,9 @@ $btnCompact.Add_Click({
         AddArgument($selected.Name)
     $script:JobVerb = "compact"
     $script:JobName = $selected.Name
+    $txtStatus.Text = "Compacting '$($selected.Name)'... [2/4 job built]"
     $script:JobHandle = $script:Job.BeginInvoke()
+    $txtStatus.Text = "Compacting '$($selected.Name)'... [3/4 launched]"
 
     # 3. The window's shared watcher polls, on its own thread, where painting
     # happens. If watching cannot even start, that speaks too - the console is
@@ -381,6 +390,7 @@ $btnCompact.Add_Click({
         $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
         $script:Poller.Add_Tick($WatchJob)
         $script:Poller.Start()
+        $txtStatus.Text = "Compacting '$($selected.Name)'... [4/4 watching]"
     } catch {
         $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
         & $SetBusyState $false $null
