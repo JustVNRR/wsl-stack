@@ -107,13 +107,14 @@ everything else asks.
 .\wsl.ps1 gui
 ```
 
-It lists our instances - state and size, the same list `list` prints - and
-offers the actions taken most often: **Refresh**, **Start**, **Stop**, and
-**Compact** (the same compact `shrink` runs; the window shows a bar while it
-works, and the instance finds its state back afterwards). A row's trash opens
-the same gate `unregister` puts up - what is lost, spelled out, and the exact
-name typed back - then removes it through the same engine. Nothing here exists
-only in the window: it is a keystroke-free way in, not a second engine.
+It lists our instances - state and size, the same list `list` prints - with,
+on each row, **Compact** and the trash. Compact is the same compact `shrink`
+runs (the row shows a small scrolling band while it works, and the instance
+finds its state back afterwards); the trash opens the same gate `unregister`
+puts up - what is lost, spelled out, and the exact name typed back - then
+removes it through the same engine. Below the list: **Refresh**, **Start**
+and **Stop**, on the selection. Nothing here exists only in the window: it
+is a keystroke-free way in, not a second engine.
 
 ---
 
