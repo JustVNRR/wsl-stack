@@ -3,31 +3,17 @@
 using module ..\WslModel\WslModel.psd1
 [CmdletBinding()]
 param (
-    # Injected by wsl.ps1, or made below once the shared half is loaded: the
-    # type cannot be named here - a parameter is bound before this file's first
-    # line runs, and a fresh pwsh knows nothing of the classes (measured:
-    # "Unable to find type [WslInstanceManager]" at bind).
-    $Manager
+    # Injected by wsl.ps1 - the engine every command acts through, made once
+    # in the entry. A command is never run by hand any more: the entry loads
+    # the module and hands this over, and the `using` above names the type, so
+    # it binds from the first line.
+    [WslInstanceManager]$Manager
 )
 
 # No parameter on purpose: there is one .wslconfig on a machine, and it is the
 # user's own file - no list, nothing to pick.
 
 $ErrorActionPreference = "Stop"
-
-# The family's shared half: the marker, and the colours every line is written
-# in.
-$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
-if (-not (Test-Path $InstanceLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $InstanceLib
-
-# Run on its own, nothing was injected: the manager is made here, once the
-# shared half is loaded and its class has a name.
-if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # The file WSL reads before it starts the virtual machine - the memory cap, the
 # processors, the DNS tunnel, the networking mode. Per machine, not per distro:

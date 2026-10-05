@@ -35,7 +35,7 @@
 #   powershell -File tests\packs-select-test.ps1 < tests\packs-select-test.answers
 #
 $ErrorActionPreference = "Stop"
-. (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $Failures = 0
 function Check {

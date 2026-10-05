@@ -19,15 +19,15 @@
 $ErrorActionPreference = "Stop"
 
 # For Get-Distros and the marker test: the list the command itself builds.
-. (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $ColorScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\color.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
-# The commands are driven through invoke-command.ps1: a fresh pwsh has no
-# classes, and a command's typed -Manager parameter is settled before the
-# command runs - the shared half must be loaded first, as wsl.ps1 does.
+# The commands are driven through invoke-command.ps1: a fresh pwsh has nothing
+# loaded, and a command takes its manager as a parameter - the invoker loads
+# the module first, as wsl.ps1 does, and hands one over.
 $Invoker = Join-Path $PSScriptRoot "invoke-command.ps1"
 $Tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("color-command-test-" + [Guid]::NewGuid().ToString("N"))
 $FakeName = "color-command-test"

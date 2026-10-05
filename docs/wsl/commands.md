@@ -8,7 +8,6 @@ commands themselves live in `scripts\`.
 ```
 
 ```text
-  (a command can also be typed:  .\wsl.ps1 <command> [options])
 
 WSL Stack
   > list         list our instances and the archives

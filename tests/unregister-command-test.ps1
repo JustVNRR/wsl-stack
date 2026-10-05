@@ -74,7 +74,7 @@ $LiveGuid = "{aaaaaaaa-1111-2222-3333-444444444444}"
 $DeadGuid = "{dddddddd-1111-2222-3333-444444444444}"
 
 # For Get-Distros and the marker test: the list the commands themselves build.
-. (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $UnregisterScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\unregister.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7

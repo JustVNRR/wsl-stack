@@ -23,7 +23,7 @@
 $ErrorActionPreference = "Stop"
 
 # For Get-Distros and the marker test: the list the command itself builds.
-. (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $StartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\start.ps1"
 $RestartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\restart.ps1"
@@ -71,9 +71,9 @@ function Check {
 # The child's own exit code, beside its output: a refusal is a result too.
 $script:ChildExit = 0
 
-# The commands are driven through invoke-command.ps1: a fresh pwsh has no
-# classes, and a command's typed -Manager parameter is settled before the
-# command runs - the shared half must be loaded first, as wsl.ps1 does.
+# The commands are driven through invoke-command.ps1: a fresh pwsh has nothing
+# loaded, and a command takes its manager as a parameter - the invoker loads
+# the module first, as wsl.ps1 does, and hands one over.
 $Invoker = Join-Path $PSScriptRoot "invoke-command.ps1"
 
 function Invoke-Child {

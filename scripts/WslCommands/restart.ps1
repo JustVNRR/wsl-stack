@@ -3,30 +3,17 @@
 using module ..\WslModel\WslModel.psd1
 [CmdletBinding()]
 param (
-    # Injected by wsl.ps1, or made below once the shared half is loaded: the
-    # type cannot be named here - a parameter is bound before this file's first
-    # line runs, and a fresh pwsh knows nothing of the classes (measured:
-    # "Unable to find type [WslInstanceManager]" at bind).
-    $Manager
+    # Injected by wsl.ps1 - the engine every command acts through, made once
+    # in the entry. A command is never run by hand any more: the entry loads
+    # the module and hands this over, and the `using` above names the type, so
+    # it binds from the first line.
+    [WslInstanceManager]$Manager
 )
 
 # No parameter on purpose: the instance comes from the list of running ones - a
 # name typed by heart is a name you can get wrong.
 
 $ErrorActionPreference = "Stop"
-
-# The family's shared half: the marker.
-$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
-if (-not (Test-Path $InstanceLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $InstanceLib
-
-# Run on its own, nothing was injected: the manager is made here, once the
-# shared half is loaded and its class has a name.
-if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # 1. Who can be restarted: our running instances, and only those.
 $Distro = Select-EligibleInstance -Manager $Manager -State Running `

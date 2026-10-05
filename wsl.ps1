@@ -27,14 +27,12 @@ param (
 # None of the commands behind it takes an instance name on the command line:
 # they list what exists - this template's instances only, the ones carrying the
 # marker - or, for start and stop, what can still be acted on, and you pick.
-# scripts\instance.ps1 is not a command: it holds what the other scripts share,
-# and is not listed here.
 #
-# The shared half arrives through scripts\instance.ps1 - the one loader, once
-# per run - and THE manager is made here: the engine every command calls,
-# handed to the command; a command run on its own makes its own.
+# The module is imported here, once, for the whole run: its functions are
+# visible to every command launched below (they run in this session), and THE
+# manager is made here too - the engine every command calls, handed over.
 #
-# The list is asked through scripts\WslUI.ps1: one WslMenuItem per row of the
+# The list is asked through scripts\WslUI.psm1: one WslMenuItem per row of the
 # chain below - the word, the line, the gesture - and the trio answers both
 # ways in, the menu and the command line alike.
 # ==============================================================================
@@ -45,18 +43,16 @@ $Scripts = Join-Path $PSScriptRoot "scripts"
 # menu rows and the command line both end at.
 $CommandFiles = Join-Path $Scripts "WslCommands"
 
-# The way in: scripts\instance.ps1, the one loader - the module (the words,
-# and the colour the lines below take), the classes, the menus; each guarded
-# there. It is loaded once per run: the command dispatched at the bottom
-# loads it again and finds the run's marker set. The guard here prints
-# uncoloured - nothing is loaded yet, not even the words.
-$InstanceLib = Join-Path $Scripts "instance.ps1"
-if (-not (Test-Path $InstanceLib)) {
+# THE module, imported here: its words and colours - every line below takes
+# one - its functions, and the families behind them. The guard prints
+# uncoloured: the table it would ask is the module that is missing.
+$StackModule = Join-Path $Scripts "WslStack\WslStack.psd1"
+if (-not (Test-Path $StackModule)) {
     Write-Host ""
-    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete."
+    Write-Host "[ABORT] scripts\WslStack\WslStack.psd1 is missing - the scripts\ folder is incomplete."
     exit 1
 }
-. $InstanceLib
+Import-Module $StackModule -Force
 
 # The gesture, one block for every command: the row and the run context arrive
 # as parameters - nothing is read from a scope at call time (measured: a
@@ -113,8 +109,6 @@ if ($Command) {
         exit 1
     }
 } else {
-    Write-Host ""
-    Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 
     $Chosen = $Menu.Prompt()
     if (-not $Chosen) { Stop-Cancelled -What "run" }

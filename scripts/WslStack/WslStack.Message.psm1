@@ -78,7 +78,7 @@ function Read-TerminalJson {
 }
 
 # The files Windows Terminal's profiles are written in - the same three
-# instance.ps1 names when it asks a window to read them again.
+# Update-TerminalSettings names when it asks a window to read them again.
 $TerminalSettings = @(
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",

@@ -7,9 +7,9 @@
 # the pack's leftovers on the system side are cleaned up after.
 #
 # Add, remove, and the bulk command share these moves - they are here once, for
-# the same reason the instance helpers are in instance.ps1: a second copy is how
-# the copies start. Nothing here sends a bash script as text through wsl.exe:
-# only plain paths, one argument at a time.
+# the same reason the instance helpers live in WslStack.Instance.psm1: a second
+# copy is how the copies start. Nothing here sends a bash script as text
+# through wsl.exe: only plain paths, one argument at a time.
 # ==============================================================================
 
 # The class this family names - the catalog below is a [WslPackCatalog] -

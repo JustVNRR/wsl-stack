@@ -288,8 +288,6 @@ the repository at runtime.
 │   ├── WslStack/            # The module: one nested file per family - the
 │                            #   messages, the instances' family, the pack
 │                            #   moves, the questions and the menus
-│   ├── instance.ps1         # The one loader, once per run: the module - the
-│                            #   classes arrive by using, at each reader
 │   ├── WslUI.psm1           # The menu's classes, a module the naming files
 │                            #   pull in by using: the rows, the console, the
 │                            #   ask
