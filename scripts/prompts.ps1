@@ -5,8 +5,75 @@
 # carry, the user it opens as - and manage_packs asks the same packs question
 # about the instance it has in front of it. Each one asks and answers, and
 # nothing else: where the answer goes and how it is shown stay with the
-# command that asked.
+# command that asked. The yes/no confirmations and the deletions' gate come
+# from here too, so no command writes one twice.
 # ==============================================================================
+
+# ---------------------------------------------------------------------------
+# THE PIECES EVERY QUESTION SHARES
+# ---------------------------------------------------------------------------
+
+# Is this the shape an instance takes a name in? Letters, digits, '.', '_' and
+# '-', starting with a letter or a digit - the rule the name questions and
+# their checks apply, written once.
+function Test-InstanceName {
+    param([string]$Name)
+
+    return ($Name -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+}
+
+# One yes/no question, the shape every one of them shows: [Y/n] when the
+# answer is yes unless told otherwise, [y/N] when it is no. Answers as a
+# boolean; what the answer means - cancelling, or going on without - stays
+# with the caller.
+function Confirm-YesNo {
+    param([string]$Question, [switch]$DefaultNo)
+
+    $Shown = if ($DefaultNo) { "$Question [y/N]" } else { "$Question [Y/n]" }
+    $Answer = [string](Read-Host $Shown)
+    if ($DefaultNo) { return ($Answer -match "^[yY]") }
+    return ($Answer -notmatch "^[nN]")
+}
+
+# The gate every deletion goes through: the banner, the sentence that says
+# which deletion this is, the exact name typed back. The folder line shows
+# when the caller can name the folder it is about to erase. Answers whether
+# the name was typed back; what a no means stays with the caller.
+function Confirm-Destruction {
+    param(
+        [string]$DistroName,
+        [string]$Lead,
+        [string]$InstallPath = ""
+    )
+
+    [Console]::Beep(1000, 400)
+    Write-Host ""
+    Write-DangerBanner
+    Write-Host ""
+    Write-Host "  $Lead" -ForegroundColor (Get-MessageColour error)
+    Write-Host ""
+    Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
+    Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
+    if ($InstallPath) {
+        Write-Host "    - Erasing the install folder: $InstallPath" -ForegroundColor (Get-MessageColour muted)
+    }
+    Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
+    Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
+    Write-Host ""
+    Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
+    Write-Host ""
+    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+    Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
+    Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
+    $Confirmation = Read-Host " Confirm"
+    Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
+    Write-Host ""
+
+    # -ceq, not -eq: PowerShell's -eq ignores case, while the banner above
+    # asks for the exact name. The point is that the name is read and typed,
+    # not that a reflexive Enter carries through.
+    return ($Confirmation -ceq $DistroName)
+}
 
 # The folder question, whole: the proposal, the three refusals, the folder
 # asked again, and the two checks the erasing depends on. An empty answer
@@ -94,7 +161,7 @@ function Resolve-InstanceIdentity {
             exit 0
         }
         $Answer = $Answer.Trim()
-        if ($Answer -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+        if (Test-InstanceName $Answer) {
             $DistroName = $Answer
         } else {
             Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
@@ -123,31 +190,7 @@ function Resolve-InstanceIdentity {
     # the exact name is typed back - the banner asks for it, and a reflexive
     # Enter aborts.
     if ($WasRegistered) {
-        [Console]::Beep(1000, 400)
-        Write-Host ""
-        Write-DangerBanner
-        Write-Host ""
-        Write-Host "  A WSL distribution named '$DistroName' ALREADY exists." -ForegroundColor (Get-MessageColour error)
-        Write-Host ""
-        Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
-        Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - Erasing the install folder: $InstallPath" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
-        Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
-        Write-Host ""
-        Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
-        Write-Host ""
-        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-        Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
-        Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
-        $Confirmation = Read-Host " Confirm"
-        Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-        Write-Host ""
-
-        # -cne, not -ne: PowerShell's -ne ignores case, while the banner above
-        # asks for the exact name. The point is that the name is read and
-        # typed, not that a reflexive Enter carries through.
-        if ($Confirmation -cne $DistroName) {
+        if (-not (Confirm-Destruction -DistroName $DistroName -InstallPath $InstallPath -Lead "A WSL distribution named '$DistroName' ALREADY exists.")) {
             Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour warning)
             exit 0
         }

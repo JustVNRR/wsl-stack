@@ -23,15 +23,6 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# The packs question lives in its own file - the same checklist build asks.
-$PromptsLib = Join-Path $PSScriptRoot "prompts.ps1"
-if (-not (Test-Path $PromptsLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\prompts.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $PromptsLib
-
 # 1. Which instance
 $Distro = Select-Distro
 if (-not $Distro) {

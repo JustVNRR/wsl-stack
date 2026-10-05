@@ -31,16 +31,6 @@ if (-not (Test-Path $UserNameLib)) {
 }
 . $UserNameLib
 
-# The questions - the instance's full name, its packs, its user - live in
-# their own file: the build asks all of them, and manage_packs the packs one.
-$PromptsLib = Join-Path $PSScriptRoot "prompts.ps1"
-if (-not (Test-Path $PromptsLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\prompts.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $PromptsLib
-
 if ($Ignored) {
     Write-Host ""
     Write-Host "[ABORT] This command takes no options." -ForegroundColor (Get-MessageColour error)
@@ -66,27 +56,6 @@ function Assert-DockerReady {
         Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
-}
-
-# Windows' own list of what is registered, where every decision to erase comes
-# from. Its failure is kept apart from its answer: a list that cannot be read
-# is not an empty machine. A missing key is not a failure - it is WSL never
-# having registered anything here.
-function Get-RegisteredDistros {
-    $Lxss = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss"
-    if (-not (Test-Path $Lxss)) { return @() }
-
-    $Found = @()
-    foreach ($Key in Get-ChildItem $Lxss -ErrorAction Stop) {
-        $Props = Get-ItemProperty $Key.PSPath -ErrorAction Stop
-        if ($Props.DistributionName) {
-            $Found += [PSCustomObject]@{
-                Name = $Props.DistributionName
-                Path = ($Props.BasePath -replace '^\\\\\?\\', '').TrimEnd('\')
-            }
-        }
-    }
-    return @($Found)
 }
 
 # The last look before erasing: the image was built in between, and the machine
@@ -234,8 +203,7 @@ function Configure-DockerDesktopIntegration {
 
     try {
         Write-Host ""
-        $AddToDocker = Read-Host "Restart Docker Desktop to add support for '$DistroName'? [Y/n]"
-        if ($AddToDocker -match "^[nN]$") { return $null }
+        if (-not (Confirm-YesNo "Restart Docker Desktop to add support for '$DistroName'?")) { return $null }
 
         # The shared recipe: a backup beside the file, the name rebuilt rather
         # than appended twice, and a byte-order-mark-free write - Docker
@@ -490,9 +458,8 @@ finally {
     if ($Deployment.Succeeded) {
         Write-Host ""
         Write-Host ("-" * 60) -ForegroundColor (Get-MessageColour muted)
-        $KeepDockerImage = Read-Host "Keep Docker image [Y/n]?"
 
-        if ($KeepDockerImage -match "^[nN]$") {
+        if (-not (Confirm-YesNo "Keep Docker image?")) {
             Write-Host "==> Removing Docker image '$ImageTag'..." -ForegroundColor (Get-MessageColour info)
             if (Test-NativeCommand { docker rmi -f $ImageTag }) {
                 Write-Host "Docker image removed." -ForegroundColor (Get-MessageColour success)

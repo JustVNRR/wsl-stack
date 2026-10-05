@@ -71,7 +71,7 @@ if ([string]::IsNullOrWhiteSpace($Name)) {
 }
 $Name = $Name.Trim()
 
-if ($Name -notmatch '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+if (-not (Test-InstanceName $Name)) {
     Write-Host ""
     Write-Host "[ABORT] '$Name' is not usable as an instance name" -ForegroundColor (Get-MessageColour error)
     Write-Host "        (letters, digits, '.', '_' and '-' only)." -ForegroundColor (Get-MessageColour hint)

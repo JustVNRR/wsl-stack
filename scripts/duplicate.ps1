@@ -32,7 +32,7 @@ while ($true) {
         Write-Host "[ABORT] Operation cancelled by user. Nothing was created." -ForegroundColor (Get-MessageColour success)
         exit 0
     }
-    if ($Answer.Trim() -match '^[A-Za-z0-9][A-Za-z0-9_.-]*$') {
+    if (Test-InstanceName $Answer.Trim()) {
         $NewDistroName = $Answer.Trim()
         break
     }
@@ -56,8 +56,7 @@ if ((Get-DistroNames -Running) -contains $SourceDistro) {
     Write-Host ""
     Write-Host "  '$SourceDistro' is running, and this needs it stopped." -ForegroundColor (Get-MessageColour warning)
     Write-Host "  Save what you have open in there: stopping it loses anything unsaved." -ForegroundColor (Get-MessageColour warning)
-    $StopIt = [string](Read-Host "Stop it now? [Y/n]")
-    if ($StopIt -match "^[nN]") {
+    if (-not (Confirm-YesNo "Stop it now?")) {
         Write-Host ""
         Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
         exit 0

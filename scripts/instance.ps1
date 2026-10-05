@@ -149,6 +149,27 @@ function Get-InstanceFolder {
     return ($Props.BasePath -replace '^\\\\\?\\', '').TrimEnd('\')
 }
 
+# Windows' own list of what is registered, where every decision to erase comes
+# from. Its failure is kept apart from its answer: a list that cannot be read
+# is not an empty machine. A missing key is not a failure - it is WSL never
+# having registered anything here.
+function Get-RegisteredDistros {
+    $Lxss = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss"
+    if (-not (Test-Path $Lxss)) { return @() }
+
+    $Found = @()
+    foreach ($Key in Get-ChildItem $Lxss -ErrorAction Stop) {
+        $Props = Get-ItemProperty $Key.PSPath -ErrorAction Stop
+        if ($Props.DistributionName) {
+            $Found += [PSCustomObject]@{
+                Name = $Props.DistributionName
+                Path = ($Props.BasePath -replace '^\\\\\?\\', '').TrimEnd('\')
+            }
+        }
+    }
+    return @($Found)
+}
+
 # The file as the instance has it, or $null when it has none yet. A file that
 # cannot be read is not a reason to stop: it is treated as absent, and the next
 # write replaces it.
@@ -412,8 +433,7 @@ function Set-InstanceState {
         # [y/N], not [Y/n]: this lands in the middle of a restore or a copy,
         # where the restart stops containers for a reason the user may not care
         # about.
-        $AddToDocker = [string](Read-Host "Add '$Name' to Docker Desktop? (it restarts Docker) [y/N]")
-        if ($AddToDocker -match "^[yY]") {
+        if (Confirm-YesNo "Add '$Name' to Docker Desktop? (it restarts Docker)" -DefaultNo) {
             try {
                 Set-DockerState -Name $Name
                 $PreviousEAP = $ErrorActionPreference
@@ -764,3 +784,17 @@ if (-not (Test-Path $PacksLib)) {
     exit 1
 }
 . $PacksLib
+
+# ---------------------------------------------------------------------------
+# THE QUESTIONS
+# ---------------------------------------------------------------------------
+# What a command asks - the confirmations, the names, the build's questions.
+# Loaded here, once: a command that asks must not write a question twice, and
+# prompts.ps1 draws on the messages and the menus read above.
+$PromptsLib = Join-Path $PSScriptRoot "prompts.ps1"
+if (-not (Test-Path $PromptsLib)) {
+    Write-Host ""
+    Write-Host "[ABORT] scripts\prompts.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    exit 1
+}
+. $PromptsLib

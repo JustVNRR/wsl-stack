@@ -42,8 +42,7 @@ Write-Host "  freed over time comes back to Windows. Nothing inside is touched."
 # 2. A copy first, yes by default: compacting rewrites the disk's metadata -
 # exactly what a backup a minute before turns into a non-event.
 Write-Host ""
-$ArchiveFirst = [string](Read-Host "Archive it first? [Y/n]")
-if ($ArchiveFirst -match "^[nN]") {
+if (-not (Confirm-YesNo "Archive it first?")) {
     Write-Host "  No archive - compacting on its own." -ForegroundColor (Get-MessageColour muted)
 } else {
     # Typing an existing name is how an archive is replaced - said, not done

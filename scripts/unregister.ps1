@@ -49,39 +49,16 @@ $DistroName = $Distro.Name
 $InstallPath = $Distro.Path
 
 # ==============================================================================
-# 2. CONFIRMATION (destructive) - same style as build.ps1
+# 2. CONFIRMATION (destructive) - the gate build asks too, written once.
 # ==============================================================================
-[Console]::Beep(1000, 400)
-Write-Host ""
-Write-DangerBanner
-Write-Host ""
-Write-Host "  The WSL distribution '$DistroName' and ALL its data will be deleted:" -ForegroundColor (Get-MessageColour error)
-Write-Host ""
-Write-Host "  Proceeding will PERMANENTLY DESTROY this distribution:" -ForegroundColor (Get-MessageColour warning)
-Write-Host "    - Executing: wsl --unregister $DistroName" -ForegroundColor (Get-MessageColour muted)
-Write-Host "    - IRREVERSIBLE DELETION of the virtual disk (VHDX)" -ForegroundColor (Get-MessageColour muted)
-Write-Host "    - TOTAL LOSS of projects, SSH keys, and all files in /home" -ForegroundColor (Get-MessageColour muted)
-Write-Host ""
-Write-Host "  THIS OPERATION CANNOT BE UNDONE." -ForegroundColor (Get-MessageColour error)
-Write-Host ""
-Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-Write-Host " Press ENTER to abort immediately." -ForegroundColor (Get-MessageColour hint)
-Write-Host " To confirm DESTRUCTION, type the exact name of the distribution:" -ForegroundColor (Get-MessageColour hint)
-$Confirmation = Read-Host " Confirm"
-Write-Host " ----------------------------------------------------------------------" -ForegroundColor (Get-MessageColour muted)
-Write-Host ""
-
-# -cne, not -ne: PowerShell's -ne ignores case, while the banner above asks
-# for the exact name.
-if ($Confirmation -cne $DistroName) {
+if (-not (Confirm-Destruction -DistroName $DistroName -Lead "The WSL distribution '$DistroName' and ALL its data will be deleted:")) {
     Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour warning)
     exit 0
 }
 
 # The last moment to take a copy. Handed to the engine via Unregister($Instance, $ArchiveFirst).
 Write-Host ""
-$ArchivePrompt = [string](Read-Host "Archive it before deleting? [y/N]")
-$ArchiveFirst = ($ArchivePrompt -match "^[yY]")
+$ArchiveFirst = Confirm-YesNo "Archive it before deleting?" -DefaultNo
 
 # The same name is replaced without a word, otherwise - said, not quiet.
 if ($ArchiveFirst) {

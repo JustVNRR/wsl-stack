@@ -57,8 +57,7 @@ Write-Host ""
 Write-Host "  '$DistroName' will be stopped, then started again." -ForegroundColor (Get-MessageColour warning)
 Write-Host "  Whatever is open in there and not saved is lost; what is already" -ForegroundColor (Get-MessageColour warning)
 Write-Host "  written on the disk stays exactly as it is." -ForegroundColor (Get-MessageColour warning)
-$Confirm = [string](Read-Host "Restart it? [Y/n]")
-if ($Confirm -match "^[nN]") {
+if (-not (Confirm-YesNo "Restart it?")) {
     Write-Host ""
     Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
     exit 0

@@ -88,9 +88,7 @@ if ($Missing.Count -gt 0) {
     Write-Host "    Nothing of it is undone on the system side: only its files leave." -ForegroundColor (Get-MessageColour hint)
     Write-Host "    To take its tool out by hand, open a shell in '$DistroName'." -ForegroundColor (Get-MessageColour hint)
 }
-$Confirm = [string](Read-Host "Remove $($ToRemove -join ', ')? [Y/n]")
-
-if ($Confirm -match "^[nN]") {
+if (-not (Confirm-YesNo "Remove $($ToRemove -join ', ')?")) {
     Write-Host ""
     Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
     exit 0
