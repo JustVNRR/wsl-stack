@@ -23,6 +23,7 @@
     NestedModules     = @(
         'WslStack.Message.psm1'
         'WslStack.Instance.psm1'
+        'WslStack.Packs.psm1'
     )
 
     FunctionsToExport = @(
@@ -64,5 +65,11 @@
         'Invoke-InInstance'
         'Get-InInstanceOutput'
         'Get-InstanceHome'
+
+        # The packs - the catalog, and the moves a pack makes
+        'Get-PackCatalog'
+        'Get-InstalledPacks'
+        'Enable-PackSudo'
+        'Invoke-PackApply'
     )
 }

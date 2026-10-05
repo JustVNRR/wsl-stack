@@ -15,8 +15,8 @@
 # Where the packs live, and the cleanup that travels with a removal. Read here,
 # at load time, and not inside the functions: $PSScriptRoot means the file being
 # executed, and a function belongs to whichever script called it.
-$PacksRoot = Join-Path (Split-Path $PSScriptRoot -Parent) "packs"
-$OrphanCleanupScript = Join-Path $PSScriptRoot "cleanup_orphans.sh"
+$PacksRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "packs"
+$OrphanCleanupScript = Join-Path (Split-Path $PSScriptRoot -Parent) "cleanup_orphans.sh"
 
 # The catalog of packs this checkout carries, read by the model: the line a
 # menu shows, the folder to copy from, the declarations both checklists read -

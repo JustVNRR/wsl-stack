@@ -4,8 +4,7 @@
 # The shared half, once per run: the module (the messages, and the instances'
 # own family - the marker, the look, Docker Desktop, the engine on wsl.exe),
 # then the classes for the scripts themselves, then the libraries that are not
-# module families yet: the menus (WslUI.ps1), the packs (packs.ps1) and the
-# questions (prompts.ps1).
+# module families yet: the menus (WslUI.ps1) and the questions (prompts.ps1).
 #
 # Same rule when a piece is missing: say so, rather than die with a PowerShell
 # error that reads like the machine's fault.
@@ -59,20 +58,6 @@ if (-not (Test-Path $MenuLib)) {
     exit 1
 }
 . $MenuLib
-
-# ---------------------------------------------------------------------------
-# THE PACKS
-# ---------------------------------------------------------------------------
-# What this checkout carries, what an instance has, and the moves that make a
-# pack travel - loaded here because three commands ask, and asking is written
-# once.
-$PacksLib = Join-Path $PSScriptRoot "packs.ps1"
-if (-not (Test-Path $PacksLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\packs.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $PacksLib
 
 # ---------------------------------------------------------------------------
 # THE QUESTIONS

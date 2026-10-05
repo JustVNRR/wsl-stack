@@ -10,8 +10,9 @@
 #                  there records the ORDER, which is the whole design: the
 #                  newcomer's folder is placed BEFORE a remove.sh asks its
 #                  question, so a shared package is left where it is.
-#                  Get-InstanceHome is stubbed below: the root-side scripts
-#                  ask it directly, and it would otherwise reach the machine.
+#                  Get-InstanceHome is stubbed below, and inside the packs
+#                  module: the pack moves ask it directly, and it would
+#                  otherwise reach the machine.
 #
 # Run it with tests\packs-select-test.answers on standard input: the answers,
 # one per line, in the order they are read - and in these exact counts, because
@@ -188,11 +189,15 @@ function Invoke-InInstance {
 function Reset { $script:Calls = @(); $script:FailCommand = ""; $script:FailCode = 1; $script:FailAfter = 1; $script:FailSeen = 0 }
 function Commands { return @($script:Calls | ForEach-Object { ($_ -split " :: ", 2)[1] }) }
 
-# The root-side moves ask the instance for the user's home through wsl.exe
-# directly - outside the stand-in - and Enable-PackSudo reads the user name out
-# of it. Answered here: the machine running this suite has no such instance to
-# ask, and an unanswered call arrived as wsl's own error text.
+# The pack moves ask the instance for the user's home through wsl.exe directly
+# - outside the stand-in - and Enable-PackSudo reads the user name out of it.
+# Answered twice: here for whatever calls it from the script's side, and inside
+# the packs module, where the moves' own lookups start and this script's
+# functions are out of reach.
 function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
+& ((Get-Module WslStack).NestedModules | Where-Object { $_.Name -eq 'WslStack.Packs' }) {
+    function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
+}
 
 $Add = @([PSCustomObject]@{ Name = "fake-a"; Path = "X:\packs\fake-a"; Description = "d" })
 $Directory = "/home/u/.config/packs"
