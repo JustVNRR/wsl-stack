@@ -71,21 +71,6 @@ if (-not (Test-Path $OurFragment)) {
 $Escape = [char]27
 $Coloured = Test-ColourOutput
 
-# An empty answer is a cancel like any other. The question is written here and
-# Read-Host asked bare: what Read-Host writes itself never reaches a pipe.
-function Read-Answer {
-    param([string]$Question)
-
-    Write-Host -NoNewline "${Question}: "
-    $Answer = [string](Read-Host).Trim()
-    if ([string]::IsNullOrWhiteSpace($Answer)) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
-    return $Answer
-}
-
 # One turn of the menu: ask what the choice needs, then have the instance draw
 # the icon or take the image in - and note what it is made of in its own file.
 #

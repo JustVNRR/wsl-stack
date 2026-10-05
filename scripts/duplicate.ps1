@@ -25,19 +25,7 @@ $SourceDistro = $Source.Name
 
 # 0-bis. The copy's name: typed, because there is nothing to pick from. The
 # question comes back until the name is usable.
-while ($true) {
-    $Answer = [string](Read-Host "Name of the copy")
-    if ([string]::IsNullOrWhiteSpace($Answer)) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was created." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
-    if (Test-InstanceName $Answer.Trim()) {
-        $NewDistroName = $Answer.Trim()
-        break
-    }
-    Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
-}
+$NewDistroName = Read-InstanceName "Name of the copy" -What "created"
 
 # This script never unregisters anything, so a name already taken is a dead
 # end, not something to resolve - the engine answers whether the name is free.

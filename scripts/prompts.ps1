@@ -75,6 +75,45 @@ function Confirm-Destruction {
     return ($Confirmation -ceq $DistroName)
 }
 
+# ---------------------------------------------------------------------------
+# READING AN ANSWER
+# ---------------------------------------------------------------------------
+
+# One answer typed by the user, its empty answer a cancel like any other: the
+# question is written here and Read-Host asked bare, because what Read-Host
+# writes itself never reaches a pipe.
+function Read-Answer {
+    param([string]$Question, [string]$What = "modified")
+
+    Write-Host -NoNewline "${Question}: "
+    $Answer = [string](Read-Host).Trim()
+    if ([string]::IsNullOrWhiteSpace($Answer)) {
+        Write-Host ""
+        Write-Host "[ABORT] Operation cancelled by user. Nothing was $What." -ForegroundColor (Get-MessageColour success)
+        exit 0
+    }
+    return $Answer
+}
+
+# One instance name, asked until it is one: the shape checked, the refusal
+# hint shown, and the empty answer cancelling - the -What word says what was
+# not touched, "modified" unless the caller creates something.
+function Read-InstanceName {
+    param([string]$Question, [string]$What = "modified")
+
+    while ($true) {
+        $Answer = [string](Read-Host $Question)
+        if ([string]::IsNullOrWhiteSpace($Answer)) {
+            Write-Host ""
+            Write-Host "[ABORT] Operation cancelled by user. Nothing was $What." -ForegroundColor (Get-MessageColour success)
+            exit 0
+        }
+        $Answer = $Answer.Trim()
+        if (Test-InstanceName $Answer) { return $Answer }
+        Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
+    }
+}
+
 # The folder question, whole: the proposal, the three refusals, the folder
 # asked again, and the two checks the erasing depends on. An empty answer
 # cancels the run, like the question it replaces.
@@ -152,21 +191,7 @@ function Resolve-InstallPath {
 function Resolve-InstanceIdentity {
     param([string]$Root)
 
-    $DistroName = $null
-    while (-not $DistroName) {
-        $Answer = [string](Read-Host "Name of the instance (CTRL+C to abort)")
-        if ([string]::IsNullOrWhiteSpace($Answer)) {
-            Write-Host ""
-            Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-            exit 0
-        }
-        $Answer = $Answer.Trim()
-        if (Test-InstanceName $Answer) {
-            $DistroName = $Answer
-        } else {
-            Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
-        }
-    }
+    $DistroName = Read-InstanceName "Name of the instance (CTRL+C to abort)"
 
     # What Windows already knows, read once and read strictly: this one list
     # answers "is this path another instance's folder" below, "is this name
