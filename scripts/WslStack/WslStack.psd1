@@ -68,10 +68,19 @@
         'Get-InInstanceOutput'
         'Get-InstanceHome'
 
-        # The packs - the catalog, and the moves a pack makes
+        # The packs - the catalog, and the moves a pack makes - the manager's
+        # class file drives the moves by name, and only this surface is
+        # visible to it
         'Get-PackCatalog'
         'Get-InstalledPacks'
+        'Get-PackFolder'
+        'Test-PackScript'
+        'Copy-PackIntoInstance'
+        'Invoke-PackScript'
+        'Remove-PackFolder'
         'Enable-PackSudo'
+        'Disable-PackSudo'
+        'Invoke-PackOrphanCleanup'
         'Invoke-PackApply'
 
         # The questions - what a command asks
