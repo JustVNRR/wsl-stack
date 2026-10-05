@@ -13,9 +13,6 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-# Where the instances live, provided by the engine.
-$Root = $Manager.InstancesRoot
-
 # The family's shared half: the marker that tells our instances from any other -
 # a removal that cannot tell them apart targets whatever the registry holds.
 $InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
@@ -29,6 +26,10 @@ if (-not (Test-Path $InstanceLib)) {
 # Run on its own, nothing was injected: the manager is made here, once the
 # shared half is loaded and its class has a name.
 if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
+
+# Where the instances live, provided by the engine. Read here, not higher: the
+# manager may be the one the load just settled.
+$Root = $Manager.InstancesRoot
 
 # ==============================================================================
 # 1. WHICH DISTRO (from the list, always)

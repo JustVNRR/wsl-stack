@@ -9,10 +9,6 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-# One working folder, no guessing: instances in <Root>\<name>, every archive in
-# <Root>\archives - the engine holds both roots.
-$ArchiveFolder = $Manager.ArchivesRoot
-
 # The family's shared half: the marker, and the Windows-side look - stored next
 # to the tar, re-applied here.
 $InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
@@ -26,6 +22,11 @@ if (-not (Test-Path $InstanceLib)) {
 # Run on its own, nothing was injected: the manager is made here, once the
 # shared half is loaded and its class has a name.
 if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
+
+# One working folder, no guessing: instances in <Root>\<name>, every archive in
+# <Root>\archives - the engine holds both roots. Read here, not higher: the
+# manager may be the one the load just settled.
+$ArchiveFolder = $Manager.ArchivesRoot
 
 # 1. What there is to restore from. An empty folder is not an error to work
 # around: it says how to fill it.

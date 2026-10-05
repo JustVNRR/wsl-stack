@@ -15,11 +15,6 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-# The folder the engine writes in: instances in <Root>\<name>, archives in
-# <Root>\archives - the folder build.ps1 proposes, so everything this
-# repository manages sits under one folder.
-$ArchiveFolder = $Manager.ArchivesRoot
-
 # The family's shared half: the marker that tells our instances from any other,
 # and the Windows-side look - not in the tar, so it travels next to it.
 $InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
@@ -33,6 +28,12 @@ if (-not (Test-Path $InstanceLib)) {
 # Run on its own, nothing was injected: the manager is made here, once the
 # shared half is loaded and its class has a name.
 if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
+
+# The folder the engine writes in: instances in <Root>\<name>, archives in
+# <Root>\archives - the folder build.ps1 proposes, so everything this
+# repository manages sits under one folder. Read here, not higher: the manager
+# may be the one the load just settled.
+$ArchiveFolder = $Manager.ArchivesRoot
 
 # 1. Which instance. Ours only: the list vouches for them.
 $Distro = Select-Distro
