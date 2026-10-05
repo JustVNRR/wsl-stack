@@ -13,7 +13,7 @@
 $bad = 0
 
 $ClassOrder = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\scripts\classes"
+$ClassesDir = Join-Path $PSScriptRoot "..\scripts\WslModel"
 $ClassPaths = @()
 foreach ($ClassLib in $ClassOrder) {
     $ClassPath = Join-Path $ClassesDir $ClassLib
@@ -30,7 +30,7 @@ $errors = $null
 $ClassText = (@($ClassPaths | ForEach-Object { Get-Content -Path $_ -Raw }) -join "`n")
 [void][System.Management.Automation.Language.Parser]::ParseInput($ClassText, [ref]$null, [ref]$errors)
 if ($errors.Count -gt 0) {
-    Write-Host "::error file=scripts\classes::$($errors.Count) parse error(s)"
+    Write-Host "::error file=scripts\WslModel::$($errors.Count) parse error(s)"
     foreach ($e in $errors) { Write-Host ("  line {0}: {1}" -f $e.Extent.StartLineNumber, $e.Message) }
     $bad = 1
 }

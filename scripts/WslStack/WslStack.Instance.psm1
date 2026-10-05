@@ -33,11 +33,11 @@
 # files lands them in the runspace's type table, so the session's own classes
 # are these very types, not copies.
 $ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\classes"
+$ClassesDir = Join-Path $PSScriptRoot "..\WslModel"
 foreach ($ClassLib in $ClassLibs) {
     $ClassPath = Join-Path $ClassesDir $ClassLib
     if (-not (Test-Path $ClassPath)) {
-        throw "scripts\classes\$ClassLib is missing - the scripts\ folder is incomplete."
+        throw "scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete."
     }
     . $ClassPath
 }

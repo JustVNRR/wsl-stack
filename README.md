@@ -294,7 +294,7 @@ the repository at runtime.
 │   ├── WslCommands/         # The commands themselves, one file per word: the
 │                            #   sixteen the menu offers, and theme's three
 │                            #   children - icon, font and color
-│   ├── classes/             # The model, one file per class: the manager (one
+│   ├── WslModel/            # The model, one file per class: the manager (one
 │                            #   door per command), the instance, the packs, the
 │                            #   theme, the state
 │   └── cleanup_orphans.sh   # The one thing a removal runs inside an instance

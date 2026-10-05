@@ -416,7 +416,7 @@ class WslInstance {
 
     # The recipe is drawn to the instance's own icon file
     # (terminal-icon.png, next to its disk), then worn. $PSScriptRoot in a
-    # class method is the class file's folder - scripts\classes - so the
+    # class method is the class file's folder - scripts\WslModel - so the
     # drawing script is two levels up, in assets. The drawn recipe comes
     # back whole: the drawing settles the parts the recipe left open.
     [object] SetIcon([object]$Recipe) {

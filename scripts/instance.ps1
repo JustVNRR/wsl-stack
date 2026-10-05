@@ -33,12 +33,12 @@ Import-Module $StackModule -Force
 # names. Read again on every run - a terminal can outlive a pull, and what must
 # run is the code on disk; pwsh 7 replaces a class it already held cleanly.
 $ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "classes"
+$ClassesDir = Join-Path $PSScriptRoot "WslModel"
 foreach ($ClassLib in $ClassLibs) {
     $ClassPath = Join-Path $ClassesDir $ClassLib
     if (-not (Test-Path $ClassPath)) {
         Write-Host ""
-        Write-Host "[ABORT] scripts\classes\$ClassLib is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
         exit 1
     }
     . $ClassPath
