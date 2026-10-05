@@ -320,14 +320,27 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
     # method calls. The handle lives in the script scope: the click handler is
     # gone by the time the timer fires.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
     $script:Job = [powershell]::Create().
         AddScript({
             param($Module, $Name, $ArchiveFirst)
+            # A trail on disk: the job hangs on Windows and nothing else can
+            # say where - each step stamps the file, the last stamp is the call
+            # that never came back.
+            $Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
+            $stamp = { param($m) $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $m" }
+            & $stamp "importing"
             Import-Module $Module -Force
+            & $stamp "imported"
             $mgr = New-InstanceManager
+            & $stamp "manager made"
             $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+            & $stamp "list read: $([bool]$inst)"
             if (-not $inst) { throw "'$Name' is not in our list any more." }
-            $mgr.Unregister($inst, [bool]$ArchiveFirst)
+            & $stamp "removing '$Name'"
+            $r = $mgr.Unregister($inst, [bool]$ArchiveFirst)
+            & $stamp "removed"
+            $r
         }).
         AddArgument($ModulePath).
         AddArgument($inst.Name).
@@ -372,14 +385,26 @@ $btnCompact.Add_Click({
     # everything else is method calls. The handle lives in the script scope:
     # the click handler is gone by the time the timer below fires.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
     $script:Job = [powershell]::Create().
         AddScript({
             param($Module, $Name)
+            # A trail on disk, like the trash's job: the last stamp is the call
+            # that never came back.
+            $Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
+            $stamp = { param($m) $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $m" }
+            & $stamp "importing"
             Import-Module $Module -Force
+            & $stamp "imported"
             $mgr = New-InstanceManager
+            & $stamp "manager made"
             $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+            & $stamp "list read: $([bool]$inst)"
             if (-not $inst) { throw "'$Name' is not in our list any more." }
-            $mgr.Shrink($inst)
+            & $stamp "compacting '$Name'"
+            $r = $mgr.Shrink($inst)
+            & $stamp "compacted"
+            $r
         }).
         AddArgument($ModulePath).
         AddArgument($selected.Name)
