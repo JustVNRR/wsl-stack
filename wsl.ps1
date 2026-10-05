@@ -69,13 +69,15 @@ $Gesture = {
 
 # The words, one chain: one WslMenuItem per command - the word, the line, the
 # gesture. The order is the one the documentation uses, and it starts with the
-# command that answers "what do I have?" - list, then the rest along an
-# instance's life. Each line says what the command does and stops there: a
-# menu is read at a glance. The longest description is 40 characters - 61
+# window - gui, the mouse-first way in - then list, the answer to "what do I
+# have?", then the rest along an instance's life. Each line says what the
+# command does and stops there: a menu is read at a glance. The longest is 40
+# characters - 61
 # columns numbered, 58 behind the arrow marker, measured - so an 80-column
 # window shows them whole and the cut never eats a word that mattered. What
 # deserves a sentence is in docs\wsl\commands.md.
 $Menu = [WslMenu]::new("WSL Stack").
+    Add("gui",          "open graphical fleet manager",             $Gesture).
     Add("list",         "list our instances and the archives",      $Gesture).
     Add("build",        "build an instance from the image",         $Gesture).
     Add("start",        "start a stopped instance",                 $Gesture).

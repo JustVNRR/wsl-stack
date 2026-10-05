@@ -10,7 +10,8 @@ commands themselves live in `scripts\`.
 ```text
 
 WSL Stack
-  > list         list our instances and the archives
+  > gui          open graphical fleet manager
+    list         list our instances and the archives
     build        build an instance from the image
     start        start a stopped instance
     stop         stop a running instance
@@ -47,6 +48,7 @@ read, the colours a console has always had are used.
 
 | Command | What it does |
 | :--- | :--- |
+| [`.\wsl.ps1 gui`](#gui) | open graphical fleet manager |
 | [`.\wsl.ps1 list`](#list) | list our instances and the archives |
 | [`.\wsl.ps1 build`](#build) | build an instance from the image |
 | [`.\wsl.ps1 start`](#start) | start a stopped instance |
@@ -93,6 +95,23 @@ D:\WSL\
         ├── instance.json            its look, the same file the instance keeps
         └── terminal-icon.png        its icon
 ```
+
+---
+
+## `gui`
+
+The fleet manager, in a window: the mouse-first way in, over the same engine
+everything else asks.
+
+```powershell
+.\wsl.ps1 gui
+```
+
+It lists our instances - state and size, the same list `list` prints - and
+offers the actions taken most often: **Refresh**, **Start**, **Stop**, and
+**Compact** (the same compact `shrink` runs; the window shows a bar while it
+works, and the instance finds its state back afterwards). Nothing here exists
+only in the window: it is a keystroke-free way in, not a second engine.
 
 ---
 

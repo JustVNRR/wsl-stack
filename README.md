@@ -388,6 +388,7 @@ The scripts themselves live in `scripts\` — `wsl.ps1` is the only thing to typ
 
 | Command | What it does |
 | :--- | :--- |
+| [`.\wsl.ps1 gui`](docs/wsl/commands.md#gui) | open graphical fleet manager |
 | [`.\wsl.ps1 list`](docs/wsl/commands.md#list) | list our instances and the archives |
 | [`.\wsl.ps1 build`](docs/wsl/commands.md#build) | build an instance from the image |
 | [`.\wsl.ps1 start`](docs/wsl/commands.md#start) | start a stopped instance |
