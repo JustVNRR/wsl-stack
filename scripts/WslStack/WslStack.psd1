@@ -67,6 +67,7 @@
         'Invoke-InInstance'
         'Get-InInstanceOutput'
         'Get-InstanceHome'
+        'New-InstanceManager'
 
         # The packs - the catalog, and the moves a pack makes - the manager's
         # class file drives the moves by name, and only this surface is

@@ -255,16 +255,16 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
 
     & $SetBusyState $true "Removing '$($inst.Name)'..."
 
-    # The same shape as Compact's: a runspace of its own, everything made there
-    # - a plain thread has no runspace, and an object born elsewhere keeps its
-    # own rules (both measured). The handle lives in the script scope: the
-    # click handler is gone by the time the timer fires.
+    # The same shape as Compact's: a runspace of its own, no class named - the
+    # manager comes from the module's own factory, and everything else is
+    # method calls. The handle lives in the script scope: the click handler is
+    # gone by the time the timer fires.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
     $script:Job = [powershell]::Create().
         AddScript({
             param($Module, $Name, $ArchiveFirst)
             Import-Module $Module -Force
-            $mgr = New-Object -TypeName WslInstanceManager -ArgumentList ([WslInstanceManager]::Root())
+            $mgr = New-InstanceManager
             $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
             if (-not $inst) { throw "'$Name' is not in our list any more." }
             $mgr.Unregister($inst, [bool]$ArchiveFirst)
@@ -286,16 +286,25 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
         } catch {
             $failure = $_.Exception.Message
         }
+        # The stream again: non-terminating errors sleep there, and EndInvoke
+        # never shows them (measured three times today).
+        if ($script:Job.Streams.Error.Count -gt 0) {
+            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
+        }
         $script:Job.Dispose()
 
-        if ($failure) {
-            $txtStatus.Text = "Failed to remove '$($script:JobName)': $failure"
-        } else {
-            $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($report.Removed.FolderState)."
+        try {
+            if ($failure) {
+                $txtStatus.Text = "Failed to remove '$($script:JobName)': $failure"
+            } elseif ($null -eq $report) {
+                $txtStatus.Text = "Removing '$($script:JobName)' finished, but nothing came back to report."
+            } else {
+                $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($report.Removed.FolderState)."
+            }
+        } finally {
+            & $SetBusyState $false $null
+            & $LoadFleet
         }
-
-        & $SetBusyState $false $null
-        & $LoadFleet
     }
     $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
     $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
@@ -314,20 +323,18 @@ $btnCompact.Add_Click({
     # 1. Lock the window, show the bar
     & $SetBusyState $true "Compacting '$($selected.Name)' (this may take a few minutes)..."
 
-    # 2. The work goes to a runspace of its own, and everything is made THERE:
-    # a PowerShell block cannot run on a plain pool thread ("There is no
-    # Runspace available to run scripts in this thread", measured), and an
-    # object born elsewhere keeps its own runspace's rules - its method
-    # internals do not resolve (measured: "Get-DistroNames is not
-    # recognized"). So the job imports the module and finds the instance by
-    # name in its own list. The handle lives in the script scope: the click
-    # handler is gone by the time the timer below fires.
+    # 2. The work goes to a runspace of its own, and names no class at all: a
+    # fresh runspace resolves no type literal - "Unable to find type
+    # [WslInstanceManager]", and silently, it sleeps in the error stream
+    # (measured) - so the manager comes from the module's own factory, and
+    # everything else is method calls. The handle lives in the script scope:
+    # the click handler is gone by the time the timer below fires.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
     $script:Job = [powershell]::Create().
         AddScript({
             param($Module, $Name)
             Import-Module $Module -Force
-            $mgr = New-Object -TypeName WslInstanceManager -ArgumentList ([WslInstanceManager]::Root())
+            $mgr = New-InstanceManager
             $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
             if (-not $inst) { throw "'$Name' is not in our list any more." }
             $mgr.Shrink($inst)
@@ -352,17 +359,26 @@ $btnCompact.Add_Click({
         } catch {
             $failure = $_.Exception.Message
         }
+        # Non-terminating errors sleep in the stream, and EndInvoke never
+        # shows them (measured: a job that came back empty and said nothing).
+        if ($script:Job.Streams.Error.Count -gt 0) {
+            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
+        }
         $script:Job.Dispose()
 
-        if ($failure) {
-            $txtStatus.Text = "Failed to compact '$($script:JobName)': $failure"
-        } else {
-            $freedMb = [math]::Round($result.Freed / 1MB, 1)
-            $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $freedMb MB."
+        try {
+            if ($failure) {
+                $txtStatus.Text = "Failed to compact '$($script:JobName)': $failure"
+            } elseif ($null -eq $result) {
+                $txtStatus.Text = "Compacting '$($script:JobName)' finished, but nothing came back to report."
+            } else {
+                $freedMb = [math]::Round($result.Freed / 1MB, 1)
+                $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $freedMb MB."
+            }
+        } finally {
+            & $SetBusyState $false $null
+            & $LoadFleet
         }
-
-        & $SetBusyState $false $null
-        & $LoadFleet
     }
     $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
     $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)

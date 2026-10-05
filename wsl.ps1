@@ -126,7 +126,7 @@ if (-not (Test-Path $Script)) {
 # The engine, made once: every command receives this same manager - the command
 # asks, the manager acts through the model, and nothing else reaches the disk
 # or wsl.exe.
-$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+$Manager = New-InstanceManager
 
 # Whatever followed the command is handed over as it came: a command that has
 # options keeps them, the others ignore them. With the commands' folder and the
