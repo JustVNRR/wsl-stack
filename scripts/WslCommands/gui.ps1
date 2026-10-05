@@ -397,14 +397,24 @@ function Show-RemoveGate {
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- And the checkbox wears the focus the same way the buttons do: its
+             label turns teal - the system's dotted rectangle never shows on
+             this background. -->
+        <Style TargetType="CheckBox">
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="Foreground" Value="#4EC9B0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and everything in /home - projects, SSH keys, all of it. This operation CANNOT be undone.</TextBlock>
-        <CheckBox Name="ChkArchive" TabIndex="1" Margin="0,12,0,0" Foreground="#CCCCCC" Content="Archive it first (a copy the restore command can bring back)"/>
+        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Foreground="#CCCCCC" Content="Archive it first (a copy the restore command can bring back)"/>
         <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
-        <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
+        <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
                     Background="#333337" Foreground="#F1F1F1" BorderBrush="#555555"/>
@@ -421,9 +431,10 @@ function Show-RemoveGate {
     $btnRemove = $gate.FindName("BtnGateRemove")
     $chkArchive = $gate.FindName("ChkArchive")
 
-    # The keyboard starts where the hand will be: the name box. Tab walks to
-    # the box, Enter is REMOVE (IsDefault) and Escape is Cancel (IsCancel).
-    $null = $txtName.Focus()
+    # The keyboard starts at the top of the gate and walks down the screen:
+    # the archive box, the name, Cancel, REMOVE. Enter is REMOVE (IsDefault)
+    # and Escape is Cancel (IsCancel), wherever the walk stands.
+    $null = $chkArchive.Focus()
 
     $script:GateResult = $null
 
