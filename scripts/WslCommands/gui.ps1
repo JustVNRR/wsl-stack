@@ -162,6 +162,54 @@ $LoadFleet = {
     }
 }
 
+# The watcher every job the window starts shares - created HERE, at the script
+# level, where the scope every handler reads from stays alive: a block made
+# inside a click handler reads its state through a scope that is gone when the
+# timer fires (measured: the band scrolled, and nothing else ever happened).
+# Whatever happened to the job, this reports: EndInvoke shows return values and
+# never the errors - a job can come back empty and silent - so the stream is
+# read too, and the ending (status, re-enable, refresh) sits in a finally that
+# nothing can skip.
+$WatchJob = {
+    # The early way out stays outside the try: a return under a finally runs
+    # the finally - it would lower the busy state on every tick.
+    if ($null -eq $script:Job -or -not $script:JobHandle.IsCompleted) { return }
+
+    try {
+        $script:Poller.Stop()
+
+        $failure = $null
+        $result = $null
+        try {
+            $result = @($script:Job.EndInvoke($script:JobHandle))[-1]
+        } catch {
+            $failure = $_.Exception.Message
+        }
+        if ($script:Job.Streams.Error.Count -gt 0) {
+            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
+        }
+        $script:Job.Dispose()
+        $script:Job = $null
+
+        if ($failure) {
+            $txtStatus.Text = "Failed to $($script:JobVerb) '$($script:JobName)': $failure"
+        } elseif ($null -eq $result) {
+            $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' finished, but nothing came back to report."
+        } elseif ($script:JobVerb -eq "compact") {
+            $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $([math]::Round($result.Freed / 1MB, 1)) MB."
+        } else {
+            $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($result.Removed.FolderState)."
+        }
+    } catch {
+        # The watcher itself failed: say it here - a dead watcher must not look
+        # like a job that never ends.
+        $txtStatus.Text = "The watcher failed: $($_.Exception.Message)"
+    } finally {
+        & $SetBusyState $false $null
+        & $LoadFleet
+    }
+}
+
 # Selection
 $lstInstances.Add_SelectionChanged({
     $selected = $lstInstances.SelectedItem
@@ -178,7 +226,9 @@ $lstInstances.Add_SelectionChanged({
     $btnCompact.IsEnabled = $true
 })
 
-$btnRefresh.Add_Click({ & $LoadFleet })
+# The watcher first: a click here drains whatever the timer has not - if the
+# tick ever fails to fire, Refresh still ends the job and reports it.
+$btnRefresh.Add_Click({ & $WatchJob; & $LoadFleet })
 
 # -----------------------------------------------------------------------------
 # THE TRASH, ONE ROW AT A TIME - THE REMOVAL GATE, WINDOW-SIDE
@@ -272,44 +322,22 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
         AddArgument($ModulePath).
         AddArgument($inst.Name).
         AddArgument([bool]$confirm.ArchiveFirst)
+    $script:JobVerb = "remove"
     $script:JobName = $inst.Name
     $script:JobHandle = $script:Job.BeginInvoke()
 
-    $Poll = {
-        if (-not $script:JobHandle.IsCompleted) { return }
-        $script:Poller.Stop()
-
-        $failure = $null
-        $report = $null
-        try {
-            $report = @($script:Job.EndInvoke($script:JobHandle))[-1]
-        } catch {
-            $failure = $_.Exception.Message
-        }
-        # The stream again: non-terminating errors sleep there, and EndInvoke
-        # never shows them (measured three times today).
-        if ($script:Job.Streams.Error.Count -gt 0) {
-            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
-        }
-        $script:Job.Dispose()
-
-        try {
-            if ($failure) {
-                $txtStatus.Text = "Failed to remove '$($script:JobName)': $failure"
-            } elseif ($null -eq $report) {
-                $txtStatus.Text = "Removing '$($script:JobName)' finished, but nothing came back to report."
-            } else {
-                $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($report.Removed.FolderState)."
-            }
-        } finally {
-            & $SetBusyState $false $null
-            & $LoadFleet
-        }
+    # 3. The window's shared watcher polls, on its own thread, where painting
+    # happens. If watching cannot even start, that speaks too - the console is
+    # held by the window, and silence is a band that scrolls forever.
+    try {
+        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+        $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
+        $script:Poller.Add_Tick($WatchJob)
+        $script:Poller.Start()
+    } catch {
+        $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
+        & $SetBusyState $false $null
     }
-    $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
-    $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
-    $script:Poller.Add_Tick($Poll)
-    $script:Poller.Start()
 }
 $lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RemoveRow)
 
@@ -341,49 +369,22 @@ $btnCompact.Add_Click({
         }).
         AddArgument($ModulePath).
         AddArgument($selected.Name)
+    $script:JobVerb = "compact"
     $script:JobName = $selected.Name
     $script:JobHandle = $script:Job.BeginInvoke()
 
-    # 3. The window polls, on its own thread, where painting happens: the bar
-    # keeps scrolling and the window stays alive while the disk works. Whatever
-    # happened, this reports - a failure that cannot speak is a window that
-    # scrolls forever.
-    $Poll = {
-        if (-not $script:JobHandle.IsCompleted) { return }
-        $script:Poller.Stop()
-
-        $failure = $null
-        $result = $null
-        try {
-            $result = @($script:Job.EndInvoke($script:JobHandle))[-1]
-        } catch {
-            $failure = $_.Exception.Message
-        }
-        # Non-terminating errors sleep in the stream, and EndInvoke never
-        # shows them (measured: a job that came back empty and said nothing).
-        if ($script:Job.Streams.Error.Count -gt 0) {
-            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
-        }
-        $script:Job.Dispose()
-
-        try {
-            if ($failure) {
-                $txtStatus.Text = "Failed to compact '$($script:JobName)': $failure"
-            } elseif ($null -eq $result) {
-                $txtStatus.Text = "Compacting '$($script:JobName)' finished, but nothing came back to report."
-            } else {
-                $freedMb = [math]::Round($result.Freed / 1MB, 1)
-                $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $freedMb MB."
-            }
-        } finally {
-            & $SetBusyState $false $null
-            & $LoadFleet
-        }
+    # 3. The window's shared watcher polls, on its own thread, where painting
+    # happens. If watching cannot even start, that speaks too - the console is
+    # held by the window, and silence is a band that scrolls forever.
+    try {
+        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+        $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
+        $script:Poller.Add_Tick($WatchJob)
+        $script:Poller.Start()
+    } catch {
+        $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
+        & $SetBusyState $false $null
     }
-    $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
-    $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
-    $script:Poller.Add_Tick($Poll)
-    $script:Poller.Start()
 })
 
 # Start the selected one
