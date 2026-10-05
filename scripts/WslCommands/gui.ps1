@@ -162,56 +162,86 @@ $LoadFleet = {
     }
 }
 
+# The job the window's buttons run, for real: a CHILD PROCESS. A runspace of
+# one's own was tried first, and it hangs - the engine's very first move reads
+# wsl.exe, and a native program invoked in a runspace with no host never comes
+# back on Windows (measured: the trail stopped at "imported", before "manager
+# made"). A child pwsh HAS a host and runs wsl.exe like every other console;
+# the trail file is how it reports. This source goes to the temp folder at
+# each launch, its arguments on the command line: verb, name, archive, module.
+$JobRunnerSource = @'
+param([string]$Verb, [string]$Name, [string]$ArchiveFirst, [string]$Module)
+
+$Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
+function Write-Stamp($Message) {
+    $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $Message"
+}
+
+try {
+    Write-Stamp "importing"
+    Import-Module $Module -Force
+    Write-Stamp "imported"
+    $mgr = New-InstanceManager
+    Write-Stamp "manager made"
+    $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+    Write-Stamp "list read: $([bool]$inst)"
+    if (-not $inst) { throw "'$Name' is not in our list any more." }
+
+    if ($Verb -eq "compact") {
+        Write-Stamp "compacting"
+        $r = $mgr.Shrink($inst)
+        Write-Stamp ("RESULT OK " + $Name + ": compacted - reclaimed " + [math]::Round($r.Freed / 1MB, 1) + " MB")
+    } else {
+        Write-Stamp "removing"
+        $r = $mgr.Unregister($inst, [bool]::Parse($ArchiveFirst))
+        Write-Stamp ("RESULT OK " + $Name + ": removed - folder " + $r.Removed.FolderState)
+    }
+    exit 0
+} catch {
+    Write-Stamp ("RESULT FAIL " + ($_.Exception.Message -replace "`r?`n", " "))
+    exit 1
+}
+'@
+
 # The watcher every job the window starts shares - created HERE, at the script
 # level, where the scope every handler reads from stays alive: a block made
 # inside a click handler reads its state through a scope that is gone when the
-# timer fires (measured: the band scrolled, and nothing else ever happened).
-# Whatever happened to the job, this reports: EndInvoke shows return values and
-# never the errors - a job can come back empty and silent - so the stream is
-# read too, and the ending (status, re-enable, refresh) sits in a finally that
+# timer fires (measured). It watches the child; the trail carries the ending;
+# the ending itself (status, re-enable, refresh) sits in a finally that
 # nothing can skip.
 $WatchJob = {
     # The early way out stays outside the try: a return under a finally runs
     # the finally - it would lower the busy state on every tick. While waiting,
-    # it shows it is alive: the tick count proves the timer beats, and the
-    # job's own state says whether the work still runs or already failed.
-    if ($null -eq $script:Job) { return }
-    if (-not $script:JobHandle.IsCompleted) {
+    # it shows it is alive: the tick count proves the timer beats.
+    if ($null -eq $script:Child) { return }
+    if (-not $script:Child.HasExited) {
         $script:Ticks++
-        $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' - job: $($script:Job.InvocationStateInfo.State) - tick $($script:Ticks)"
+        $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' - running - tick $($script:Ticks)"
         return
     }
 
     try {
         $script:Poller.Stop()
+        $script:Ticks = 0
 
-        $failure = $null
-        $result = $null
-        try {
-            $result = @($script:Job.EndInvoke($script:JobHandle))[-1]
-        } catch {
-            $failure = $_.Exception.Message
-        }
-        if ($script:Job.Streams.Error.Count -gt 0) {
-            $failure = (@($script:Job.Streams.Error | ForEach-Object { $_.Exception.Message }) -join " / ")
-        }
-        $script:Job.Dispose()
-        $script:Job = $null
+        # The trail's last word: the child wrote its own ending there.
+        $trail = @(Get-Content -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue)
+        $ok = @($trail | Where-Object { $_ -like "*RESULT OK *" } | Select-Object -Last 1)
+        $bad = @($trail | Where-Object { $_ -like "*RESULT FAIL *" } | Select-Object -Last 1)
 
-        if ($failure) {
-            $txtStatus.Text = "Failed to $($script:JobVerb) '$($script:JobName)': $failure"
-        } elseif ($null -eq $result) {
-            $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' finished, but nothing came back to report."
-        } elseif ($script:JobVerb -eq "compact") {
-            $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $([math]::Round($result.Freed / 1MB, 1)) MB."
+        if ($bad.Count -gt 0) {
+            $txtStatus.Text = "Failed to $($script:JobVerb) '$($script:JobName)': " + ($bad[0] -replace "^.*?RESULT FAIL ", "")
+        } elseif ($ok.Count -gt 0) {
+            $txtStatus.Text = ($ok[0] -replace "^.*?RESULT OK ", "")
         } else {
-            $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($result.Removed.FolderState)."
+            $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' ended (exit $($script:Child.ExitCode)) with no result in the trail."
         }
     } catch {
         # The watcher itself failed: say it here - a dead watcher must not look
         # like a job that never ends.
         $txtStatus.Text = "The watcher failed: $($_.Exception.Message)"
     } finally {
+        $script:Child = $null
         & $SetBusyState $false $null
         & $LoadFleet
     }
@@ -315,40 +345,20 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
     & $SetBusyState $true "Removing '$($inst.Name)'... [1/5]"
     $txtStatus.Text = "Removing '$($inst.Name)'... [2/5 row marked]"
 
-    # The same shape as Compact's: a runspace of its own, no class named - the
-    # manager comes from the module's own factory, and everything else is
-    # method calls. The handle lives in the script scope: the click handler is
-    # gone by the time the timer fires.
+    # The child process: the runner source to the temp folder, one trail
+    # cleared, and the launch. The paths travel quoted - an array of arguments
+    # is joined blindly, and a folder with a space would split it.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
     Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
-    $script:Job = [powershell]::Create().
-        AddScript({
-            param($Module, $Name, $ArchiveFirst)
-            # A trail on disk: the job hangs on Windows and nothing else can
-            # say where - each step stamps the file, the last stamp is the call
-            # that never came back.
-            $Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
-            $stamp = { param($m) $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $m" }
-            & $stamp "importing"
-            Import-Module $Module -Force
-            & $stamp "imported"
-            $mgr = New-InstanceManager
-            & $stamp "manager made"
-            $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
-            & $stamp "list read: $([bool]$inst)"
-            if (-not $inst) { throw "'$Name' is not in our list any more." }
-            & $stamp "removing '$Name'"
-            $r = $mgr.Unregister($inst, [bool]$ArchiveFirst)
-            & $stamp "removed"
-            $r
-        }).
-        AddArgument($ModulePath).
-        AddArgument($inst.Name).
-        AddArgument([bool]$confirm.ArchiveFirst)
+    Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
+    $txtStatus.Text = "Removing '$($inst.Name)'... [3/5 job built]"
+    $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
+        "remove", $inst.Name, "$([bool]$confirm.ArchiveFirst)", "`"$ModulePath`""
+    )
     $script:JobVerb = "remove"
     $script:JobName = $inst.Name
-    $txtStatus.Text = "Removing '$($inst.Name)'... [3/5 job built]"
-    $script:JobHandle = $script:Job.BeginInvoke()
     $txtStatus.Text = "Removing '$($inst.Name)'... [4/5 launched]"
 
     # 3. The window's shared watcher polls, on its own thread, where painting
@@ -378,40 +388,19 @@ $btnCompact.Add_Click({
     # status line paints even when this thread blocks right after.
     & $SetBusyState $true "Compacting '$($selected.Name)'... [1/4]"
 
-    # 2. The work goes to a runspace of its own, and names no class at all: a
-    # fresh runspace resolves no type literal - "Unable to find type
-    # [WslInstanceManager]", and silently, it sleeps in the error stream
-    # (measured) - so the manager comes from the module's own factory, and
-    # everything else is method calls. The handle lives in the script scope:
-    # the click handler is gone by the time the timer below fires.
+    # 2. The child process, like the trash's: runner to the temp folder, trail
+    # cleared, launch - paths quoted, an argument array would split them.
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
     Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
-    $script:Job = [powershell]::Create().
-        AddScript({
-            param($Module, $Name)
-            # A trail on disk, like the trash's job: the last stamp is the call
-            # that never came back.
-            $Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
-            $stamp = { param($m) $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $m" }
-            & $stamp "importing"
-            Import-Module $Module -Force
-            & $stamp "imported"
-            $mgr = New-InstanceManager
-            & $stamp "manager made"
-            $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
-            & $stamp "list read: $([bool]$inst)"
-            if (-not $inst) { throw "'$Name' is not in our list any more." }
-            & $stamp "compacting '$Name'"
-            $r = $mgr.Shrink($inst)
-            & $stamp "compacted"
-            $r
-        }).
-        AddArgument($ModulePath).
-        AddArgument($selected.Name)
+    Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
+    $txtStatus.Text = "Compacting '$($selected.Name)'... [2/4 job built]"
+    $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
+        "compact", $selected.Name, "False", "`"$ModulePath`""
+    )
     $script:JobVerb = "compact"
     $script:JobName = $selected.Name
-    $txtStatus.Text = "Compacting '$($selected.Name)'... [2/4 job built]"
-    $script:JobHandle = $script:Job.BeginInvoke()
     $txtStatus.Text = "Compacting '$($selected.Name)'... [3/4 launched]"
 
     # 3. The window's shared watcher polls, on its own thread, where painting
