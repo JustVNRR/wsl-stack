@@ -223,27 +223,40 @@ $WatchJob = {
     try {
         $script:Poller.Stop()
         $script:Ticks = 0
+        $script:KeepTrail = $false
 
         # The trail's last word: the child wrote its own ending there.
-        $trail = @(Get-Content -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue)
+        $TrailPath = Join-Path $env:TEMP "wsl-stack-gui-job.log"
+        $trail = @(Get-Content -LiteralPath $TrailPath -ErrorAction SilentlyContinue)
         $ok = @($trail | Where-Object { $_ -like "*RESULT OK *" } | Select-Object -Last 1)
         $bad = @($trail | Where-Object { $_ -like "*RESULT FAIL *" } | Select-Object -Last 1)
 
         if ($bad.Count -gt 0) {
-            $txtStatus.Text = "Failed to $($script:JobVerb) '$($script:JobName)': " + ($bad[0] -replace "^.*?RESULT FAIL ", "")
+            $script:EndingText = "Failed to $($script:JobVerb) '$($script:JobName)': " + ($bad[0] -replace "^.*?RESULT FAIL ", "")
         } elseif ($ok.Count -gt 0) {
-            $txtStatus.Text = ($ok[0] -replace "^.*?RESULT OK ", "")
+            $script:EndingText = ($ok[0] -replace "^.*?RESULT OK ", "")
         } else {
-            $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' ended (exit $($script:Child.ExitCode)) with no result in the trail."
+            # The trail could not tell the ending: it stays, it is the evidence.
+            $script:EndingText = "The $($script:JobVerb) of '$($script:JobName)' ended (exit $($script:Child.ExitCode)) with no result in the trail ($TrailPath)."
+            $script:KeepTrail = $true
         }
     } catch {
         # The watcher itself failed: say it here - a dead watcher must not look
         # like a job that never ends.
-        $txtStatus.Text = "The watcher failed: $($_.Exception.Message)"
+        $script:EndingText = "The watcher failed: $($_.Exception.Message)"
     } finally {
         $script:Child = $null
         & $SetBusyState $false $null
         & $LoadFleet
+        # After the reload: its own "N instance(s) loaded." would otherwise
+        # bury the ending.
+        if ($script:EndingText) { $txtStatus.Text = $script:EndingText }
+        # The menage: the runner served its launch, and the trail is done once
+        # it has told the ending - kept only when it could not.
+        Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.ps1") -ErrorAction SilentlyContinue
+        if (-not $script:KeepTrail) {
+            Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
+        }
     }
 }
 
