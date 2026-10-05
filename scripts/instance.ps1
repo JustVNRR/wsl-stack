@@ -27,16 +27,16 @@
 # ---------------------------------------------------------------------------
 # THE MESSAGES
 # ---------------------------------------------------------------------------
-# What a line says and the colour it takes - loaded before everything, because
-# every line below is a message. The guard prints uncoloured: the table it
-# would ask is the file that is missing.
-$MessageLib = Join-Path $PSScriptRoot "message.ps1"
-if (-not (Test-Path $MessageLib)) {
+# What a line says and the colour it takes - the module, loaded before
+# everything, because every line below is a message. The guard prints
+# uncoloured: the table it would ask is the module that is missing.
+$StackModule = Join-Path $PSScriptRoot "WslStack\WslStack.psd1"
+if (-not (Test-Path $StackModule)) {
     Write-Host ""
-    Write-Host "[ABORT] scripts\message.ps1 is missing - the scripts\ folder is incomplete."
+    Write-Host "[ABORT] scripts\WslStack\WslStack.psd1 is missing - the scripts\ folder is incomplete."
     exit 1
 }
-. $MessageLib
+Import-Module $StackModule -Force
 
 # ---------------------------------------------------------------------------
 # THE MODEL

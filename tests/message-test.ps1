@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 # Terminal window (WT_PROFILE_ID set) must answer like one anywhere else, so
 # the theme below is the only one in play.
 Remove-Item Env:\WT_PROFILE_ID -ErrorAction SilentlyContinue
-. (Join-Path $PSScriptRoot "..\scripts\message.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $Failures = 0
 function Check {
@@ -31,15 +31,20 @@ function Check {
 }
 
 # The scheme a command resolved for its window - set rather than read: there is
-# no window to be in.
+# no window to be in. Set inside the module itself - the resolved scheme is the
+# message module's own state, and reaching into a module is how a test sets it.
 function Use-Theme {
     param($Scheme)
-    $script:MessageThemeRead = $true
-    $script:MessageTheme = [PSCustomObject]@{
-        Background = $Scheme.background
-        Foreground = $Scheme.foreground
-        Scheme     = $Scheme
-    }
+    $MessageModule = (Get-Module WslStack).NestedModules | Where-Object { $_.Name -eq 'WslStack.Message' }
+    & $MessageModule {
+        param($Inner)
+        $script:MessageThemeRead = $true
+        $script:MessageTheme = [PSCustomObject]@{
+            Background = $Inner.background
+            Foreground = $Inner.foreground
+            Scheme     = $Inner
+        }
+    } $Scheme
 }
 
 $OneHalfDark = [PSCustomObject]@{

@@ -285,9 +285,10 @@ the repository at runtime.
 │       ├── cheatsheets/     # its fcheat sheets: the browser and the tunnel
 │       └── docs/            # the pack's pages, one per module
 ├── scripts/                 # Instance administration, one file per command
+│   ├── WslStack/            # The module: one nested file per family - the
+│                            #   messages, and the colour a message takes, read
+│                            #   from the colour scheme of the window
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
-│   ├── message.ps1          #   and the colour a message takes, read from the
-│                            #   colour scheme of the window it is printed in
 │   ├── WslUI.ps1            # The menu itself: the rows, the console, the
 │                            #   ask, the doors the scripts call - and the
 │                            #   helpers the theme family asks by name

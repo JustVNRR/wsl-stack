@@ -31,8 +31,8 @@
 # ==============================================================================
 
 # Loaded here too: suites drive this file on its own, and lines are drawn by
-# asking the message palette for the colour.
-. (Join-Path $PSScriptRoot "message.ps1")
+# asking the message module for the colour.
+Import-Module (Join-Path $PSScriptRoot "WslStack\WslStack.psd1") -Force
 
 # One row of a list: the word that names it (a command; empty for a plain
 # choice), the line it shows, the value it carries (a choice), the tick (a

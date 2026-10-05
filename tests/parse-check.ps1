@@ -1,6 +1,6 @@
-# Reads every .ps1 in the checkout with the parser PowerShell itself uses
-# before it runs a file - a parse error left here surfaces the day a command
-# runs.
+# Reads every .ps1, .psm1 and .psd1 in the checkout with the parser PowerShell
+# itself uses before it runs a file - a parse error left here surfaces the day
+# a command runs.
 #
 # The classes are the one place where a file names another file's types, and
 # the parser settles a type the moment it reads the file naming it: read one by
@@ -35,7 +35,8 @@ if ($errors.Count -gt 0) {
     $bad = 1
 }
 
-$files = @(Get-ChildItem -Recurse -Filter *.ps1 | Where-Object { $ClassPaths -notcontains $_.FullName })
+$files = @(Get-ChildItem -Recurse -Include *.ps1, *.psm1, *.psd1 -File |
+    Where-Object { $ClassPaths -notcontains $_.FullName })
 foreach ($f in $files) {
     $errors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors)
@@ -45,5 +46,5 @@ foreach ($f in $files) {
         $bad = 1
     }
 }
-Write-Host "$($files.Count + $ClassPaths.Count) .ps1 file(s) read, $bad failure(s)."
+Write-Host "$($files.Count + $ClassPaths.Count) file(s) read, $bad failure(s)."
 exit $bad

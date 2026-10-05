@@ -36,17 +36,17 @@ param (
 
 $Scripts = Join-Path $PSScriptRoot "scripts"
 
-# What a line says and the colour it takes. A command's own file loads it
-# through scripts\instance.ps1, but the lines below are this file's - the ones
-# it prints when there is no command to run. The guard prints uncoloured: the
-# table it would ask is the file that is missing.
-$MessageLib = Join-Path $Scripts "message.ps1"
-if (-not (Test-Path $MessageLib)) {
+# What a line says and the colour it takes. A command's own file loads the
+# module through scripts\instance.ps1, but the lines below are this file's -
+# the ones it prints when there is no command to run. The guard prints
+# uncoloured: the table it would ask is the module that is missing.
+$StackModule = Join-Path $Scripts "WslStack\WslStack.psd1"
+if (-not (Test-Path $StackModule)) {
     Write-Host ""
-    Write-Host "[ABORT] scripts\message.ps1 is missing - the scripts\ folder is incomplete."
+    Write-Host "[ABORT] scripts\WslStack\WslStack.psd1 is missing - the scripts\ folder is incomplete."
     exit 1
 }
-. $MessageLib
+Import-Module $StackModule -Force
 
 # The shared half - the classes, the menus, the packs, the marker - read once,
 # here: the manager just under is built on it, the command dispatched at the

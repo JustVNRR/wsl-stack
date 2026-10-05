@@ -10,6 +10,8 @@ Dockerfile text eol=lf
 
 # Keep Windows PowerShell scripts consistent
 *.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
 
 # Binary assets
 *.png binary

@@ -29,7 +29,7 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# Read-TerminalJson comes from message.ps1, loaded by instance.ps1: the walk
+# Read-TerminalJson comes from the message module, loaded by instance.ps1: the walk
 # that knows what a string is lives there, once.
 
 # Every colour scheme this machine can wear, by name: the name is what a profile
