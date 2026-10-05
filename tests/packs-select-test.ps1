@@ -35,7 +35,6 @@
 #
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
-. (Join-Path $PSScriptRoot "..\scripts\prompts.ps1")
 
 $Failures = 0
 function Check {

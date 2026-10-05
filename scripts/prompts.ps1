@@ -225,6 +225,55 @@ function Resolve-InstanceIdentity {
 }
 
 # ---------------------------------------------------------------------------
+# ASKING WHICH INSTANCE A LIFECYCLE COMMAND ACTS ON
+# ---------------------------------------------------------------------------
+# The filter, the label every list in the family shows, and the two lines a
+# machine with none of them gets - stop, restart and start asked this by
+# writing it three times. An empty answer, and a machine with nothing to act
+# on, walks out of the command with nothing touched, like every question here.
+function Select-EligibleInstance {
+    param(
+        [WslInstanceManager]$Manager,
+        [ValidateSet("Running", "Stopped")][string]$State,
+        [string]$Title,
+        [string]$None,
+        [string]$Nothing
+    )
+
+    $All = @($Manager.OursHere())
+    if ($All.Count -eq 0) {
+        Write-Host ""
+        Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Build one with  .\wsl.ps1 build" -ForegroundColor (Get-MessageColour hint)
+        exit 1
+    }
+
+    $Eligible = if ($State -eq "Running") {
+        @($All | Where-Object { $_.State -eq [WslState]::Running })
+    } else {
+        @($All | Where-Object { $_.State -ne [WslState]::Running })
+    }
+    if ($Eligible.Count -eq 0) {
+        Write-Host ""
+        Write-Host "[ABORT] $None" -ForegroundColor (Get-MessageColour error)
+        Write-Host "        $Nothing" -ForegroundColor (Get-MessageColour hint)
+        exit 1
+    }
+
+    $Picked = Select-FromList -Title $Title -Items $Eligible -Label {
+        param($Entry)
+        "{0,-30} {1,10}" -f $Entry.Name, (Format-Size (Get-VhdxSize $Entry.Path))
+    }
+
+    if (-not $Picked) {
+        Write-Host ""
+        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
+        exit 0
+    }
+    return $Picked
+}
+
+# ---------------------------------------------------------------------------
 # ASKING WHICH PACKS, AND DOING WHAT THE ANSWER SAYS
 # ---------------------------------------------------------------------------
 # Two commands ask the same question - manage_packs, about an instance that

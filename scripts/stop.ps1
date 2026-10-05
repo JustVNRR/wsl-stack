@@ -18,36 +18,10 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# 1. Who can be stopped: our running instances, and only those - an
-# already-stopped one has nothing to do here. Sorted by name, like every list
-# in this family.
-$All = @($Manager.OursHere())
-if ($All.Count -eq 0) {
-    Write-Host ""
-    Write-Host "[ABORT] No instance of this template is registered on this machine." -ForegroundColor (Get-MessageColour error)
-    Write-Host "        Build one with  .\wsl.ps1 build" -ForegroundColor (Get-MessageColour hint)
-    exit 1
-}
-
-$Eligible = @($All | Where-Object { $_.State -eq [WslState]::Running })
-
-if ($Eligible.Count -eq 0) {
-    Write-Host ""
-    Write-Host "[ABORT] No instance is running." -ForegroundColor (Get-MessageColour error)
-    Write-Host "        Nothing to stop." -ForegroundColor (Get-MessageColour hint)
-    exit 1
-}
-
-$Distro = Select-FromList -Title "Running instances - the ones that can be stopped:" -Items $Eligible -Label {
-    param($Entry)
-    "{0,-30} {1,10}" -f $Entry.Name, (Format-Size (Get-VhdxSize $Entry.Path))
-}
-
-if (-not $Distro) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+# 1. Who can be stopped: our running instances, and only those.
+$Distro = Select-EligibleInstance -Manager $Manager -State Running `
+    -Title "Running instances - the ones that can be stopped:" `
+    -None "No instance is running." -Nothing "Nothing to stop."
 
 $DistroName = $Distro.Name
 
