@@ -240,6 +240,9 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
     if ($null -eq $confirm) { return }
 
     & $SetBusyState $true "Removing '$($inst.Name)'..."
+    # The work runs on this very thread: paint the message first, or a window
+    # that never repainted shows nothing while it freezes.
+    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
     try {
         $report = $Manager.Unregister($inst, $confirm.ArchiveFirst)
         $txtStatus.Text = "Removed '$($inst.Name)'. Folder: $($report.Removed.FolderState)."
@@ -258,37 +261,48 @@ $btnCompact.Add_Click({
     $selected = $lstInstances.SelectedItem
     if (-not $selected) { return }
 
-    $distroName = $selected.Name
-    $distroObj  = $selected.Instance
-
     # 1. Lock the window, show the bar
-    & $SetBusyState $true "Compacting '$distroName' in background (this may take a few minutes)..."
+    & $SetBusyState $true "Compacting '$($selected.Name)' in background (this may take a few minutes)..."
 
-    # 2. The work goes to a background thread
-    [System.Threading.Tasks.Task]::Run([Action]{
+    # 2. The work goes to a background thread - and everything it may touch
+    # travels in one box, bound as a parameter: read by name, the block would
+    # find the click handler's scope long gone and come up empty (the same
+    # disease the entry's gesture was cured of, measured).
+    $Box = @{
+        Manager  = $Manager
+        Instance = $selected.Instance
+        Name     = $selected.Name
+        Window   = $window
+        BusyOff  = $SetBusyState
+        Reload   = $LoadFleet
+    }
+    [System.Threading.Tasks.Task]::Run([Action[object]]{
+        param($Box)
+
         $errorMessage = $null
         $result = $null
-
         try {
             # The engine's job: stop, compact, restart when it was running
-            $result = $Manager.Shrink($distroObj)
+            $result = $Box.Manager.Shrink($Box.Instance)
         } catch {
             $errorMessage = $_.Exception.Message
         }
 
-        # 3. Back to the UI thread to talk to the window
-        $window.Dispatcher.Invoke([Action]{
+        # 3. Back to the UI thread to talk to the window - through the box too.
+        # Whatever happened, this reports: a failure that cannot speak is a
+        # window that scrolls its bar forever.
+        $Box.Window.Dispatcher.Invoke([Action]{
             if ($errorMessage) {
-                $txtStatus.Text = "Failed to compact '$distroName': $errorMessage"
+                $Box.Window.FindName("TxtStatus").Text = "Failed to compact '$($Box.Name)': $errorMessage"
             } else {
                 $freedMb = [math]::Round($result.Freed / 1MB, 1)
-                $txtStatus.Text = "Compacted '$distroName'. Reclaimed: $freedMb MB."
+                $Box.Window.FindName("TxtStatus").Text = "Compacted '$($Box.Name)'. Reclaimed: $freedMb MB."
             }
 
-            & $SetBusyState $false $null
-            & $LoadFleet
+            & $Box.BusyOff $false $null
+            & $Box.Reload
         })
-    })
+    }, $Box)
 })
 
 # Start the selected one
