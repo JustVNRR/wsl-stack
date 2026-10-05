@@ -21,7 +21,7 @@ $ErrorActionPreference = "Stop"
 # For Get-Distros and the marker test: the list the command itself builds.
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
 
-$ColorScript = Join-Path $PSScriptRoot "..\scripts\color.ps1"
+$ColorScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\color.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

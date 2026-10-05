@@ -1,4 +1,4 @@
-# Runs one command of scripts\ the way wsl.ps1 does: the shared half is loaded
+# Runs one command of scripts\WslCommands\ the way wsl.ps1 does: the shared half is loaded
 # first, so the command's own -Manager parameter - typed, and settled before the
 # command's first line runs - finds its type. A fresh pwsh knows nothing of the
 # classes, and a parameter type is resolved before the file executes: without

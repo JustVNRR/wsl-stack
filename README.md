@@ -291,17 +291,13 @@ the repository at runtime.
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
 │   ├── WslUI.ps1            # The menu's classes: the rows, the console, the
 │                            #   ask
-│   ├── theme.ps1            # What `theme` opens, and the menu it asks with
-│   ├── icon.ps1             #   the icon alone: its letters, its colours, an image
-│   ├── font.ps1             #   the font alone
-│   ├── color.ps1            #   the colours alone
+│   ├── WslCommands/         # The commands themselves, one file per word: the
+│                            #   sixteen the menu offers, and theme's three
+│                            #   children - icon, font and color
 │   ├── classes/             # The model, one file per class: the manager (one
 │                            #   door per command), the instance, the packs, the
 │                            #   theme, the state
-│   └── *.ps1                # list, build, start, stop, restart, shell,
-│                            # add_pack, remove_pack, manage_packs, theme,
-│                            # unregister, archive, restore, duplicate,
-│                            # shrink, wslconfig
+│   └── cleanup_orphans.sh   # The one thing a removal runs inside an instance
 ├── tests/                   # The suites that RUN the code: the arrow menu with a
 │                            # scripted keyboard, the way in with a scripted
 │                            # terminal, the pack checklist, build's

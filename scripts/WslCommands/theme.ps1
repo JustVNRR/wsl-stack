@@ -12,7 +12,7 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
@@ -30,7 +30,7 @@ foreach ($Choice in $Choices) {
     $Script = Join-Path $PSScriptRoot "$($Choice.Name).ps1"
     if (-not (Test-Path $Script)) {
         Write-Host ""
-        Write-Host "[ABORT] scripts\$($Choice.Name).ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] scripts\WslCommands\$($Choice.Name).ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
         exit 1
     }
 }

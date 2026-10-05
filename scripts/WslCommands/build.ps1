@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 # What the whole family shares: how to tell one of our instances from any other
 # registered one. Not a command, and not optional - without it this script
 # would build an instance no other command could recognise as ours.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
@@ -232,7 +232,7 @@ function Configure-DockerDesktopIntegration {
 
 # The repository root, one level above this script: it holds the Dockerfile,
 # and that is the context the build below must run in - not this folder.
-$RepoRoot = Split-Path -Path $PSScriptRoot -Parent
+$RepoRoot = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
 Set-Location -Path $RepoRoot
 
 $ImageTag = "wsl-stack:latest"

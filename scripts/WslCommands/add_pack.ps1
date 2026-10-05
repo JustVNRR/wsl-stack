@@ -16,7 +16,7 @@ param (
 $ErrorActionPreference = "Stop"
 
 # The family's shared half: the marker.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
@@ -24,7 +24,7 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# The moves that make a pack travel live in scripts\packs.ps1, behind the
+# The moves that make a pack travel live in the module, behind the
 # engine. This file is the flow: which instance, which pack, and what it says
 # on the way.
 

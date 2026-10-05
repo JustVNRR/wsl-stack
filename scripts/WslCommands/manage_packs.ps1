@@ -8,14 +8,14 @@ param (
 # the instance already has arrive checked, and what comes back is applied - the
 # missing ones installed, the unchecked ones taken out.
 #
-# The asking and the applying live in scripts\packs.ps1 - build asks the same
+# The asking and the applying live in the module - build asks the same
 # question. What is left here is the shape of this command.
 
 $ErrorActionPreference = "Stop"
 
 # The family's shared half: the instances, the menus, the packs, and the moves
 # a pack makes.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)

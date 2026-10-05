@@ -10,7 +10,7 @@ param (
 )
 
 # ==============================================================================
-# THE WAY IN: one command at the root, the scripts themselves in scripts\
+# THE WAY IN: one command at the root, the commands themselves in scripts\WslCommands\
 # ==============================================================================
 # Bare, it asks which command: the list, walked with the arrows and taken with
 # Enter, Escape to cancel. With a command, it runs it.
@@ -35,6 +35,10 @@ param (
 # ==============================================================================
 
 $Scripts = Join-Path $PSScriptRoot "scripts"
+
+# The commands themselves: one file per word, in their own folder - what the
+# menu rows and the command line both end at.
+$CommandFiles = Join-Path $Scripts "WslCommands"
 
 # What a line says and the colour it takes. A command's own file loads the
 # module through scripts\instance.ps1, but the lines below are this file's -
@@ -123,7 +127,7 @@ if ($Command) {
     if (-not $Chosen) { Stop-Cancelled -What "run" }
 }
 
-$Script = Join-Path $Scripts "$($Chosen.Key).ps1"
+$Script = Join-Path $CommandFiles "$($Chosen.Key).ps1"
 if (-not (Test-Path $Script)) {
     Write-Host ""
     Write-Host "[ABORT] $Script is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
@@ -136,10 +140,10 @@ if (-not (Test-Path $Script)) {
 $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
 
 # Whatever followed the command is handed over as it came: a command that has
-# options keeps them, the others ignore them. With the scripts' folder and the
+# options keeps them, the others ignore them. With the commands' folder and the
 # manager above, that is the run context the gesture takes its parameters from.
 $Run = @{
-    Scripts = $Scripts
+    Scripts = $CommandFiles
     Args    = $RemainingArgs
     Manager = $Manager
 }

@@ -19,7 +19,7 @@ $ErrorActionPreference = "Stop"
 # For Get-Distros and the marker test: the list the command itself builds.
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
 
-$IconScript = Join-Path $PSScriptRoot "..\scripts\icon.ps1"
+$IconScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\icon.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
@@ -74,7 +74,7 @@ function Invoke-Theme {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\scripts\theme.ps1") 2>&1
+        $Lines = $Answers | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\scripts\WslCommands\theme.ps1") 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }

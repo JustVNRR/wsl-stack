@@ -15,7 +15,7 @@ $Root = $Manager.InstancesRoot
 
 # The family's shared half: the marker that tells our instances from any other -
 # a removal that cannot tell them apart targets whatever the registry holds.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)

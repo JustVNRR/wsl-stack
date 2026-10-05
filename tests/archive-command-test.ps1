@@ -72,9 +72,9 @@ if ($InTheWay.Count -gt 0) {
 # For Get-Distros and the marker test: the list the commands themselves build.
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
 
-$ArchiveScript = Join-Path $PSScriptRoot "..\scripts\archive.ps1"
-$RestoreScript = Join-Path $PSScriptRoot "..\scripts\restore.ps1"
-$DuplicateScript = Join-Path $PSScriptRoot "..\scripts\duplicate.ps1"
+$ArchiveScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\archive.ps1"
+$RestoreScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\restore.ps1"
+$DuplicateScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\duplicate.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

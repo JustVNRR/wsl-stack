@@ -25,12 +25,12 @@ $ErrorActionPreference = "Stop"
 # For Get-Distros and the marker test: the list the command itself builds.
 . (Join-Path $PSScriptRoot "..\scripts\instance.ps1")
 
-$StartScript = Join-Path $PSScriptRoot "..\scripts\start.ps1"
-$RestartScript = Join-Path $PSScriptRoot "..\scripts\restart.ps1"
-$StopScript = Join-Path $PSScriptRoot "..\scripts\stop.ps1"
-$ShellScript = Join-Path $PSScriptRoot "..\scripts\shell.ps1"
-$ShrinkScript = Join-Path $PSScriptRoot "..\scripts\shrink.ps1"
-$ListScript = Join-Path $PSScriptRoot "..\scripts\list.ps1"
+$StartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\start.ps1"
+$RestartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\restart.ps1"
+$StopScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\stop.ps1"
+$ShellScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\shell.ps1"
+$ShrinkScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\shrink.ps1"
+$ListScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\list.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

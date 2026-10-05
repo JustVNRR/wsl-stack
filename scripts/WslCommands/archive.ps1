@@ -19,7 +19,7 @@ $ArchiveFolder = $Manager.ArchivesRoot
 
 # The family's shared half: the marker that tells our instances from any other,
 # and the Windows-side look - not in the tar, so it travels next to it.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)

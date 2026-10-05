@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 
 # The family's shared half: the marker, and the Windows-side look - captured
 # off the source by the engine, re-applied to the copy after the import.
-$InstanceLib = Join-Path $PSScriptRoot "instance.ps1"
+$InstanceLib = Join-Path $PSScriptRoot "..\instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
     Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
