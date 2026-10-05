@@ -4,9 +4,11 @@ param (
     # level above hands over. Not an option - and not a command of wsl.ps1.
     [string]$DistroName,
 
-    # Injected by wsl.ps1 (through theme.ps1), or instantiated on-demand if
-    # executed standalone
-    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+    # Injected by wsl.ps1 (through theme.ps1), or made below once the shared
+    # half is loaded: the type cannot be named here - a parameter is bound
+    # before this file's first line runs, and a fresh pwsh knows nothing of the
+    # classes (measured: "Unable to find type [WslInstanceManager]" at bind).
+    $Manager
 )
 
 # The icon is a file, not a setting: terminal-icon.png in the instance's own
@@ -27,6 +29,10 @@ if (-not (Test-Path $InstanceLib)) {
     exit 1
 }
 . $InstanceLib
+
+# Run on its own, nothing was injected: the manager is made here, once the
+# shared half is loaded and its class has a name.
+if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # One script draws every icon, whether an instance is built or its icon is
 # redrawn years later: the letters and the colours cannot drift apart.

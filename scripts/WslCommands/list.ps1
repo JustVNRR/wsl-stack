@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param (
-    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
-    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+    # Injected by wsl.ps1, or made below once the shared half is loaded: the
+    # type cannot be named here - a parameter is bound before this file's first
+    # line runs, and a fresh pwsh knows nothing of the classes (measured:
+    # "Unable to find type [WslInstanceManager]" at bind).
+    $Manager
 )
 
 # No parameter, and no question either: this command only reads, so it can be
@@ -18,6 +21,10 @@ if (-not (Test-Path $InstanceLib)) {
     exit 1
 }
 . $InstanceLib
+
+# Run on its own, nothing was injected: the manager is made here, once the
+# shared half is loaded and its class has a name.
+if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # 1. Our instances, running or stopped, by name like every list in this family -
 # and, with them, the archives on disk and the folders left behind: the engine's

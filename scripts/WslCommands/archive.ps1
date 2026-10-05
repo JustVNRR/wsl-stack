@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param (
-    # Injected by wsl.ps1, or instantiated on-demand if executed standalone
-    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()),
+    # Injected by wsl.ps1, or made below once the shared half is loaded: the
+    # type cannot be named here - a parameter is bound before this file's first
+    # line runs, and a fresh pwsh knows nothing of the classes (measured:
+    # "Unable to find type [WslInstanceManager]" at bind).
+    $Manager,
 
     [ValidateSet("tar", "tar.gz", "tar.xz")]
     [string]$Format = "tar.gz"
@@ -26,6 +29,10 @@ if (-not (Test-Path $InstanceLib)) {
     exit 1
 }
 . $InstanceLib
+
+# Run on its own, nothing was injected: the manager is made here, once the
+# shared half is loaded and its class has a name.
+if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # 1. Which instance. Ours only: the list vouches for them.
 $Distro = Select-Distro

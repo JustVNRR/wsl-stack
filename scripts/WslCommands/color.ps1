@@ -4,9 +4,11 @@ param (
     # level above hands over. Not an option, and not documented as one.
     [string]$DistroName,
 
-    # Injected by wsl.ps1 (through theme.ps1), or instantiated on-demand if
-    # executed standalone
-    [WslInstanceManager]$Manager = [WslInstanceManager]::new([WslInstanceManager]::Root())
+    # Injected by wsl.ps1 (through theme.ps1), or made below once the shared
+    # half is loaded: the type cannot be named here - a parameter is bound
+    # before this file's first line runs, and a fresh pwsh knows nothing of the
+    # classes (measured: "Unable to find type [WslInstanceManager]" at bind).
+    $Manager
 )
 
 # What a terminal's colours are: the colour scheme of its profile - the
@@ -28,6 +30,10 @@ if (-not (Test-Path $InstanceLib)) {
     exit 1
 }
 . $InstanceLib
+
+# Run on its own, nothing was injected: the manager is made here, once the
+# shared half is loaded and its class has a name.
+if (-not $Manager) { $Manager = [WslInstanceManager]::new([WslInstanceManager]::Root()) }
 
 # Read-TerminalJson comes from the message module, loaded by instance.ps1: the walk
 # that knows what a string is lives there, once.
