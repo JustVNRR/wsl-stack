@@ -47,10 +47,16 @@ Add-Type -AssemblyName WindowsBase
                     <GridViewColumn Header="" Width="36">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                        Width="26" Height="22" Background="Transparent"
-                                        Foreground="#C05050" BorderBrush="Transparent"
-                                        ToolTip="Remove this instance"/>
+                                <Grid Width="30" Height="22">
+                                    <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                            Width="26" Height="22" Background="Transparent"
+                                            Foreground="#C05050" BorderBrush="Transparent"
+                                            HorizontalAlignment="Center"
+                                            ToolTip="Remove this instance"/>
+                                    <ProgressBar Name="RowSpinner" IsIndeterminate="True" Height="4" Width="24"
+                                                 Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                 Foreground="#4EC9B0" Background="#2D2D30" BorderThickness="0"/>
+                                </Grid>
                             </DataTemplate>
                         </GridViewColumn.CellTemplate>
                     </GridViewColumn>
@@ -239,18 +245,62 @@ $RemoveRow = [System.Windows.RoutedEventHandler]{
     $confirm = Show-RemoveGate $inst
     if ($null -eq $confirm) { return }
 
-    & $SetBusyState $true "Removing '$($inst.Name)'..."
-    # The work runs on this very thread: paint the message first, or a window
-    # that never repainted shows nothing while it freezes.
-    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+    # The row says it is working: its trash gives way to the little scrolling
+    # band. Cosmetic - the deletion must not hinge on it.
     try {
-        $report = $Manager.Unregister($inst, $confirm.ArchiveFirst)
-        $txtStatus.Text = "Removed '$($inst.Name)'. Folder: $($report.Removed.FolderState)."
-    } catch {
-        $txtStatus.Text = "Failed to remove '$($inst.Name)': $($_.Exception.Message)"
+        $cell = $e.OriginalSource.Parent
+        $cell.Children[1].Visibility = [System.Windows.Visibility]::Visible
+        $e.OriginalSource.Visibility = [System.Windows.Visibility]::Collapsed
+    } catch { }
+
+    & $SetBusyState $true "Removing '$($inst.Name)'..."
+
+    # The same shape as Compact's: a runspace of its own, everything made there
+    # - a plain thread has no runspace, and an object born elsewhere keeps its
+    # own rules (both measured). The handle lives in the script scope: the
+    # click handler is gone by the time the timer fires.
+    $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    $script:Job = [powershell]::Create().
+        AddScript({
+            param($Module, $Name, $ArchiveFirst)
+            Import-Module $Module -Force
+            $mgr = New-Object -TypeName WslInstanceManager -ArgumentList ([WslInstanceManager]::Root())
+            $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+            if (-not $inst) { throw "'$Name' is not in our list any more." }
+            $mgr.Unregister($inst, [bool]$ArchiveFirst)
+        }).
+        AddArgument($ModulePath).
+        AddArgument($inst.Name).
+        AddArgument([bool]$confirm.ArchiveFirst)
+    $script:JobName = $inst.Name
+    $script:JobHandle = $script:Job.BeginInvoke()
+
+    $Poll = {
+        if (-not $script:JobHandle.IsCompleted) { return }
+        $script:Poller.Stop()
+
+        $failure = $null
+        $report = $null
+        try {
+            $report = @($script:Job.EndInvoke($script:JobHandle))[-1]
+        } catch {
+            $failure = $_.Exception.Message
+        }
+        $script:Job.Dispose()
+
+        if ($failure) {
+            $txtStatus.Text = "Failed to remove '$($script:JobName)': $failure"
+        } else {
+            $txtStatus.Text = "Removed '$($script:JobName)'. Folder: $($report.Removed.FolderState)."
+        }
+
+        & $SetBusyState $false $null
+        & $LoadFleet
     }
-    & $SetBusyState $false $null
-    & $LoadFleet
+    $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+    $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
+    $script:Poller.Add_Tick($Poll)
+    $script:Poller.Start()
 }
 $lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RemoveRow)
 
