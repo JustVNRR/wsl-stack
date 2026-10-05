@@ -21,16 +21,6 @@ if (-not (Test-Path $InstanceLib)) {
 }
 . $InstanceLib
 
-# The user name a Windows account proposes: its own file, so the suite can
-# walk the cleaning without a build.
-$UserNameLib = Join-Path $PSScriptRoot "user-name.ps1"
-if (-not (Test-Path $UserNameLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\user-name.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $UserNameLib
-
 if ($Ignored) {
     Write-Host ""
     Write-Host "[ABORT] This command takes no options." -ForegroundColor (Get-MessageColour error)

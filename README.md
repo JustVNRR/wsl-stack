@@ -295,8 +295,8 @@ the repository at runtime.
 │   ├── packs.ps1            # The pack moves: copying a pack in, installing it,
 │                            #   taking it out again
 │   ├── prompts.ps1          # The questions a command asks: the instance's full
-│                            #   name, its packs checklist, the user it opens as
-│   ├── user-name.ps1        # The Windows account's name, cleaned into a user name
+│                            #   name, its packs checklist, the user it opens
+│                            #   as - and the Windows name, cleaned into one
 │   ├── theme.ps1            # What `theme` opens, and the menu it asks with
 │   ├── icon.ps1             #   the icon alone: its letters, its colours, an image
 │   ├── font.ps1             #   the font alone
