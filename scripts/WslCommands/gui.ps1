@@ -22,6 +22,75 @@ Add-Type -AssemblyName WindowsBase
         WindowStartupLocation="CenterScreen"
         Background="#1E1E1E" Foreground="#CCCCCC"
         FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <!-- The buttons dress themselves: no system chrome shows through - it
+             was painting the hover, the focus and the disabled states in the
+             system's light colours (the "white rectangles"). Hover and
+             disabled dim the face instead of recolouring it, so the green
+             Compact and the red Stop keep their colour in every state. -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Face" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="3" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Face" Property="BorderBrush" Value="#4EC9B0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- The rows too: the system highlight painted hover and selection in
+             its light colours - white on white, "tout blanc". Now hover is a
+             slightly lighter row, and the selection is the Start button's
+             blue; the arrows walk the list, the colour follows. -->
+        <Style TargetType="ListViewItem">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border x:Name="Row" Background="Transparent" Padding="2,2" SnapsToDevicePixels="True">
+                            <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}"
+                                                  Content="{TemplateBinding Content}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#2D2D30"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#0E639C"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- And the headers, same disease, same cure. -->
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+            <Setter Property="BorderBrush" Value="#3F3F46"/>
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+    </Window.Resources>
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -291,10 +360,44 @@ function Show-RemoveGate {
 
     [xml]$gateXaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Remove instance" Height="380" Width="540"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#CCCCCC"
         FontFamily="Segoe UI" FontSize="13">
+    <Window.Resources>
+        <!-- The same button, dressed by itself - the gate is a window of its
+             own, and styles do not cross windows. -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#333337"/>
+            <Setter Property="Foreground" Value="#F1F1F1"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Face" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="3" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Face" Property="BorderBrush" Value="#4EC9B0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
@@ -303,9 +406,9 @@ function Show-RemoveGate {
         <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
         <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnGateCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0"
+            <Button Name="BtnGateCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
                     Background="#333337" Foreground="#F1F1F1" BorderBrush="#555555"/>
-            <Button Name="BtnGateRemove" Content="REMOVE" Width="90" Height="28" IsEnabled="False"
+            <Button Name="BtnGateRemove" Content="REMOVE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
                     Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
         </StackPanel>
     </StackPanel>
@@ -317,6 +420,10 @@ function Show-RemoveGate {
     $txtName = $gate.FindName("TxtName")
     $btnRemove = $gate.FindName("BtnGateRemove")
     $chkArchive = $gate.FindName("ChkArchive")
+
+    # The keyboard starts where the hand will be: the name box. Tab walks to
+    # the box, Enter is REMOVE (IsDefault) and Escape is Cancel (IsCancel).
+    $null = $txtName.Focus()
 
     $script:GateResult = $null
 
