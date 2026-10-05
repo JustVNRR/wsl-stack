@@ -1,3 +1,6 @@
+# The classes this file names, pulled in by the file itself.
+using module ..\scripts\WslModel\WslModel.psd1
+
 # Drives `icon` the way a script would: the numbered prompt, answers on standard
 # input, no console anywhere - it is the command behind `.\wsl.ps1 theme`.
 #

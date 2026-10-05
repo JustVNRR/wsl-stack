@@ -1,3 +1,8 @@
+# The classes this file names, pulled in by the file itself: the menu is
+# built from [WslMenu] rows below, and the manager below that.
+using module .\scripts\WslModel\WslModel.psd1
+using module .\scripts\WslUI.psm1
+
 [CmdletBinding()]
 param (
     [Parameter(Position = 0)]

@@ -14,10 +14,11 @@
 #                 prompt when the machine has no keyboard - and the route by
 #                 name for the command line.
 #
-# The classes stay dot-sourced, read again on every run - a module would freeze
-# them at import (the code of yesterday), and the suites subclass them. The
-# doors and the small helpers that used to sit below live in the module now
-# (WslStack.Menus.psm1), which dot-sources this file before using it.
+# Read by whoever names them - `using module ..\WslUI.psm1` at the top of the
+# consuming file: the types resolve for their own reader, once per window, and
+# the suites subclass them the same way. The doors and the small helpers that
+# used to sit below live in the module now (WslStack.Menus.psm1), which pulls
+# this file the same way.
 #
 # "$Host" in a method: the parser refuses the name; it is reached through
 # Get-Variable - measured. And a class is not data: a data class never draws;

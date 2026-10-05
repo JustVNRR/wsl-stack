@@ -15,23 +15,12 @@
 # - a build's whiptail could not draw (measured).
 # ==============================================================================
 
-# The classes, as instance.ps1 walks them for the scripts - and WslUI.ps1
-# beside them, which carries the menu's own three: the doors here build
-# [WslMenu] rows, and a module that cannot name a type cannot build one.
-$ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\WslModel"
-foreach ($ClassLib in $ClassLibs) {
-    $ClassPath = Join-Path $ClassesDir $ClassLib
-    if (-not (Test-Path $ClassPath)) {
-        throw "scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete."
-    }
-    . $ClassPath
-}
-$MenuClasses = Join-Path $PSScriptRoot "..\WslUI.ps1"
-if (-not (Test-Path $MenuClasses)) {
-    throw "scripts\WslUI.ps1 is missing - the scripts\ folder is incomplete."
-}
-. $MenuClasses
+# What this family names - the model's classes, and WslUI's three - pulled in
+# by the file itself: `using` resolves them for every function here, whoever
+# called in what shape (measured - a family's own read served that file alone,
+# and the doors build [WslMenu] rows from wherever they are called).
+using module ..\WslModel\WslModel.psd1
+using module ..\WslUI.psm1
 
 # ---------------------------------------------------------------------------
 # THE SMALL HELPERS THE COMMANDS ALREADY CALLED

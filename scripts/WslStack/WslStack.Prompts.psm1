@@ -9,22 +9,12 @@
 # from here too, so no command writes one twice.
 # ==============================================================================
 
-# The classes, in the walk's order: the questions here name [WslState],
-# [WslInstanceManager] and [WslPackCatalog], and some of those names sit in
-# the Where-Object filters a question is - a filter scriptblock resolves no
-# further than this family's own state (measured: without the walk, a
-# .\wsl.ps1 run filtered restart's list against an unknown type and every
-# instance fell through, silently; a -File run resolves further, which is why
-# the suites stayed green).
-$ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\WslModel"
-foreach ($ClassLib in $ClassLibs) {
-    $ClassPath = Join-Path $ClassesDir $ClassLib
-    if (-not (Test-Path $ClassPath)) {
-        throw "scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete."
-    }
-    . $ClassPath
-}
+# The classes the questions name - [WslState], [WslInstanceManager],
+# [WslPackCatalog] - pulled in by the file itself: `using` resolves them for
+# every function and filter here, whoever called in what shape (measured: a
+# .\wsl.ps1 run used to filter restart's list against an unknown type, every
+# instance falling through silently, while a -File run resolved).
+using module ..\WslModel\WslModel.psd1
 
 # ---------------------------------------------------------------------------
 # THE PIECES EVERY QUESTION SHARES

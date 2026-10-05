@@ -1,3 +1,6 @@
+# The classes this file names, pulled in by the file itself: a type resolves
+# for its own reader, whoever launched the command.
+using module ..\WslModel\WslModel.psd1
 [CmdletBinding()]
 param (
     # Injected by wsl.ps1, or made below once the shared half is loaded: the

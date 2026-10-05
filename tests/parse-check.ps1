@@ -4,15 +4,15 @@
 #
 # The classes are the one place where a file names another file's types, and
 # the parser settles a type the moment it reads the file naming it: read one by
-# one, every cross-reference comes up unknown. So they are read the way
-# scripts\instance.ps1 loads them - one text, in that order - and the rest of
-# the checkout one by one.
+# one, every cross-reference comes up unknown. So they are read as one text, in
+# the manifest's order (WslModel.psd1) with the `using` lines dropped for the
+# join - and the rest of the checkout one by one.
 #
 # Usage:  pwsh -NoProfile -File tests\parse-check.ps1
 
 $bad = 0
 
-$ClassOrder = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
+$ClassOrder = @("WslState.psm1", "WslTheme.psm1", "WslPack.psm1", "WslInstance.psm1", "WslPackCatalog.psm1", "WslInstanceManager.psm1")
 $ClassesDir = Join-Path $PSScriptRoot "..\scripts\WslModel"
 $ClassPaths = @()
 foreach ($ClassLib in $ClassOrder) {
@@ -23,11 +23,11 @@ foreach ($ClassLib in $ClassOrder) {
 # The menus file carries classes of its own, and the suites' fake console
 # derives from one of them: read as one text after the classes - the order the
 # runtime uses - and read nowhere else.
-$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\WslUI.ps1")).FullName)
+$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\WslUI.psm1")).FullName)
 $ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "fake-console.ps1")).FullName)
 
 $errors = $null
-$ClassText = (@($ClassPaths | ForEach-Object { Get-Content -Path $_ -Raw }) -join "`n")
+$ClassText = (@($ClassPaths | ForEach-Object { (Get-Content -Path $_ -Raw) -replace '(?m)^using module .*\r?\n', '' }) -join "`n")
 [void][System.Management.Automation.Language.Parser]::ParseInput($ClassText, [ref]$null, [ref]$errors)
 if ($errors.Count -gt 0) {
     Write-Host "::error file=scripts\WslModel::$($errors.Count) parse error(s)"

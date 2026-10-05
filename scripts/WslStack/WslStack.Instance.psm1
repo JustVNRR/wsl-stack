@@ -27,20 +27,11 @@
 # ---------------------------------------------------------------------------
 # THE MODEL
 # ---------------------------------------------------------------------------
-# The classes, in the order they must be read - the same walk scripts\instance.ps1
-# takes for the scripts: a class settles the types it names the moment its file
-# is parsed, and the families here build instances of them. Dot-sourcing class
-# files lands them in the runspace's type table, so the session's own classes
-# are these very types, not copies.
-$ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\WslModel"
-foreach ($ClassLib in $ClassLibs) {
-    $ClassPath = Join-Path $ClassesDir $ClassLib
-    if (-not (Test-Path $ClassPath)) {
-        throw "scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete."
-    }
-    . $ClassPath
-}
+# The classes this family names, pulled in by the file itself: `using` resolves
+# them for every function and filter below, whoever called in what shape
+# (measured - a family's own read served that file alone, and the filters here
+# resolve no further than the family's own state).
+using module ..\WslModel\WslModel.psd1
 
 
 # The marker's name, kept here so that one file knows it and the others ask.

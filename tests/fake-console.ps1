@@ -1,3 +1,6 @@
+# The class it derives from, pulled in by the file itself.
+using module ..\scripts\WslUI.psm1
+
 # The console the tests give the menu: canned keys, canned answers for the
 # numbered prompt, a canned window, a cursor that mimics a scrolling console,
 # and every line recorded instead of drawn. It is a subclass of the real one -

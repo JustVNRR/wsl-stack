@@ -45,6 +45,13 @@
 # WslInstance, WslTheme, WslState, WslPackCatalog); the scripts are the thin
 # interface; the menu classes stay interface-side.
 # ==============================================================================
+# What this one names, declared here, the four of them.
+using module .\WslInstance.psm1
+using module .\WslTheme.psm1
+using module .\WslState.psm1
+using module .\WslPack.psm1
+using module .\WslPackCatalog.psm1
+
 class WslInstanceManager {
     # The one working folder, no guessing: D:\WSL when D: exists, the user's
     # profile otherwise. The rule lived in six scripts; it lives here once.

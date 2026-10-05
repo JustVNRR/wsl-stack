@@ -12,19 +12,10 @@
 # only plain paths, one argument at a time.
 # ==============================================================================
 
-# The classes, in the walk's order: the catalog below is a [WslPackCatalog],
-# and each family reads what it names - a lookup that leans on the caller
-# instead resolves differently under .\wsl.ps1 and under a -File run
-# (measured in the questions next door).
-$ClassLibs = @("WslState.ps1", "WslTheme.ps1", "WslPack.ps1", "WslInstance.ps1", "WslPackCatalog.ps1", "WslInstanceManager.ps1")
-$ClassesDir = Join-Path $PSScriptRoot "..\WslModel"
-foreach ($ClassLib in $ClassLibs) {
-    $ClassPath = Join-Path $ClassesDir $ClassLib
-    if (-not (Test-Path $ClassPath)) {
-        throw "scripts\WslModel\$ClassLib is missing - the scripts\ folder is incomplete."
-    }
-    . $ClassPath
-}
+# The class this family names - the catalog below is a [WslPackCatalog] -
+# pulled in by the file itself: `using` resolves it for every function here,
+# whoever called in what shape (measured in the questions next door).
+using module ..\WslModel\WslModel.psd1
 
 # Where the packs live, and the cleanup that travels with a removal. Read here,
 # at load time, and not inside the functions: $PSScriptRoot means the file being

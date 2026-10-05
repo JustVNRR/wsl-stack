@@ -5,6 +5,12 @@
 # its WSL version, the look Windows Terminal gives it, the packs it carries -
 # and the gestures: start, stop, restart, shell, shrink, archive, restore,
 # duplicate, unregister.
+# What this one names, declared here: a module resolves a type it pulled in
+# itself, never a neighbour's.
+using module .\WslState.psm1
+using module .\WslTheme.psm1
+using module .\WslPack.psm1
+
 class WslInstance {
     [string]$Name
     [string]$Path

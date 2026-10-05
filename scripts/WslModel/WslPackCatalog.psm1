@@ -3,6 +3,9 @@
 # ==============================================================================
 # The packs folder, read once, and the two resolutions the pack commands need:
 # what goes in (requirements included) and what leaves with it.
+# What this one names, declared here (the same rule, one neighbour).
+using module .\WslPack.psm1
+
 class WslPackCatalog {
     [string]$PacksRoot
     [WslPack[]]$AvailablePacks = @()

@@ -2,10 +2,10 @@
 # THE MODULE: ONE NESTED FILE PER FAMILY
 # ==============================================================================
 # Imported fresh on every run - `Import-Module <this file> -Force` - so a
-# terminal left open runs the code on disk: a module is cached, -Force re-reads
-# it, and that is the rule the classes still follow by staying dot-sourced (a
-# class imported from a module is frozen at import, and would be the code of
-# yesterday).
+# terminal left open runs the code on disk, functions-wise. The classes are
+# the chosen exception: pulled by `using module` at each naming file's top,
+# they load once per window - a pull is seen by the next window (measured: the
+# price of types that resolve in every file, whichever called in what shape).
 #
 # FunctionsToExport is the module's public surface, written here and nowhere
 # else: what is not listed is not visible to the scripts, however nested the
