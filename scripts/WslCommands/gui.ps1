@@ -172,8 +172,15 @@ $LoadFleet = {
 # nothing can skip.
 $WatchJob = {
     # The early way out stays outside the try: a return under a finally runs
-    # the finally - it would lower the busy state on every tick.
-    if ($null -eq $script:Job -or -not $script:JobHandle.IsCompleted) { return }
+    # the finally - it would lower the busy state on every tick. While waiting,
+    # it shows it is alive: the tick count proves the timer beats, and the
+    # job's own state says whether the work still runs or already failed.
+    if ($null -eq $script:Job) { return }
+    if (-not $script:JobHandle.IsCompleted) {
+        $script:Ticks++
+        $txtStatus.Text = "The $($script:JobVerb) of '$($script:JobName)' - job: $($script:Job.InvocationStateInfo.State) - tick $($script:Ticks)"
+        return
+    }
 
     try {
         $script:Poller.Stop()
