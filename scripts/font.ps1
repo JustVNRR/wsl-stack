@@ -251,9 +251,7 @@ Clear-MenuScreen
 if (-not $Changed) {
     # Handed over: the level above owns the goodbye.
     if ($HandedOver) { exit 0 }
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
+    Stop-Cancelled
 }
 
 # Ask Terminal to look again, and only when run on its own: behind the theme

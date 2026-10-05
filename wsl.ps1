@@ -120,11 +120,7 @@ if ($Command) {
     Write-Host "  (a command can also be typed:  .\wsl.ps1 <command> [options])" -ForegroundColor (Get-MessageColour muted)
 
     $Chosen = $Menu.Prompt()
-    if (-not $Chosen) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was run." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
+    if (-not $Chosen) { Stop-Cancelled -What "run" }
 }
 
 $Script = Join-Path $Scripts "$($Chosen.Key).ps1"

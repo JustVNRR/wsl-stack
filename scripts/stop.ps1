@@ -32,11 +32,7 @@ Write-Host ""
 Write-Host "  '$DistroName' will be stopped." -ForegroundColor (Get-MessageColour warning)
 Write-Host "  Whatever is open in there and not saved is lost; what is already" -ForegroundColor (Get-MessageColour warning)
 Write-Host "  written on the disk stays exactly as it is." -ForegroundColor (Get-MessageColour warning)
-if (-not (Confirm-YesNo "Stop it?")) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not (Confirm-YesNo "Stop it?")) { Stop-Cancelled }
 
 Write-Host ""
 Write-Host "==> Stopping '$DistroName'..." -ForegroundColor (Get-MessageColour info)

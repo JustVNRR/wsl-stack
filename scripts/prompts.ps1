@@ -13,6 +13,17 @@
 # THE PIECES EVERY QUESTION SHARES
 # ---------------------------------------------------------------------------
 
+# The ending every cancelled question shares: a blank line, the word that says
+# what was NOT touched - "created" or "run" when the command was making
+# something, "modified" otherwise - and the run stops here.
+function Stop-Cancelled {
+    param([string]$What = "modified")
+
+    Write-Host ""
+    Write-Host "[ABORT] Operation cancelled by user. Nothing was $What." -ForegroundColor (Get-MessageColour success)
+    exit 0
+}
+
 # Is this the shape an instance takes a name in? Letters, digits, '.', '_' and
 # '-', starting with a letter or a digit - the rule the name questions and
 # their checks apply, written once.
@@ -87,11 +98,7 @@ function Read-Answer {
 
     Write-Host -NoNewline "${Question}: "
     $Answer = [string](Read-Host).Trim()
-    if ([string]::IsNullOrWhiteSpace($Answer)) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was $What." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
+    if ([string]::IsNullOrWhiteSpace($Answer)) { Stop-Cancelled -What $What }
     return $Answer
 }
 
@@ -103,11 +110,7 @@ function Read-InstanceName {
 
     while ($true) {
         $Answer = [string](Read-Host $Question)
-        if ([string]::IsNullOrWhiteSpace($Answer)) {
-            Write-Host ""
-            Write-Host "[ABORT] Operation cancelled by user. Nothing was $What." -ForegroundColor (Get-MessageColour success)
-            exit 0
-        }
+        if ([string]::IsNullOrWhiteSpace($Answer)) { Stop-Cancelled -What $What }
         $Answer = $Answer.Trim()
         if (Test-InstanceName $Answer) { return $Answer }
         Write-Host "  Letters, digits, '.', '_' and '-' only." -ForegroundColor (Get-MessageColour hint)
@@ -265,11 +268,7 @@ function Select-EligibleInstance {
         "{0,-30} {1,10}" -f $Entry.Name, (Format-Size (Get-VhdxSize $Entry.Path))
     }
 
-    if (-not $Picked) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
+    if (-not $Picked) { Stop-Cancelled }
     return $Picked
 }
 

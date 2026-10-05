@@ -60,11 +60,7 @@ if ($Offered.Count -eq 0) {
 
 $PackName = Select-FromList -Title "Packs installed in '$DistroName':" -Items $Offered
 
-if (-not $PackName) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $PackName) { Stop-Cancelled }
 
 # What leaves with it, planned by the engine: the chosen pack first, then every
 # pack nothing installed requires any more - the other order would ask a
@@ -88,11 +84,7 @@ if ($Missing.Count -gt 0) {
     Write-Host "    Nothing of it is undone on the system side: only its files leave." -ForegroundColor (Get-MessageColour hint)
     Write-Host "    To take its tool out by hand, open a shell in '$DistroName'." -ForegroundColor (Get-MessageColour hint)
 }
-if (-not (Confirm-YesNo "Remove $($ToRemove -join ', ')?")) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not (Confirm-YesNo "Remove $($ToRemove -join ', ')?")) { Stop-Cancelled }
 
 # 4. The narration for each pack that leaves on its own, then the engine's
 # gesture: it runs each remove.sh from inside its own folder (it may ask for a

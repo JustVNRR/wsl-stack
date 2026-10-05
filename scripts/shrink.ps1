@@ -23,11 +23,7 @@ if (-not (Test-Path $InstanceLib)) {
 
 # 1. Which instance
 $Distro = Select-Distro
-if (-not $Distro) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $Distro) { Stop-Cancelled }
 $DistroName = $Distro.Name
 
 $BeforeBytes = Get-VhdxSize $Distro.Path

@@ -25,11 +25,7 @@ if (-not (Test-Path $InstanceLib)) {
 
 # 1. Which instance
 $Distro = Select-Distro
-if (-not $Distro) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $Distro) { Stop-Cancelled }
 $DistroName = $Distro.Name
 
 Invoke-External { wsl.exe -d $DistroName --exec /bin/true } "Could not start '$DistroName'."
@@ -54,11 +50,7 @@ if ($null -eq $Installed) {
 # 3. The checklist, and what it says to do
 $Selection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $Catalog -Installed @($Installed)
 
-if ($null -eq $Selection) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if ($null -eq $Selection) { Stop-Cancelled }
 if ($Selection.ToAdd.Count -eq 0 -and $Selection.ToRemove.Count -eq 0) {
     Write-Host ""
     Write-Host "[OK] Nothing to do: '$DistroName' already has exactly that." -ForegroundColor (Get-MessageColour success)

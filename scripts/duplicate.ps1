@@ -44,11 +44,7 @@ if ((Get-DistroNames -Running) -contains $SourceDistro) {
     Write-Host ""
     Write-Host "  '$SourceDistro' is running, and this needs it stopped." -ForegroundColor (Get-MessageColour warning)
     Write-Host "  Save what you have open in there: stopping it loses anything unsaved." -ForegroundColor (Get-MessageColour warning)
-    if (-not (Confirm-YesNo "Stop it now?")) {
-        Write-Host ""
-        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-        exit 0
-    }
+    if (-not (Confirm-YesNo "Stop it now?")) { Stop-Cancelled }
     $null = $Manager.Stop($Source)
     Write-Host "  Stopped." -ForegroundColor (Get-MessageColour muted)
     $StoppedByUs = $true

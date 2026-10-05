@@ -54,21 +54,13 @@ $Chosen = Select-FromList -Title "Archives in $ArchiveFolder (most recent first)
         $Entry.LastWriteTime.ToString("yyyy-MM-dd HH:mm")
 }
 
-if (-not $Chosen) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was created." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $Chosen) { Stop-Cancelled -What "created" }
 
 # 3. Name the new instance
 Write-Host ""
 Write-Host "Restoring $($Chosen.Name) as a new instance." -ForegroundColor (Get-MessageColour info)
 $Name = [string](Read-Host "Name of the new instance (Enter to cancel)")
-if ([string]::IsNullOrWhiteSpace($Name)) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was created." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if ([string]::IsNullOrWhiteSpace($Name)) { Stop-Cancelled -What "created" }
 $Name = $Name.Trim()
 
 if (-not (Test-InstanceName $Name)) {

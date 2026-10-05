@@ -39,11 +39,7 @@ if ($Ours.Count -eq 0) {
 }
 
 $Distro = Select-Distro
-if (-not $Distro) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $Distro) { Stop-Cancelled }
 
 $DistroName = $Distro.Name
 $InstallPath = $Distro.Path

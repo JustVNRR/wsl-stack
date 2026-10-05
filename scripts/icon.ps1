@@ -107,11 +107,7 @@ function Invoke-IconChoice {
                 # or the name's. With nothing to suggest it cancels, like every
                 # other empty answer here.
                 if ([string]::IsNullOrWhiteSpace($Answer)) {
-                    if (-not $Suggestion) {
-                        Write-Host ""
-                        Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-                        exit 0
-                    }
+                    if (-not $Suggestion) { Stop-Cancelled }
                     $Draw.Text = $Suggestion
                     break
                 }
@@ -140,11 +136,7 @@ function Invoke-IconChoice {
                 $Here = if ($Recipe.Top -eq $Field[1] -and $Recipe.Bottom -eq $Field[2]) { "  (current)" } else { "" }
                 "{0}  {1,-9}{2}" -f $Sample, $Field[0], $Here
             }
-            if (-not $Picked) {
-                Write-Host ""
-                Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-                exit 0
-            }
+            if (-not $Picked) { Stop-Cancelled }
             $Field = $Picked -split "`t"
             $Draw.Top = $Field[1]
             $Draw.Bottom = $Field[2]
@@ -237,9 +229,7 @@ Clear-MenuScreen
 if (-not $Changed) {
     # Handed over: the level above owns the goodbye.
     if ($HandedOver) { exit 0 }
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
+    Stop-Cancelled
 }
 
 # Ask Terminal to look again, and only when run on its own: behind the theme

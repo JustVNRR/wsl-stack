@@ -75,11 +75,7 @@ $Pack = Select-FromList -Title "Packs available for '$DistroName':" -Items $Cand
     "{0,-12} {1}" -f $Entry.Name, $Entry.Description
 }
 
-if (-not $Pack) {
-    Write-Host ""
-    Write-Host "[ABORT] Operation cancelled by user. Nothing was modified." -ForegroundColor (Get-MessageColour success)
-    exit 0
-}
+if (-not $Pack) { Stop-Cancelled }
 
 $PackName = $Pack.Name
 
