@@ -12,6 +12,7 @@
 #
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\scripts\WslUI.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 . (Join-Path $PSScriptRoot "fake-console.ps1")
 
 $Failures = 0

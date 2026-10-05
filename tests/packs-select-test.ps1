@@ -1,4 +1,4 @@
-# Drives the ask/apply pair - the checklist in scripts\prompts.ps1, the
+# Drives the ask/apply pair - the checklist in the module's questions, the
 # applying in scripts\packs.ps1 - with no instance and no terminal.
 #
 #   Select-Packs   is answered on standard input: with no console the numbered

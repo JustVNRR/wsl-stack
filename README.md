@@ -286,15 +286,11 @@ the repository at runtime.
 │       └── docs/            # the pack's pages, one per module
 ├── scripts/                 # Instance administration, one file per command
 │   ├── WslStack/            # The module: one nested file per family - the
-│                            #   messages, the instances' family, and the pack
-│                            #   moves
+│                            #   messages, the instances' family, the pack
+│                            #   moves, the questions and the menus
 │   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
-│   ├── WslUI.ps1            # The menu itself: the rows, the console, the
-│                            #   ask, the doors the scripts call - and the
-│                            #   helpers the theme family asks by name
-│   ├── prompts.ps1          # The questions a command asks: the instance's full
-│                            #   name, its packs checklist, the user it opens
-│                            #   as - and the Windows name, cleaned into one
+│   ├── WslUI.ps1            # The menu's classes: the rows, the console, the
+│                            #   ask
 │   ├── theme.ps1            # What `theme` opens, and the menu it asks with
 │   ├── icon.ps1             #   the icon alone: its letters, its colours, an image
 │   ├── font.ps1             #   the font alone

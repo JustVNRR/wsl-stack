@@ -9,7 +9,7 @@
 # Usage:  pwsh -NoProfile -File tests\user-name-test.ps1
 
 $ErrorActionPreference = "Stop"
-. (Join-Path $PSScriptRoot "..\scripts\prompts.ps1")
+Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
 
 $Failures = 0
 function Check {

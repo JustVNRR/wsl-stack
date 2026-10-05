@@ -24,6 +24,8 @@
         'WslStack.Message.psm1'
         'WslStack.Instance.psm1'
         'WslStack.Packs.psm1'
+        'WslStack.Prompts.psm1'
+        'WslStack.Menus.psm1'
     )
 
     FunctionsToExport = @(
@@ -71,5 +73,27 @@
         'Get-InstalledPacks'
         'Enable-PackSudo'
         'Invoke-PackApply'
+
+        # The questions - what a command asks
+        'Test-InstanceName'
+        'Confirm-YesNo'
+        'Confirm-Destruction'
+        'Stop-Cancelled'
+        'Read-Answer'
+        'Read-InstanceName'
+        'Select-EligibleInstance'
+        'Select-Packs'
+        'Resolve-InstallPath'
+        'Resolve-InstanceIdentity'
+        'Resolve-DefaultUser'
+        'Get-WindowsUserProposal'
+
+        # The menus - the doors, and the helpers beside them
+        'Select-FromList'
+        'Select-Distro'
+        'Test-KeyInput'
+        'Test-ColourOutput'
+        'ConvertTo-Rgb'
+        'Clear-MenuScreen'
     )
 }

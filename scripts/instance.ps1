@@ -3,8 +3,8 @@
 # ==============================================================================
 # The shared half, once per run: the module (the messages, and the instances'
 # own family - the marker, the look, Docker Desktop, the engine on wsl.exe),
-# then the classes for the scripts themselves, then the libraries that are not
-# module families yet: the menus (WslUI.ps1) and the questions (prompts.ps1).
+# then the classes for the scripts themselves, then the menus library
+# (WslUI.ps1) - the last one that is not a module family yet.
 #
 # Same rule when a piece is missing: say so, rather than die with a PowerShell
 # error that reads like the machine's fault.
@@ -47,10 +47,10 @@ foreach ($ClassLib in $ClassLibs) {
 # ---------------------------------------------------------------------------
 # THE MENUS
 # ---------------------------------------------------------------------------
-# What the commands share: what this machine is (here) and how it is asked
-# (WslUI.ps1 - the rows, the console, the ask, the doors). Same rule when a
-# piece is missing: say so, rather than die with a PowerShell error that reads
-# like the machine's fault.
+# The menu's classes - the rows, the console, the ask; the doors and the
+# helpers that go with them ride the module. Same rule when a piece is missing:
+# say so, rather than die with a PowerShell error that reads like the machine's
+# fault.
 $MenuLib = Join-Path $PSScriptRoot "WslUI.ps1"
 if (-not (Test-Path $MenuLib)) {
     Write-Host ""
@@ -58,17 +58,3 @@ if (-not (Test-Path $MenuLib)) {
     exit 1
 }
 . $MenuLib
-
-# ---------------------------------------------------------------------------
-# THE QUESTIONS
-# ---------------------------------------------------------------------------
-# What a command asks - the confirmations, the names, the build's questions.
-# Loaded here, once: a command that asks must not write a question twice, and
-# prompts.ps1 draws on the messages and the menus read above.
-$PromptsLib = Join-Path $PSScriptRoot "prompts.ps1"
-if (-not (Test-Path $PromptsLib)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\prompts.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
-    exit 1
-}
-. $PromptsLib
