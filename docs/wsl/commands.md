@@ -110,7 +110,9 @@ everything else asks.
 It lists our instances - state and size, the same list `list` prints - and
 offers the actions taken most often: **Refresh**, **Start**, **Stop**, and
 **Compact** (the same compact `shrink` runs; the window shows a bar while it
-works, and the instance finds its state back afterwards). Nothing here exists
+works, and the instance finds its state back afterwards). A row's trash opens
+the same gate `unregister` puts up - what is lost, spelled out, and the exact
+name typed back - then removes it through the same engine. Nothing here exists
 only in the window: it is a keystroke-free way in, not a second engine.
 
 ---

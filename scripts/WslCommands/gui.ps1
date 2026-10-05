@@ -44,6 +44,16 @@ Add-Type -AssemblyName WindowsBase
                     <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding Name}"/>
                     <GridViewColumn Header="Status" Width="100" DisplayMemberBinding="{Binding Status}"/>
                     <GridViewColumn Header="Size" Width="110" DisplayMemberBinding="{Binding Size}"/>
+                    <GridViewColumn Header="" Width="36">
+                        <GridViewColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                        Width="26" Height="22" Background="Transparent"
+                                        Foreground="#C05050" BorderBrush="Transparent"
+                                        ToolTip="Remove this instance"/>
+                            </DataTemplate>
+                        </GridViewColumn.CellTemplate>
+                    </GridViewColumn>
                 </GridView>
             </ListView.View>
         </ListView>
@@ -128,10 +138,9 @@ $LoadFleet = {
 
         foreach ($inst in $instances) {
             $isRunning = ($inst.State -eq [WslState]::Running)
-            $sizeStr = if (Test-Path $inst.Path) {
-                $bytes = (Get-Item $inst.Path).Length
-                "{0:N2} GB" -f ($bytes / 1GB)
-            } else { "-" }
+            # The disk's size, the way the console's lists read it: the folder
+            # holds ext4.vhdx, and Format-Size spells the bytes.
+            $sizeStr = Format-Size (Get-VhdxSize $inst.Path)
 
             $item = [PSCustomObject]@{
                 Name     = $inst.Name
@@ -164,6 +173,83 @@ $lstInstances.Add_SelectionChanged({
 })
 
 $btnRefresh.Add_Click({ & $LoadFleet })
+
+# -----------------------------------------------------------------------------
+# THE TRASH, ONE ROW AT A TIME - THE REMOVAL GATE, WINDOW-SIDE
+# -----------------------------------------------------------------------------
+# A row's trash opens the same gate the console's unregister puts up: what is
+# lost, spelled out, and the exact name typed back (-ceq, case and all). The
+# removal itself is the engine's - the same call the console makes.
+function Show-RemoveGate {
+    param($Instance)
+
+    [xml]$gateXaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="Remove instance" Height="380" Width="540"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#1E1E1E" Foreground="#CCCCCC"
+        FontFamily="Segoe UI" FontSize="13">
+    <StackPanel Margin="18">
+        <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
+        <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
+        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and everything in /home - projects, SSH keys, all of it. This operation CANNOT be undone.</TextBlock>
+        <CheckBox Name="ChkArchive" Margin="0,12,0,0" Foreground="#CCCCCC" Content="Archive it first (a copy the restore command can bring back)"/>
+        <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
+        <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Name="BtnGateCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0"
+                    Background="#333337" Foreground="#F1F1F1" BorderBrush="#555555"/>
+            <Button Name="BtnGateRemove" Content="REMOVE" Width="90" Height="28" IsEnabled="False"
+                    Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
+"@
+
+    $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
+    $gate.FindName("TxtLead").Text = "The WSL distribution '$($Instance.Name)' and ALL its data will be deleted."
+    $txtName = $gate.FindName("TxtName")
+    $btnRemove = $gate.FindName("BtnGateRemove")
+    $chkArchive = $gate.FindName("ChkArchive")
+
+    $script:GateResult = $null
+
+    # The button wakes only on the exact name, case and all - the console's -ceq.
+    $txtName.Add_TextChanged({
+        $btnRemove.IsEnabled = ($txtName.Text -ceq $Instance.Name)
+    })
+    $gate.FindName("BtnGateCancel").Add_Click({ $script:GateResult = $null; $gate.Close() })
+    $btnRemove.Add_Click({
+        $script:GateResult = @{ ArchiveFirst = [bool]$chkArchive.IsChecked }
+        $gate.Close()
+    })
+
+    $null = $gate.ShowDialog()
+    return $script:GateResult
+}
+
+# The trash buttons live in the rows: the click bubbles to the list, and the
+# OriginalSource is the button - its DataContext is the row it sits on.
+$RemoveRow = [System.Windows.RoutedEventHandler]{
+    param($sender, $e)
+    $row = $e.OriginalSource.DataContext
+    if ($null -eq $row) { return }
+
+    $inst = $row.Instance
+    $confirm = Show-RemoveGate $inst
+    if ($null -eq $confirm) { return }
+
+    & $SetBusyState $true "Removing '$($inst.Name)'..."
+    try {
+        $report = $Manager.Unregister($inst, $confirm.ArchiveFirst)
+        $txtStatus.Text = "Removed '$($inst.Name)'. Folder: $($report.Removed.FolderState)."
+    } catch {
+        $txtStatus.Text = "Failed to remove '$($inst.Name)': $($_.Exception.Message)"
+    }
+    & $SetBusyState $false $null
+    & $LoadFleet
+}
+$lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RemoveRow)
 
 # -----------------------------------------------------------------------------
 # THE COMPACT ACTION, OFF THE UI THREAD
