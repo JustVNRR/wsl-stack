@@ -22,6 +22,7 @@
 
     NestedModules     = @(
         'WslStack.Message.psm1'
+        'WslStack.Instance.psm1'
     )
 
     FunctionsToExport = @(
@@ -30,5 +31,38 @@
         'Write-DangerBanner'
         'Read-TerminalJson'
         'Get-SchemeColour'
+
+        # The instances - the marker, the look, Docker Desktop, the engine
+        'Test-TemplateInstance'
+        'New-InstanceMarker'
+        'Test-FontInstalled'
+        'Get-InstanceFolder'
+        'Get-RegisteredDistros'
+        'Get-InstanceLook'
+        'Get-IconRecipe'
+        'New-InstanceLook'
+        'Set-InstanceLook'
+        'Update-TerminalSettings'
+        'Get-WslProfileGuid'
+        'Set-InstanceFragment'
+        'Get-InstanceAppearance'
+        'ConvertTo-WslTheme'
+        'Set-InstanceState'
+        'Get-DockerState'
+        'Set-DockerState'
+        'Get-WslFragmentGuids'
+        'Remove-TerminalGhostEntries'
+        'Remove-StaleAppearanceFragments'
+        'Remove-DockerIntegration'
+        'Invoke-External'
+        'Invoke-NativeCommand'
+        'Test-NativeCommand'
+        'Get-Distros'
+        'Get-DistroNames'
+        'Get-VhdxSize'
+        'Format-Size'
+        'Invoke-InInstance'
+        'Get-InInstanceOutput'
+        'Get-InstanceHome'
     )
 }
