@@ -118,7 +118,7 @@ Add-Type -AssemblyName WindowsBase
                             <DataTemplate>
                                 <Grid Width="30" Height="22">
                                     <Button Content="&#xE74D;" FontFamily="Segoe MDL2 Assets" FontSize="13"
-                                            Width="26" Height="22" Background="Transparent"
+                                            Width="26" Height="22" Padding="0" Background="Transparent"
                                             Foreground="#C05050" BorderBrush="Transparent"
                                             HorizontalAlignment="Center"
                                             ToolTip="Remove this instance"/>
@@ -402,13 +402,13 @@ function Show-RemoveGate {
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and everything in /home - projects, SSH keys, all of it. This operation CANNOT be undone.</TextBlock>
-        <CheckBox Name="ChkArchive" Margin="0,12,0,0" Foreground="#CCCCCC" Content="Archive it first (a copy the restore command can bring back)"/>
+        <CheckBox Name="ChkArchive" TabIndex="1" Margin="0,12,0,0" Foreground="#CCCCCC" Content="Archive it first (a copy the restore command can bring back)"/>
         <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
-        <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
+        <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#F1F1F1" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnGateCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
+            <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
                     Background="#333337" Foreground="#F1F1F1" BorderBrush="#555555"/>
-            <Button Name="BtnGateRemove" Content="REMOVE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
+            <Button Name="BtnGateRemove" TabIndex="3" Content="REMOVE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
                     Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
         </StackPanel>
     </StackPanel>
