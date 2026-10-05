@@ -108,13 +108,13 @@ everything else asks.
 ```
 
 It lists our instances - state and size, the same list `list` prints - with,
-on each row, **Compact** and the trash. Compact is the same compact `shrink`
-runs (the row shows a small scrolling band while it works, and the instance
-finds its state back afterwards); the trash opens the same gate `unregister`
-puts up - what is lost, spelled out, and the exact name typed back - then
-removes it through the same engine. Below the list: **Refresh**, **Start**
-and **Stop**, on the selection. Nothing here exists only in the window: it
-is a keystroke-free way in, not a second engine.
+on each row, its verbs: **start** or **stop** (whichever the state allows),
+**Compact** (the same compact `shrink` runs, and the row shows a small
+scrolling band while it works), and the trash, which opens the same gate
+`unregister` puts up - what is lost, spelled out, and the exact name typed
+back - then removes it through the same engine. Below the list, **Refresh**.
+Nothing here exists only in the window: it is a keystroke-free way in, not a
+second engine.
 
 ---
 

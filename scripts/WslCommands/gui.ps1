@@ -113,11 +113,41 @@ Add-Type -AssemblyName WindowsBase
                     <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding Name}"/>
                     <GridViewColumn Header="Status" Width="100" DisplayMemberBinding="{Binding Status}"/>
                     <GridViewColumn Header="Size" Width="110" DisplayMemberBinding="{Binding Size}"/>
-                    <GridViewColumn Header="" Width="64">
+                    <GridViewColumn Header="" Width="94">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
-                                <Grid Width="60" Height="22">
+                                <Grid Width="90" Height="22">
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <!-- Start or Stop - whichever the state allows: each
+                                             hides itself on the row's Status. -->
+                                        <Button Name="BtnRowStart" Content="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
+                                                Foreground="#5A9FD4" BorderBrush="Transparent"
+                                                ToolTip="Start this instance">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Running">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
+                                        <Button Name="BtnRowStop" Content="&#xE71A;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                                Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
+                                                Foreground="#C05050" BorderBrush="Transparent"
+                                                ToolTip="Stop this instance">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Stopped">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Button Name="BtnRowCompact" Content="&#xE7A7;" FontFamily="Segoe MDL2 Assets" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#6FBF6F" BorderBrush="Transparent"
@@ -143,14 +173,10 @@ Add-Type -AssemblyName WindowsBase
                      IsIndeterminate="True" Visibility="Collapsed"
                      Foreground="#4EC9B0" Background="#2D2D30" BorderThickness="0"/>
 
-        <!-- Actions -->
+        <!-- Actions: the verbs live on the rows; only the refresh stays. -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Name="BtnRefresh" Content="Refresh" Width="80" Height="28" Margin="0,0,8,0"
+            <Button Name="BtnRefresh" Content="Refresh" Width="80" Height="28"
                     Background="#333337" Foreground="#F1F1F1" BorderBrush="#555555"/>
-            <Button Name="BtnStart" Content="Start" Width="80" Height="28" Margin="0,0,8,0"
-                    Background="#0E639C" Foreground="#FFFFFF" BorderBrush="#1177BB" IsEnabled="False"/>
-            <Button Name="BtnStop" Content="Stop" Width="80" Height="28"
-                    Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F" IsEnabled="False"/>
         </StackPanel>
 
         <!-- Status line -->
@@ -168,8 +194,6 @@ $txtRoot      = $window.FindName("TxtRoot")
 $txtStatus    = $window.FindName("TxtStatus")
 $prgWork      = $window.FindName("PrgWork")
 $btnRefresh   = $window.FindName("BtnRefresh")
-$btnStart     = $window.FindName("BtnStart")
-$btnStop      = $window.FindName("BtnStop")
 
 $txtRoot.Text = "Root: $($Manager.InstancesRoot)"
 
@@ -181,26 +205,11 @@ $SetBusyState = {
     $btnRefresh.IsEnabled = -not $busy
     $lstInstances.IsEnabled = -not $busy
 
-    if ($busy) {
-        $btnStart.IsEnabled   = $false
-        $btnStop.IsEnabled    = $false
-    } else {
-        # The buttons follow the selection
-        $selected = $lstInstances.SelectedItem
-        if ($selected) {
-            $isRunning = ($selected.Status -eq "Running")
-            $btnStart.IsEnabled   = -not $isRunning
-            $btnStop.IsEnabled    = $isRunning
-        }
-    }
-
     if ($statusMessage) { $txtStatus.Text = $statusMessage }
 }
 
 $LoadFleet = {
     $lstInstances.Items.Clear()
-    $btnStart.IsEnabled   = $false
-    $btnStop.IsEnabled    = $false
 
     try {
         # The manager's own list - the same the console doors show.
@@ -259,6 +268,14 @@ try {
         Write-Stamp "compacting"
         $r = $mgr.Shrink($inst)
         Write-Stamp ("RESULT OK " + $Name + ": compacted - reclaimed " + [math]::Round($r.Freed / 1MB, 1) + " MB")
+    } elseif ($Verb -eq "start") {
+        Write-Stamp "starting"
+        $inst.Start()
+        Write-Stamp ("RESULT OK " + $Name + ": started")
+    } elseif ($Verb -eq "stop") {
+        Write-Stamp "stopping"
+        $inst.Stop()
+        Write-Stamp ("RESULT OK " + $Name + ": stopped")
     } else {
         Write-Stamp "removing"
         $r = $mgr.Unregister($inst, [bool]::Parse($ArchiveFirst))
@@ -337,20 +354,6 @@ $MarkRow = {
         $Button.Parent.Parent.Children[1].Visibility = [System.Windows.Visibility]::Visible
     } catch { }
 }
-
-# Selection
-$lstInstances.Add_SelectionChanged({
-    $selected = $lstInstances.SelectedItem
-    if ($null -eq $selected) {
-        $btnStart.IsEnabled   = $false
-        $btnStop.IsEnabled    = $false
-        return
-    }
-
-    $isRunning = ($selected.Status -eq "Running")
-    $btnStart.IsEnabled   = -not $isRunning
-    $btnStop.IsEnabled    = $isRunning
-})
 
 # The watcher first: a click here drains whatever the timer has not - if the
 # tick ever fails to fire, Refresh still ends the job and reports it.
@@ -459,10 +462,41 @@ function Show-RemoveGate {
     return $script:GateResult
 }
 
+# The launch every row gesture shares: the runner to the temp folder, the
+# trail cleared, the child out, the watcher on - the verb says what it does.
+$LaunchJob = {
+    param([string]$Verb, [string]$Name, [string]$ArchiveFirst)
+
+    $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
+    Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
+    Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
+
+    # The paths travel quoted - an array of arguments is joined blindly, and a
+    # folder with a space would split it.
+    $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
+        $Verb, $Name, $ArchiveFirst, "`"$ModulePath`""
+    )
+    $script:JobVerb = $Verb
+    $script:JobName = $Name
+
+    try {
+        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+        $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
+        $script:Poller.Add_Tick($WatchJob)
+        $script:Poller.Start()
+    } catch {
+        $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
+        & $SetBusyState $false $null
+    }
+}
+
 # The row icons bubble their clicks to the list, and the OriginalSource is the
 # button: its DataContext is the row it sits on, and its Name says which
-# gesture was asked - compact or remove. Both end the same way: a child
-# process, the trail, the shared watcher.
+# gesture was asked. Every gesture ends the same way: the row goes quiet, the
+# window locks, and a child process does the work - remove asks its gate
+# first, and only then.
 $RowAction = [System.Windows.RoutedEventHandler]{
     param($sender, $e)
     $button = $e.OriginalSource
@@ -471,35 +505,22 @@ $RowAction = [System.Windows.RoutedEventHandler]{
 
     $inst = $row.Instance
 
-    if ($button.Name -eq "BtnRowCompact") {
-        # Compact: no question - the engine's job, and the same child as the
-        # trash's removal.
+    if ($button.Name -eq "BtnRowStart") {
         & $MarkRow $button
-        & $SetBusyState $true "Compacting '$($inst.Name)'... [1/4]"
-        $txtStatus.Text = "Compacting '$($inst.Name)'... [2/4 job built]"
-
-        $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
-        $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
-        Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
-        Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
-        $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
-            "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
-            "compact", $inst.Name, "False", "`"$ModulePath`""
-        )
-        $script:JobVerb = "compact"
-        $script:JobName = $inst.Name
-        $txtStatus.Text = "Compacting '$($inst.Name)'... [3/4 launched]"
-
-        try {
-            $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
-            $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
-            $script:Poller.Add_Tick($WatchJob)
-            $script:Poller.Start()
-            $txtStatus.Text = "Compacting '$($inst.Name)'... [4/4 watching]"
-        } catch {
-            $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
-            & $SetBusyState $false $null
-        }
+        & $SetBusyState $true "Starting '$($inst.Name)'..."
+        & $LaunchJob "start" $inst.Name "False"
+        return
+    }
+    if ($button.Name -eq "BtnRowStop") {
+        & $MarkRow $button
+        & $SetBusyState $true "Stopping '$($inst.Name)'..."
+        & $LaunchJob "stop" $inst.Name "False"
+        return
+    }
+    if ($button.Name -eq "BtnRowCompact") {
+        & $MarkRow $button
+        & $SetBusyState $true "Compacting '$($inst.Name)'..."
+        & $LaunchJob "compact" $inst.Name "False"
         return
     }
 
@@ -509,60 +530,10 @@ $RowAction = [System.Windows.RoutedEventHandler]{
     if ($null -eq $confirm) { return }
 
     & $MarkRow $button
-    # Breadcrumbs: the status line paints even when this thread blocks right
-    # after, so the text still on screen names the step where it stopped.
-    & $SetBusyState $true "Removing '$($inst.Name)'... [1/5]"
-    $txtStatus.Text = "Removing '$($inst.Name)'... [2/5 row marked]"
-
-    # The child process: the runner source to the temp folder, one trail
-    # cleared, and the launch. The paths travel quoted - an array of arguments
-    # is joined blindly, and a folder with a space would split it.
-    $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
-    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
-    Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
-    Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
-    $txtStatus.Text = "Removing '$($inst.Name)'... [3/5 job built]"
-    $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
-        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
-        "remove", $inst.Name, "$([bool]$confirm.ArchiveFirst)", "`"$ModulePath`""
-    )
-    $script:JobVerb = "remove"
-    $script:JobName = $inst.Name
-    $txtStatus.Text = "Removing '$($inst.Name)'... [4/5 launched]"
-
-    # The window's shared watcher polls, on its own thread, where painting
-    # happens. If watching cannot even start, that speaks too - the console is
-    # held by the window, and silence is a band that scrolls forever.
-    try {
-        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
-        $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
-        $script:Poller.Add_Tick($WatchJob)
-        $script:Poller.Start()
-        $txtStatus.Text = "Removing '$($inst.Name)'... [5/5 watching]"
-    } catch {
-        $txtStatus.Text = "Could not start watching the job: $($_.Exception.Message)"
-        & $SetBusyState $false $null
-    }
+    & $SetBusyState $true "Removing '$($inst.Name)'..."
+    & $LaunchJob "remove" $inst.Name "$([bool]$confirm.ArchiveFirst)"
 }
 $lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RowAction)
-
-# Start the selected one
-$btnStart.Add_Click({
-    $selected = $lstInstances.SelectedItem
-    if (-not $selected) { return }
-
-    $selected.Instance.Start()
-    & $LoadFleet
-})
-
-# Stop the selected one
-$btnStop.Add_Click({
-    $selected = $lstInstances.SelectedItem
-    if (-not $selected) { return }
-
-    $selected.Instance.Stop()
-    & $LoadFleet
-})
 
 $window.Add_ContentRendered({ & $LoadFleet })
 $null = $window.ShowDialog()
