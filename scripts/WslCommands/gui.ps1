@@ -262,47 +262,62 @@ $btnCompact.Add_Click({
     if (-not $selected) { return }
 
     # 1. Lock the window, show the bar
-    & $SetBusyState $true "Compacting '$($selected.Name)' in background (this may take a few minutes)..."
+    & $SetBusyState $true "Compacting '$($selected.Name)' (this may take a few minutes)..."
 
-    # 2. The work goes to a background thread - and everything it may touch
-    # travels in one box, bound as a parameter: read by name, the block would
-    # find the click handler's scope long gone and come up empty (the same
-    # disease the entry's gesture was cured of, measured).
-    $Box = @{
-        Manager  = $Manager
-        Instance = $selected.Instance
-        Name     = $selected.Name
-        Window   = $window
-        BusyOff  = $SetBusyState
-        Reload   = $LoadFleet
-    }
-    [System.Threading.Tasks.Task]::Run([Action[object]]{
-        param($Box)
+    # 2. The work goes to a runspace of its own, and everything is made THERE:
+    # a PowerShell block cannot run on a plain pool thread ("There is no
+    # Runspace available to run scripts in this thread", measured), and an
+    # object born elsewhere keeps its own runspace's rules - its method
+    # internals do not resolve (measured: "Get-DistroNames is not
+    # recognized"). So the job imports the module and finds the instance by
+    # name in its own list. The handle lives in the script scope: the click
+    # handler is gone by the time the timer below fires.
+    $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+    $script:Job = [powershell]::Create().
+        AddScript({
+            param($Module, $Name)
+            Import-Module $Module -Force
+            $mgr = New-Object -TypeName WslInstanceManager -ArgumentList ([WslInstanceManager]::Root())
+            $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
+            if (-not $inst) { throw "'$Name' is not in our list any more." }
+            $mgr.Shrink($inst)
+        }).
+        AddArgument($ModulePath).
+        AddArgument($selected.Name)
+    $script:JobName = $selected.Name
+    $script:JobHandle = $script:Job.BeginInvoke()
 
-        $errorMessage = $null
+    # 3. The window polls, on its own thread, where painting happens: the bar
+    # keeps scrolling and the window stays alive while the disk works. Whatever
+    # happened, this reports - a failure that cannot speak is a window that
+    # scrolls forever.
+    $Poll = {
+        if (-not $script:JobHandle.IsCompleted) { return }
+        $script:Poller.Stop()
+
+        $failure = $null
         $result = $null
         try {
-            # The engine's job: stop, compact, restart when it was running
-            $result = $Box.Manager.Shrink($Box.Instance)
+            $result = @($script:Job.EndInvoke($script:JobHandle))[-1]
         } catch {
-            $errorMessage = $_.Exception.Message
+            $failure = $_.Exception.Message
+        }
+        $script:Job.Dispose()
+
+        if ($failure) {
+            $txtStatus.Text = "Failed to compact '$($script:JobName)': $failure"
+        } else {
+            $freedMb = [math]::Round($result.Freed / 1MB, 1)
+            $txtStatus.Text = "Compacted '$($script:JobName)'. Reclaimed: $freedMb MB."
         }
 
-        # 3. Back to the UI thread to talk to the window - through the box too.
-        # Whatever happened, this reports: a failure that cannot speak is a
-        # window that scrolls its bar forever.
-        $Box.Window.Dispatcher.Invoke([Action]{
-            if ($errorMessage) {
-                $Box.Window.FindName("TxtStatus").Text = "Failed to compact '$($Box.Name)': $errorMessage"
-            } else {
-                $freedMb = [math]::Round($result.Freed / 1MB, 1)
-                $Box.Window.FindName("TxtStatus").Text = "Compacted '$($Box.Name)'. Reclaimed: $freedMb MB."
-            }
-
-            & $Box.BusyOff $false $null
-            & $Box.Reload
-        })
-    }, $Box)
+        & $SetBusyState $false $null
+        & $LoadFleet
+    }
+    $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+    $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
+    $script:Poller.Add_Tick($Poll)
+    $script:Poller.Start()
 })
 
 # Start the selected one
