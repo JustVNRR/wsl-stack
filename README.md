@@ -288,7 +288,8 @@ the repository at runtime.
 │   ├── WslStack/            # The module: one nested file per family - the
 │                            #   messages, the instances' family, the pack
 │                            #   moves, the questions and the menus
-│   ├── instance.ps1         # What they share: the marker, the look, Docker Desktop
+│   ├── instance.ps1         # The one loader, once per run: the module, the
+│                            #   classes, the menus
 │   ├── WslUI.ps1            # The menu's classes: the rows, the console, the
 │                            #   ask
 │   ├── WslCommands/         # The commands themselves, one file per word: the

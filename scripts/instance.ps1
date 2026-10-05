@@ -6,9 +6,18 @@
 # then the classes for the scripts themselves, then the menus library
 # (WslUI.ps1) - the last one that is not a module family yet.
 #
+# Once per run: a run reaches this file twice - the entry loads it, then the
+# command the entry runs loads it again - and the marker the first call leaves
+# in the caller's scope says the work is done: the command (and the command's
+# children) read it down the scope chain. The marker dies with the run, so the
+# next run reads the disk again - a terminal can outlive a pull.
+#
 # Same rule when a piece is missing: say so, rather than die with a PowerShell
 # error that reads like the machine's fault.
 # ==============================================================================
+
+# Second call in the same run: everything below is already loaded.
+if ($WslStackLoaded) { return }
 
 # ---------------------------------------------------------------------------
 # THE MODULE
@@ -58,3 +67,6 @@ if (-not (Test-Path $MenuLib)) {
     exit 1
 }
 . $MenuLib
+
+# The run's marker, for the second call - the command - and its children.
+$WslStackLoaded = $true

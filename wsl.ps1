@@ -25,9 +25,9 @@ param (
 # scripts\instance.ps1 is not a command: it holds what the other scripts share,
 # and is not listed here.
 #
-# What this file loads, it loads once: the shared half (scripts\instance.ps1),
-# and THE manager - the engine every command calls. The manager is made here
-# and handed to the command; a command run on its own makes its own.
+# The shared half arrives through scripts\instance.ps1 - the one loader, once
+# per run - and THE manager is made here: the engine every command calls,
+# handed to the command; a command run on its own makes its own.
 #
 # The list is asked through scripts\WslUI.ps1: one WslMenuItem per row of the
 # chain below - the word, the line, the gesture - and the trio answers both
@@ -40,27 +40,15 @@ $Scripts = Join-Path $PSScriptRoot "scripts"
 # menu rows and the command line both end at.
 $CommandFiles = Join-Path $Scripts "WslCommands"
 
-# What a line says and the colour it takes. A command's own file loads the
-# module through scripts\instance.ps1, but the lines below are this file's -
-# the ones it prints when there is no command to run. The guard prints
-# uncoloured: the table it would ask is the module that is missing.
-$StackModule = Join-Path $Scripts "WslStack\WslStack.psd1"
-if (-not (Test-Path $StackModule)) {
-    Write-Host ""
-    Write-Host "[ABORT] scripts\WslStack\WslStack.psd1 is missing - the scripts\ folder is incomplete."
-    exit 1
-}
-Import-Module $StackModule -Force
-
-# The shared half - the classes, the menus, the packs, the marker - read once,
-# here: the manager just under is built on it, the command dispatched at the
-# bottom loads it anyway, and the trio the list is asked with comes from it
-# too (scripts\WslUI.ps1). Asking is that trio's job now, and it must not be
-# written a second time here.
+# The way in: scripts\instance.ps1, the one loader - the module (the words,
+# and the colour the lines below take), the classes, the menus; each guarded
+# there. It is loaded once per run: the command dispatched at the bottom
+# loads it again and finds the run's marker set. The guard here prints
+# uncoloured - nothing is loaded yet, not even the words.
 $InstanceLib = Join-Path $Scripts "instance.ps1"
 if (-not (Test-Path $InstanceLib)) {
     Write-Host ""
-    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    Write-Host "[ABORT] scripts\instance.ps1 is missing - the scripts\ folder is incomplete."
     exit 1
 }
 . $InstanceLib
