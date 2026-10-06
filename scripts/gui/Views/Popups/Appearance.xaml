@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Appearance" Width="600" SizeToContent="Height" MaxHeight="760"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"
         FontFamily="Segoe UI" FontSize="13">
     <Grid Margin="18">
         <Grid.ColumnDefinitions>
@@ -15,12 +15,12 @@
         </Grid.RowDefinitions>
         <StackPanel Grid.Column="0">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Name="TxtNoFragment" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#D7BA7D" Visibility="Collapsed"
+        <TextBlock Name="TxtNoFragment" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppWarningBrush}" Visibility="Collapsed"
                    Text="This instance has no Terminal profile of ours - nothing changed here would show."/>
         <TextBlock Margin="0,12,0,0" Text="Icon text:"/>
         <TextBox Name="TxtIconText" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left"
-                 Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtIconError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"/>
+                 Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+        <TextBlock Name="TxtIconError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
         </StackPanel>
         <Image Name="ImgIconPreview" Grid.Column="1" Width="64" Height="64" VerticalAlignment="Top" Margin="14,0,0,0"
                RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -33,19 +33,19 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Name="TxtIconPath" Grid.Column="0" FontSize="11" Foreground="#2F9E55"
+            <TextBlock Name="TxtIconPath" Grid.Column="0" FontSize="11" Foreground="{DynamicResource AppMutedBrush}"
                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <Button Name="BtnImage" Grid.Column="1" Content="Upload" Width="90" Height="28"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
+                    Background="{DynamicResource AppFaceBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"/>
         </Grid>
         <TextBlock Margin="0,14,0,0" Text="Font:"/>
         <ComboBox Name="LstFonts" Margin="0,6,0,0"/>
-        <TextBlock Margin="0,4,0,0" Foreground="#2F9E55" Text="Get more Nerd Fonts at https://www.nerdfonts.com"/>
+        <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource AppMutedBrush}" Text="Get more Nerd Fonts at https://www.nerdfonts.com"/>
         <TextBlock Margin="0,14,0,0" Text="Colour scheme:"/>
         <ComboBox Name="LstSchemes" Margin="0,6,0,0"/>
         <TextBlock Margin="0,14,0,0" Text="Preview:"/>
         <Border Name="BrdPreview" Margin="0,6,0,0" Padding="8,6" CornerRadius="3"
-                Background="#0C0C0C" BorderBrush="#3F3F46" BorderThickness="1">
+                Background="#0C0C0C" BorderBrush="{DynamicResource AppDividerBrush}" BorderThickness="1">
             <StackPanel>
                 <!-- A real session, colours and all: the prompt this house's
                      zsh draws (zsh/prompts/starship.toml) - directory in bold
@@ -57,15 +57,15 @@
                      its colour from - the named colours the tools use ARE the
                      terminal palette - and the form repaints them with the
                      chosen scheme's own. -->
-                <TextBlock Name="TxtPreview1" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview1" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="c3" Text="[~/projects]" FontWeight="Bold"/>
                 </TextBlock>
-                <TextBlock Name="TxtPreview2" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview2" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="c5" Text="&#xF126; main " FontWeight="Bold"/>
                     <Run Tag="c2" Text="&#x276F; " FontWeight="Bold"/>
                     <Run Tag="fg" Text="ls"/>
                 </TextBlock>
-                <TextBlock Name="TxtPreview3" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview3" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="c2" Text="drwxr-xr-x"/>
                     <Run Tag="fg" Text="  -  "/>
                     <Run Tag="c3" Text="underfit"/>
@@ -74,7 +74,7 @@
                     <Run Tag="fg" Text="  "/>
                     <Run Tag="c4" Text="&#xF07B; .config"/>
                 </TextBlock>
-                <TextBlock Name="TxtPreview4" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview4" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="fg" Text="-rw-r--r-- "/>
                     <Run Tag="c2" Text="165 "/>
                     <Run Tag="c3" Text="underfit"/>
@@ -82,10 +82,10 @@
                     <Run Tag="c4" Text="2 Oct 18:52"/>
                     <Run Tag="fg" Text="  &#xF15B; .wget-hsts"/>
                 </TextBlock>
-                <TextBlock Name="TxtPreview5" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview5" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="c3" Text="[~/projects]" FontWeight="Bold"/>
                 </TextBlock>
-                <TextBlock Name="TxtPreview6" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
+                <TextBlock Name="TxtPreview6" FontFamily="Consolas" FontSize="13" Foreground="{DynamicResource AppForegroundBrush}">
                     <Run Tag="c5" Text="&#xF126; main " FontWeight="Bold"/>
                     <Run Tag="c2" Text="&#x276F; " FontWeight="Bold"/>
                     <Run Tag="fg" Text="_"/>
@@ -95,9 +95,9 @@
         </Border>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnLookCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
+                    Background="{DynamicResource AppFaceBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"/>
             <Button Name="BtnLookApply" Content="APPLY" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
+                    Background="{DynamicResource AppForegroundBrush}" Foreground="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource AppForegroundBrush}"/>
         </StackPanel>
         </StackPanel>
     </Grid>

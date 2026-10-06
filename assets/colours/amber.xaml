@@ -1,0 +1,55 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- The amber theme - a warm CRT monochrome, in its two versions.
+         Every key replaces the same key of theme.xaml when this theme is
+         chosen or its version switched; a key left out keeps the default's.
+         The reds stay put on purpose - they mean "destructive" whatever
+         the phosphor. -->
+    <ResourceDictionary x:Key="Dark">
+        <SolidColorBrush x:Key="AppForegroundBrush" Color="#FFB000"/>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1F1A10"/>
+        <SolidColorBrush x:Key="AppFrameBrush" Color="#8F6218"/>
+        <Color x:Key="AppGlowColor">#FFB000</Color>
+        <SolidColorBrush x:Key="AppSurfaceBrush" Color="#282114"/>
+        <SolidColorBrush x:Key="AppInputBackgroundBrush" Color="#2C2517"/>
+        <SolidColorBrush x:Key="AppFaceBrush" Color="#3A3020"/>
+        <SolidColorBrush x:Key="AppStripeBrush" Color="#2E2718"/>
+        <SolidColorBrush x:Key="AppMutedBrush" Color="#A87B2F"/>
+        <SolidColorBrush x:Key="AppBorderBrush" Color="#5A5140"/>
+        <SolidColorBrush x:Key="AppDividerBrush" Color="#453D2C"/>
+        <SolidColorBrush x:Key="AppSelectionBrush" Color="#533C14"/>
+        <SolidColorBrush x:Key="AppSelectionInkBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="AppNewsBrush" Color="#C89B3C"/>
+        <SolidColorBrush x:Key="AppWarningBrush" Color="#D7BA7D"/>
+        <SolidColorBrush x:Key="AppDangerBrush" Color="#E04040"/>
+        <SolidColorBrush x:Key="AppSoftDangerBrush" Color="#C05050"/>
+        <SolidColorBrush x:Key="AppDeleteBrush" Color="#A1260D"/>
+        <SolidColorBrush x:Key="AppDeleteBorderBrush" Color="#BB2D0F"/>
+        <SolidColorBrush x:Key="AppDeleteInkBrush" Color="#FFFFFF"/>
+    </ResourceDictionary>
+
+    <!-- The light version: amber ink on warm cream - an old paper print. -->
+    <ResourceDictionary x:Key="Light">
+        <SolidColorBrush x:Key="AppForegroundBrush" Color="#744802"/>
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F5EFE0"/>
+        <SolidColorBrush x:Key="AppFrameBrush" Color="#B8862E"/>
+        <Color x:Key="AppGlowColor">#744802</Color>
+        <SolidColorBrush x:Key="AppSurfaceBrush" Color="#EDE6D1"/>
+        <SolidColorBrush x:Key="AppInputBackgroundBrush" Color="#FFFDF8"/>
+        <SolidColorBrush x:Key="AppFaceBrush" Color="#E9DFC6"/>
+        <SolidColorBrush x:Key="AppStripeBrush" Color="#E5DBC1"/>
+        <SolidColorBrush x:Key="AppMutedBrush" Color="#7C6230"/>
+        <SolidColorBrush x:Key="AppBorderBrush" Color="#C0B193"/>
+        <SolidColorBrush x:Key="AppDividerBrush" Color="#D6C9A8"/>
+        <SolidColorBrush x:Key="AppSelectionBrush" Color="#EFD9A6"/>
+        <SolidColorBrush x:Key="AppSelectionInkBrush" Color="#4A3200"/>
+        <SolidColorBrush x:Key="AppNewsBrush" Color="#57651B"/>
+        <SolidColorBrush x:Key="AppWarningBrush" Color="#7A5A1A"/>
+        <SolidColorBrush x:Key="AppDangerBrush" Color="#C22F2F"/>
+        <SolidColorBrush x:Key="AppSoftDangerBrush" Color="#B04A4A"/>
+        <SolidColorBrush x:Key="AppDeleteBrush" Color="#A1260D"/>
+        <SolidColorBrush x:Key="AppDeleteBorderBrush" Color="#BB2D0F"/>
+        <SolidColorBrush x:Key="AppDeleteInkBrush" Color="#FFFFFF"/>
+    </ResourceDictionary>
+</ResourceDictionary>

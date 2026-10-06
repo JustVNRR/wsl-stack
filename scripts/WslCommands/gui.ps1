@@ -54,9 +54,22 @@ $prgWork      = $window.FindName("PrgWork")
 $btnRefresh   = $window.FindName("BtnRefresh")
 $btnAdd       = $window.FindName("BtnAdd")
 $btnSettings  = $window.FindName("BtnSettings")
+$btnTheme     = $window.FindName("BtnTheme")
 $btnQuit      = $window.FindName("BtnQuit")
 
 $txtRoot.Text = "Root: $($Manager.InstancesRoot)"
+
+# The sun and the moon: the theme's other version. The button has nothing
+# to switch when the theme is a one-version file - it stands disabled -
+# and its icon shows what a click brings: a sun while dark, a moon while
+# light.
+$UpdateThemeButton = {
+    $btnTheme.IsEnabled = [bool](Test-GuiThemeHasLight -AssetsDir $AssetsDir -Name $GuiSettings.ColourSet)
+    $light = ($GuiSettings.ColourVariant -eq "Light")
+    $icon = if ($light) { 0xF186 } else { 0xF185 }
+    $btnTheme.Content = [string][char]$icon
+    $btnTheme.ToolTip = if ($light) { "Switch to dark" } else { "Switch to light" }
+}
 
 # The watcher first: a click here drains whatever the timer has not - if the
 # tick ever fails to fire, Refresh still ends the job and reports it.
@@ -72,9 +85,9 @@ $window.Dispatcher.Add_UnhandledException({
     & $SetStatus "A drawing failed: $($e.Exception.Message)" -Alert
 })
 
-# Settings: the gui's own face - the family and its size today, the colours
-# in their own lot. Applied on the spot to this window; the popups follow on
-# their next open, which is where their dresser reads the face from.
+# Settings: the gui's own face - the family, its size, the colour set.
+# Applied on the spot to this window; the popups follow on their next
+# open, which is where their dresser reads the face from.
 $btnSettings.Add_Click({
     # The family really worn, not the saved name - which can be stale (a
     # font since deleted) - so the select stands on the truth; with nothing
@@ -84,7 +97,7 @@ $btnSettings.Add_Click({
         $worn = "$($GuiFonts.UiFont.FamilyNames.Values | Select-Object -First 1)"
         if (-not $worn) { $worn = "$($GuiFonts.UiFont.Source)" -replace '^\./#', '' }
     }
-    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize
+    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize -CurrentColourSet $GuiSettings.ColourSet
     if ($null -eq $look) { return }
     # A folder face's file must be on disk right now - the filesystem is the
     # truth. NOT a rendered glyph: rendering resolves the family NAME through
@@ -100,14 +113,33 @@ $btnSettings.Add_Click({
     }
     $GuiSettings.FontFamily = $look.Name
     $GuiSettings.FontSize = $look.Size
+    $GuiSettings.ColourSet = $look.ColourSet
     Save-GuiSettings $GuiSettings
     $GuiFonts.UiFont = $look.Family
     $GuiFonts.UiSize = $look.Size
+    # The colour set: the window's copy of the chart is swapped for a
+    # fresh one wearing it - every reference is dynamic, so the window
+    # repaints itself on the spot.
+    $window.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
+    & $UpdateThemeButton
     Set-WindowPhosphorFrame -Win $window -UiFont $look.Family -UiFontSize $look.Size
     # The columns re-measure under the new face, and the fitted width follows
     # the zoom - then the face speaks, after the reload's own count line.
     & $LoadFleet
-    & $SetStatus "Window face: '$($look.Name)' at $($look.Size) pt. Popups follow on their next open."
+    $setName = if ($look.ColourSet) { $look.ColourSet } else { "default" }
+    & $SetStatus "Window face: '$($look.Name)' at $($look.Size) pt, theme '$setName'. Popups follow on their next open."
+})
+
+# The same theme's other version, on the spot: the chart's copy is swapped
+# like the settings window does, and the choice is kept (the machine's
+# taste). Nothing else moves - the colours ride on no measurement.
+$btnTheme.Add_Click({
+    $GuiSettings.ColourVariant = if ($GuiSettings.ColourVariant -eq "Light") { "Dark" } else { "Light" }
+    Save-GuiSettings $GuiSettings
+    $window.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
+    & $UpdateThemeButton
+    $worn = if ($GuiSettings.ColourVariant -eq "Light") { "light" } else { "dark" }
+    & $SetStatus "The window wears '$($GuiSettings.ColourSet)', $worn version."
 })
 
 # Add: the form first, then the run in a console window of its own - the real
@@ -171,6 +203,9 @@ $window.Add_PreviewKeyDown({
         $window.Close()
     }
 })
+
+# The theme button stands tuned before the window opens.
+& $UpdateThemeButton
 
 # The fleet is read BEFORE the window opens - not on ContentRendered any
 # more: the window now measures itself to its content, and rows arriving

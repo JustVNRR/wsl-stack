@@ -1,6 +1,8 @@
 # The window's files, where they live now: every .xaml under scripts/gui must
-# be well-formed XML, the theme's every StaticResource must name a key the
-# theme itself defines, and the three runners must parse and keep calling the
+# be well-formed XML, every resource reference - in the theme and in the
+# windows - must name a key the theme itself defines (or one the code sets),
+# the colour sets under assets\colours must be well-formed and tell only keys
+# the theme knows, and the three runners must parse and keep calling the
 # engine's ways. Before the split this markup lived inside gui.ps1 and rode
 # along in parse-check; on disk, nothing else in the repository reads it.
 #
@@ -23,18 +25,37 @@ foreach ($f in $xamlFiles) {
 Write-Host "$($xamlFiles.Count) .xaml file(s) read from scripts/gui."
 
 # 2. The theme's own bookkeeping: every reference points at a key it defines.
+$keys = @()
 $themePath = Join-Path $GuiRoot "Theme\theme.xaml"
 if (Test-Path $themePath) {
     $theme = [IO.File]::ReadAllText($themePath)
     $keys = @([regex]::Matches($theme, 'x:Key="([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
-    $refs = @([regex]::Matches($theme, '\{StaticResource ([A-Za-z][A-Za-z0-9]*)\}') | ForEach-Object { $_.Groups[1].Value })
+    $refs = @([regex]::Matches($theme, '\{(?:Static|Dynamic)Resource ([A-Za-z][A-Za-z0-9]*)\}') | ForEach-Object { $_.Groups[1].Value })
     $missing = @($refs | Where-Object { $_ -notin $keys })
     if ($missing.Count -gt 0) {
-        Write-Host "::error file=$themePath::StaticResource names a key the theme does not define"
+        Write-Host "::error file=$themePath::a resource reference names a key the theme does not define"
         Write-Host "  missing: $($missing -join ', ')"
         $bad = 1
     }
     Write-Host "theme: $($keys.Count) key(s), $($refs.Count) reference(s)."
+
+    # 2b. And the windows resolve the same way: a key that is neither in the
+    # theme nor set by the code (IconFace, handed to the window by gui.ps1)
+    # fails SILENTLY - WPF falls back without a word.
+    $codeKeys = @("IconFace")
+    $viewRefs = @{}
+    foreach ($f in $xamlFiles) {
+        foreach ($m in [regex]::Matches([IO.File]::ReadAllText($f.FullName), '\{(?:Static|Dynamic)Resource ([A-Za-z][A-Za-z0-9]*)\}')) {
+            $viewRefs[$m.Groups[1].Value] = $true
+        }
+    }
+    $missingView = @($viewRefs.Keys | Where-Object { $_ -notin $keys -and $_ -notin $codeKeys })
+    if ($missingView.Count -gt 0) {
+        Write-Host "::error file=$GuiRoot\Views::a window references a key nothing defines"
+        Write-Host "  missing: $($missingView -join ', ')"
+        $bad = 1
+    }
+    Write-Host "views: $($viewRefs.Count) key(s) referenced."
 } else {
     Write-Host "::error file=$themePath::the theme is not there"
     $bad = 1
@@ -70,5 +91,29 @@ foreach ($pin in $pins) {
 }
 Write-Host "$($runners.Count) runner(s) read, $($pins.Count) call(s) pinned."
 
-Write-Host "gui: $($xamlFiles.Count + $runners.Count) file(s), $bad failure(s)."
+# 4. The colour sets: well-formed, and every key they tell - the Dark and
+#    Light block names excepted - exists in the theme. A misspelled one is
+#    ignored in silence and keeps the default, near impossible to notice
+#    by eye.
+$setsRoot = Join-Path $PSScriptRoot "..\assets\colours"
+$setFiles = if (Test-Path $setsRoot) { @(Get-ChildItem $setsRoot -Filter *.xaml) } else { @() }
+foreach ($f in $setFiles) {
+    try {
+        $null = [xml]([IO.File]::ReadAllText($f.FullName))
+    } catch {
+        Write-Host "::error file=$($f.FullName)::not well-formed XML"
+        $bad = 1
+        continue
+    }
+    $setKeys = @([regex]::Matches([IO.File]::ReadAllText($f.FullName), 'x:Key="([^"]+)"') | ForEach-Object { $_.Groups[1].Value })
+    $strange = @($setKeys | Where-Object { $_ -notin $keys -and $_ -notin @("Dark", "Light") })
+    if ($strange.Count -gt 0) {
+        Write-Host "::error file=$($f.FullName)::names a key the theme does not define"
+        Write-Host "  unknown: $($strange -join ', ')"
+        $bad = 1
+    }
+}
+Write-Host "$($setFiles.Count) colour set(s) read."
+
+Write-Host "gui: $($xamlFiles.Count + $runners.Count + $setFiles.Count) file(s), $bad failure(s)."
 exit $bad

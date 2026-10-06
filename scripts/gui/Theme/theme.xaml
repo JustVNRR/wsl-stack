@@ -9,29 +9,45 @@
     <!-- would override it on every control.                               -->
     <!-- ================================================================= -->
 
+    <!-- The values: one name per role, so a colour is changed here and the
+         whole gui follows - the windows, and the frame the code draws. A
+         colour set (assets\colours) re-sets any of them over a window's
+         fresh copy - see Get-ThemeDictionary - and every reference below
+         is a DynamicResource so it follows a value changed under it. -->
     <SolidColorBrush x:Key="AppForegroundBrush" Color="#33FF66"/>
     <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="AppFrameBrush" Color="#1F9E4C"/>
+    <Color x:Key="AppGlowColor">#33FF66</Color>
+    <SolidColorBrush x:Key="AppSurfaceBrush" Color="#252526"/>
     <SolidColorBrush x:Key="AppInputBackgroundBrush" Color="#2D2D30"/>
-    <SolidColorBrush x:Key="AppBorderBrush" Color="#555555"/>
-    <SolidColorBrush x:Key="AppDangerBrush" Color="#E04040"/>
     <SolidColorBrush x:Key="AppFaceBrush" Color="#333337"/>
     <SolidColorBrush x:Key="AppStripeBrush" Color="#2A2A2D"/>
-    <SolidColorBrush x:Key="AppArchivedBrush" Color="#2F9E55"/>
+    <SolidColorBrush x:Key="AppMutedBrush" Color="#2F9E55"/>
+    <SolidColorBrush x:Key="AppBorderBrush" Color="#555555"/>
     <SolidColorBrush x:Key="AppDividerBrush" Color="#3F3F46"/>
+    <SolidColorBrush x:Key="AppSelectionBrush" Color="#14532D"/>
+    <SolidColorBrush x:Key="AppSelectionInkBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="AppNewsBrush" Color="#3FAE5F"/>
+    <SolidColorBrush x:Key="AppWarningBrush" Color="#D7BA7D"/>
+    <SolidColorBrush x:Key="AppDangerBrush" Color="#E04040"/>
+    <SolidColorBrush x:Key="AppSoftDangerBrush" Color="#C05050"/>
+    <SolidColorBrush x:Key="AppDeleteBrush" Color="#A1260D"/>
+    <SolidColorBrush x:Key="AppDeleteBorderBrush" Color="#BB2D0F"/>
+    <SolidColorBrush x:Key="AppDeleteInkBrush" Color="#FFFFFF"/>
 
     <!-- No TextBlock style here: the list's cells take their colour by
          inheritance (the archived grey comes down from the row), and a
          blanket foreground would flatten it. -->
 
     <Style TargetType="CheckBox">
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="Cursor" Value="Hand"/>
     </Style>
 
     <Style TargetType="TextBox">
-        <Setter Property="Background" Value="{StaticResource AppInputBackgroundBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AppInputBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
         <Setter Property="Padding" Value="4"/>
     </Style>
 
@@ -41,9 +57,9 @@
          disabled dim the face instead of recolouring it, so an icon
          keeps its colour in every state. -->
     <Style TargetType="Button">
-        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
         <Setter Property="Padding" Value="10,4"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
@@ -63,7 +79,7 @@
                             <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource AppForegroundBrush}"/>
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{DynamicResource AppForegroundBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -76,7 +92,7 @@
          slightly lighter row, and the selection is the Start button's
          blue; the arrows walk the list, the colour follows. -->
     <Style TargetType="ListViewItem">
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <!-- No dotted focus frame around the last-clicked row: the
              selection's blue already says where we stand, and the frame
              read as a box drawn around the row. The row itself is no tab
@@ -100,12 +116,12 @@
                              wrong, and the stripes are what tells the
                              lines apart. -->
                         <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                            <Setter TargetName="Row" Property="Background" Value="{StaticResource AppStripeBrush}"/>
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource AppStripeBrush}"/>
                         </Trigger>
                         <!-- An archived row reads greyed - cold storage
                              next to the live ones. -->
                         <DataTrigger Binding="{Binding Status}" Value="Archived">
-                            <Setter Property="Foreground" Value="{StaticResource AppArchivedBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AppMutedBrush}"/>
                         </DataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -139,8 +155,8 @@
          notch at the right end, whatever colours the style sets. A thin
          dark line between the columns, and nothing else. -->
     <Style TargetType="GridViewColumnHeader">
-        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="Padding" Value="6,4"/>
         <!-- The cells take their alignment from the HEADER, not from the
              cell content: HorizontalContentAlignment is what a GridView
@@ -149,7 +165,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="GridViewColumnHeader">
-                    <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource AppDividerBrush}"
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource AppDividerBrush}"
                             BorderThickness="0,0,1,1" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
@@ -202,28 +218,28 @@
     <!-- The semantic buttons: cancel is the neutral face, apply wears the
          phosphor with the ink dark, delete the destructive red. -->
     <Style x:Key="BtnCancel" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderBrush}"/>
     </Style>
 
     <Style x:Key="BtnApply" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="{StaticResource AppForegroundBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource AppBackgroundBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppForegroundBrush}"/>
     </Style>
 
     <Style x:Key="BtnDelete" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-        <Setter Property="Background" Value="#A1260D"/>
-        <Setter Property="Foreground" Value="#FFFFFF"/>
-        <Setter Property="BorderBrush" Value="#BB2D0F"/>
+        <Setter Property="Background" Value="{DynamicResource AppDeleteBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppDeleteInkBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource AppDeleteBorderBrush}"/>
     </Style>
 
     <!-- The selects' dark skin: the default chrome is white on the dark
          windows, and the whole point of a select here is that the screen
          stays small. -->
     <Style TargetType="ComboBox">
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBox">
@@ -232,9 +248,9 @@
                                       IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border Background="{StaticResource AppInputBackgroundBrush}" BorderBrush="{StaticResource AppBorderBrush}" BorderThickness="1" CornerRadius="3">
+                                    <Border Background="{DynamicResource AppInputBackgroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1" CornerRadius="3">
                                         <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-                                              Data="M 0 0 L 4 4 L 8 0 Z" Fill="{StaticResource AppForegroundBrush}"/>
+                                              Data="M 0 0 L 4 4 L 8 0 Z" Fill="{DynamicResource AppForegroundBrush}"/>
                                     </Border>
                                 </ControlTemplate>
                             </ToggleButton.Template>
@@ -244,7 +260,7 @@
                                           ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
                         <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                            <Border Background="#252526" BorderBrush="{StaticResource AppBorderBrush}" BorderThickness="1"
+                            <Border Background="{DynamicResource AppSurfaceBrush}" BorderBrush="{DynamicResource AppBorderBrush}" BorderThickness="1"
                                     MinWidth="{TemplateBinding ActualWidth}" MaxHeight="240">
                                 <ScrollViewer>
                                     <StackPanel IsItemsHost="True"/>
@@ -258,7 +274,7 @@
     </Style>
 
     <Style TargetType="ComboBoxItem">
-        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="Padding" Value="6,3"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -268,11 +284,11 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Face" Property="Background" Value="{StaticResource AppInputBackgroundBrush}"/>
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource AppInputBackgroundBrush}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Face" Property="Background" Value="#14532D"/>
-                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                            <Setter TargetName="Face" Property="Background" Value="{DynamicResource AppSelectionBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource AppSelectionInkBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

@@ -202,6 +202,10 @@ the repository at runtime.
 │   └── unzip.zsh            # Interactive archive extraction handler
 ├── assets/
 │   ├── make-icon.ps1        # Draws an instance's icon from its name (standalone PowerShell)
+│   ├── colours/             # The window's themes, dark and light versions
+│   │   ├── phosphor.xaml    #   in one file each; the settings window lists
+│   │   ├── amber.xaml       #   them, the header's sun/moon switches version
+│   │   └── ice.xaml
 │   └── fonts/               # One folder per face (the settings window
 │       ├── VT323/           #   uploads into its own too): the manager
 │       │   ├── VT323-Regular.ttf  # window's face - retro terminal, OFL (see OFL.txt)

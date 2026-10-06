@@ -24,7 +24,9 @@ $SetBusyState = {
 $SetStatus = {
     param([string]$Message, [switch]$Alert)
 
-    $txtStatus.Foreground = if ($Alert) { "#E04040" } else { "#3FAE5F" }
+    # The two voices read the chart's own colours: a game that recolours
+    # the gui recolours the status line with it.
+    $txtStatus.Foreground = if ($Alert) { $window.FindResource("AppDangerBrush") } else { $window.FindResource("AppNewsBrush") }
     $txtStatus.Text = $Message
 }
 

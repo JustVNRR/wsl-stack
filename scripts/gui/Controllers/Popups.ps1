@@ -784,13 +784,13 @@ function Show-DuplicatePrompt {
 # -----------------------------------------------------------------------------
 # THE WINDOW'S OWN FACE - THE SETTINGS, WINDOW-SIDE
 # -----------------------------------------------------------------------------
-# The four the gui wears; two ride today (the font's family and size), the
-# colours come in their own lot. The values in use are the ones shown: the
-# family marked in the list, its size selected. An uploaded font file lands
-# in the repository's own font folder, beside VT323, and the family it
-# carries joins the list, selected - the icon's own manners, one seat over.
+# The three the gui wears: the family, its size and the colour set - all
+# shown as they stand, all applied together. The family in use is marked
+# in the list and its size selected. An uploaded font file lands in the
+# repository's own font folder, beside VT323, and the family it carries
+# joins the list, selected - the icon's own manners, one seat over.
 function Show-GuiSettings {
-    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize)
+    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize, [string]$CurrentColourSet)
 
     [xml]$settingsXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\GuiSettings.xaml"))
 
@@ -846,6 +846,22 @@ function Show-GuiSettings {
         $null = $lstSizes.Items.Add("$($sizes[$i])$here")
     }
     $lstSizes.SelectedIndex = $sizeIndex
+
+    # The themes: the little files under assets\colours - each carries its
+    # dark and light versions, and the header's sun/moon switches between
+    # them. A name the folder no longer holds is kept at the top, marked:
+    # the select never lies about what the windows wear.
+    $lstColours = $form.FindName("LstGuiColours")
+    $setNames = @(Get-GuiColourSets -AssetsDir $AssetsDir)
+    if (-not $CurrentColourSet -or $setNames -notcontains $CurrentColourSet) { $setNames = @($CurrentColourSet) + $setNames }
+    $setIndex = 0
+    for ($i = 0; $i -lt $setNames.Count; $i++) {
+        $label = if ($setNames[$i]) { $setNames[$i] } else { "Default" }
+        $here = if ($setNames[$i] -eq $CurrentColourSet) { "  (current)" } else { "" }
+        if ($setNames[$i] -eq $CurrentColourSet) { $setIndex = $i }
+        $null = $lstColours.Items.Add("$label$here")
+    }
+    $lstColours.SelectedIndex = $setIndex
 
     # The file dialog's Enter lands on the owner once it closes, and the
     # default button answers it - the popup closed applying the old choice
@@ -903,7 +919,8 @@ function Show-GuiSettings {
     $form.FindName("BtnGuiApply").Add_Click({
         $choice = $choiceRows[[Math]::Max(0, $lstFonts.SelectedIndex)]
         $size = $sizes[[Math]::Max(0, $lstSizes.SelectedIndex)]
-        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size }
+        $set = $setNames[[Math]::Max(0, $lstColours.SelectedIndex)]
+        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size; ColourSet = $set }
         $form.Close()
     })
 

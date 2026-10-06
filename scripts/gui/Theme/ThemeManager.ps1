@@ -55,7 +55,32 @@ function Get-GuiFontFolders {
 # every window gets its own copy.
 function Get-ThemeDictionary {
     $ThemePath = Join-Path $PSScriptRoot "theme.xaml"
-    [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
+    $dictionary = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
+
+    # The machine's chosen theme, over the fresh copy: every key it tells
+    # replaces the chart's own, the rest keeps the default (a theme may be
+    # partial). The two versions travel in one file - the chosen one is
+    # taken, and a file without blocks is a theme with a single version.
+    # The name is taken for its file name alone - a stale name (the file
+    # since deleted) leaves the defaults standing.
+    if ($script:GuiSettings -and $script:GuiSettings.ColourSet) {
+        $SetPath = Join-Path $script:AssetsDir ("colours\" + [IO.Path]::GetFileNameWithoutExtension($script:GuiSettings.ColourSet) + ".xaml")
+        if (Test-Path $SetPath) {
+            try {
+                $set = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($SetPath)))
+                foreach ($name in @($script:GuiSettings.ColourVariant, "Dark")) {
+                    if ($name -and $set.Contains($name) -and $set[$name] -is [System.Windows.ResourceDictionary]) {
+                        $set = $set[$name]
+                        break
+                    }
+                }
+                foreach ($key in @($set.Keys)) {
+                    if ($dictionary.Contains($key)) { $dictionary[$key] = $set[$key] }
+                }
+            } catch { }
+        }
+    }
+    return $dictionary
 }
 
 # The icon buttons ask for the face through a DynamicResource, and the
@@ -98,13 +123,16 @@ function Set-WindowPhosphorFrame {
         $content = $Win.Content
         $Win.Content = $null
         $border = New-Object System.Windows.Controls.Border
-        $border.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1F9E4C")
+        # The frame's three colours come off the window's own chart - one
+        # name each - so a game file recolours the frame like everything
+        # else.
+        $border.BorderBrush = $Win.FindResource("AppFrameBrush")
         $border.BorderThickness = [System.Windows.Thickness]::new(1)
         $border.CornerRadius = [System.Windows.CornerRadius]::new(6)
-        $border.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1E1E1E")
+        $border.Background = $Win.FindResource("AppBackgroundBrush")
         $border.Margin = [System.Windows.Thickness]::new(14)
         $effect = New-Object System.Windows.Media.Effects.DropShadowEffect
-        $effect.Color = [System.Windows.Media.Color]::FromRgb(0x33, 0xFF, 0x66)
+        $effect.Color = $Win.FindResource("AppGlowColor")
         $effect.BlurRadius = 10
         $effect.ShadowDepth = 0
         $effect.Opacity = 0.30
@@ -129,18 +157,21 @@ function Set-WindowPhosphorFrame {
     }
 }
 
-# THE GUI'S OWN SETTINGS - the window's face today, its colours next, saved
-# under LOCALAPPDATA (a machine's taste does not live in the repository; the
-# chart in theme.xaml stays the default). Missing file, missing keys or a
-# broken one: the shipped face stands.
+# THE GUI'S OWN SETTINGS - the window's face: the family, its size, the
+# theme and its version (dark or light); saved under LOCALAPPDATA (a
+# machine's taste does not live in the repository; the chart in
+# theme.xaml stays the default). Missing file, missing keys or a broken
+# one: the shipped face stands.
 function Get-GuiSettings {
-    $settings = [PSCustomObject]@{ FontFamily = "VT323"; FontSize = 15 }
+    $settings = [PSCustomObject]@{ FontFamily = "VT323"; FontSize = 15; ColourSet = "phosphor"; ColourVariant = "Dark" }
     $path = Join-Path $env:LOCALAPPDATA "wsl-stack\gui-settings.json"
     if (Test-Path $path) {
         try {
             $saved = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
             if ($saved.FontFamily) { $settings.FontFamily = "$($saved.FontFamily)" }
             if ($saved.FontSize) { $settings.FontSize = [int]$saved.FontSize }
+            if ($saved.ColourSet) { $settings.ColourSet = "$($saved.ColourSet)" }
+            if ($saved.ColourVariant) { $settings.ColourVariant = "$($saved.ColourVariant)" }
         } catch { }
     }
     return $settings
@@ -182,6 +213,34 @@ function Get-GuiFontChoices {
         } catch { }
     }
     return @($families | Sort-Object Name)
+}
+
+# The themes the window may wear: the little files under assets\colours,
+# by file name - each carries its dark and light versions. The chart in
+# theme.xaml is the fallback. One file dropped there is one more theme.
+function Get-GuiColourSets {
+    param([string]$AssetsDir)
+
+    $root = Join-Path $AssetsDir "colours"
+    if (-not (Test-Path $root)) { return @() }
+    return @(Get-ChildItem $root -File -Filter *.xaml | Sort-Object Name | ForEach-Object { $_.BaseName })
+}
+
+# Whether the theme's file carries a light version: the header's sun/moon
+# button has nothing to switch otherwise (a flat file is a theme with one
+# version). A missing or broken file: nothing to switch either.
+function Test-GuiThemeHasLight {
+    param([string]$AssetsDir, [string]$Name)
+
+    if (-not $Name) { return $false }
+    $path = Join-Path $AssetsDir ("colours\" + [IO.Path]::GetFileNameWithoutExtension($Name) + ".xaml")
+    if (-not (Test-Path $path)) { return $false }
+    try {
+        $theme = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($path)))
+        return ($theme.Contains("Light") -and $theme["Light"] -is [System.Windows.ResourceDictionary])
+    } catch {
+        return $false
+    }
 }
 
 # Widen a window to what its content asks - measured at the face it wears -
