@@ -101,7 +101,7 @@ $DressWindow = {
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WSL Stack Manager" Width="700" SizeToContent="Height" MaxHeight="760"
+        Title="WSL Stack Manager" Width="700" SizeToContent="Height"
         WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Foreground="#33FF66" Tag="framed"
         FontFamily="Segoe UI" FontSize="13">
@@ -802,10 +802,12 @@ $btnAdd.Add_Click({
     if (-not (Test-NativeCommand { docker info })) {
         # The system's own alert, not a window of ours: a sentence and one
         # button, with the keys every Windows alert answers to.
-        $null = [System.Windows.MessageBox]::Show($window,
-            "Please start Docker Desktop and try again.",
-            "Docker is not running",
-            [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        Show-PopupExclusive $window {
+            $null = [System.Windows.MessageBox]::Show($window,
+                "Please start Docker Desktop and try again.",
+                "Docker is not running",
+                [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        }
         return
     }
 
@@ -824,6 +826,26 @@ $btnAdd.Add_Click({
     & $SetStatus "Creating '$($form.Name)' in a window of its own."
 })
 
+# Every popup goes through here: the fleet window steps aside while a dialog
+# is up - visible but deaf behind a modal is a trap - and comes back when the
+# dialog closes. The parent must be a plain window, never a dialog: hiding a
+# dialog window runs WPF's dialog teardown (DoDialogHide unblocks the modal
+# frame - the ShowDialog behind it returns).
+function Show-PopupExclusive {
+    param(
+        [System.Windows.Window]$ParentWindow,
+        [scriptblock]$DialogAction
+    )
+    $ParentWindow.Hide()
+    try {
+        & $DialogAction
+    }
+    finally {
+        $ParentWindow.Show()
+        $null = $ParentWindow.Activate()
+    }
+}
+
 # -----------------------------------------------------------------------------
 # THE TRASH, ONE ROW AT A TIME - THE REMOVAL GATE, WINDOW-SIDE
 # -----------------------------------------------------------------------------
@@ -841,11 +863,23 @@ function Show-RemoveGate {
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
-        <!-- The same button, dressed by itself - the gate is a window of its
-             own, and styles do not cross windows. -->
+        <!-- Définition unique de la couleur -->
+        <SolidColorBrush x:Key="GreenBrush" Color="#33FF66"/>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
+            <Setter Property="BorderBrush" Value="#555555"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
+            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
             <Setter Property="BorderBrush" Value="#555555"/>
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -866,34 +900,24 @@ function Show-RemoveGate {
                                 <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
+                                <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource GreenBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
-        <!-- And the checkbox wears the focus the same way the buttons do: its
-             label turns teal - the system's dotted rectangle never shows on
-             this background. -->
-        <Style TargetType="CheckBox">
-            <Style.Triggers>
-                <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter Property="Foreground" Value="#33FF66"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </Window.Resources>
     <StackPanel Margin="18">
+        <!-- Exceptions de couleur explicites -->
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#33FF66">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and its content. This operation CANNOT be undone.</TextBlock>
-        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Foreground="#33FF66" Content="Archive it first"/>
+        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and its content. This operation CANNOT be undone.</TextBlock>
+        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Content="Archive it first"/>
         <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
-        <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
+        <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
+            <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"/>
             <Button Name="BtnGateRemove" TabIndex="3" Content="REMOVE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
                     Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
         </StackPanel>
@@ -926,7 +950,7 @@ function Show-RemoveGate {
         $gate.Close()
     })
 
-    $null = $gate.ShowDialog()
+    Show-PopupExclusive $window { $null = $gate.ShowDialog() }
     return $script:GateResult
 }
 
@@ -1013,7 +1037,7 @@ function Show-RestorePrompt {
         $prompt.Close()
     })
 
-    $null = $prompt.ShowDialog()
+    Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     if ([string]::IsNullOrWhiteSpace($script:RestoreResult)) { return $null }
     return $script:RestoreResult
 }
@@ -1102,7 +1126,7 @@ function Show-ArchiveGate {
     $gate.FindName("BtnArchiveCancel").Add_Click({ $script:ArchiveGateResult = $false; $gate.Close() })
     $btnDelete.Add_Click({ $script:ArchiveGateResult = $true; $gate.Close() })
 
-    $null = $gate.ShowDialog()
+    Show-PopupExclusive $window { $null = $gate.ShowDialog() }
     return $script:ArchiveGateResult
 }
 
@@ -1202,7 +1226,7 @@ function Show-ArchivePrompt {
         $prompt.Close()
     })
 
-    $null = $prompt.ShowDialog()
+    Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     if ([string]::IsNullOrWhiteSpace($script:ArchivePromptResult)) { return $null }
     return $script:ArchivePromptResult
 }
@@ -1397,7 +1421,7 @@ function Show-PackEditor {
         $editor.Close()
     })
 
-    $null = $editor.ShowDialog()
+    Show-PopupExclusive $window { $null = $editor.ShowDialog() }
     return $script:PackEditResult
 }
 
@@ -1554,7 +1578,7 @@ function Show-AddInstance {
         }
     })
 
-    $null = $form.ShowDialog()
+    Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:AddResult
 }
 
@@ -2021,7 +2045,7 @@ function Show-Appearance {
         $form.Close()
     })
 
-    $null = $form.ShowDialog()
+    Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:LookResult
 }
 
@@ -2136,7 +2160,7 @@ function Show-DuplicatePrompt {
         }
     })
 
-    $null = $prompt.ShowDialog()
+    Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     return $script:DupResult
 }
 
@@ -2410,4 +2434,19 @@ $window.Add_PreviewKeyDown({
 # more: the window now measures itself to its content, and rows arriving
 # after the show would resize it in front of the user.
 & $LoadFleet
-$null = $window.ShowDialog()
+
+# The height follows the content, with a floor and a ceiling: four rows'
+# worth under it - an empty fleet must not leave a sliver - and the screen's
+# working area over it: past that, the list scrolls inside the window.
+$window.MinHeight = 240
+$window.MaxHeight = [Math]::Max(360, [System.Windows.SystemParameters]::WorkArea.Height - 40)
+
+# A plain window, never ShowDialog: Show-PopupExclusive hides it while a
+# dialog is up, and hiding a dialog window ends it (DoDialogHide unblocks the
+# modal frame - the script would run off its end). The wait is a frame of our
+# own, not Dispatcher.Run: Run only comes back through a dispatcher shutdown
+# - a one-way door - and the menu reopens this window in the same process.
+$frame = [System.Windows.Threading.DispatcherFrame]::new()
+$window.Add_Closed({ $frame.Continue = $false })
+$window.Show()
+[System.Windows.Threading.Dispatcher]::PushFrame($frame)
