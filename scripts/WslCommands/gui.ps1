@@ -561,29 +561,7 @@ function Show-PopupExclusive {
 function Show-RemoveGate {
     param($Instance)
 
-    [xml]$gateXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Remove instance" Width="540" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <!-- Exceptions de couleur explicites -->
-        <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
-        <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and its content. This operation CANNOT be undone.</TextBlock>
-        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Content="Archive it first"/>
-        <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
-        <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"/>
-            <Button Name="BtnGateRemove" TabIndex="3" Content="REMOVE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
-                    Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$gateXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\RemoveGate.xaml"))
 
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -625,26 +603,7 @@ function Show-RemoveGate {
 function Show-RestorePrompt {
     param([string]$ArchiveName)
 
-    [xml]$restoreXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Restore archive" Width="540" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,14,0,0" Text="Name of the restored instance:"/>
-        <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnRestoreCancel" TabIndex="1" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnRestoreGo" TabIndex="2" Content="RESTORE" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$restoreXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\RestorePrompt.xaml"))
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($restoreXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -682,27 +641,7 @@ function Show-RestorePrompt {
 function Show-ArchiveGate {
     param([string]$ArchiveName, [string]$Size)
 
-    [xml]$deleteXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Delete archive" Width="540" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Text="WARNING: PERMANENT DELETION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
-        <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,14,0,0" Text="To confirm DELETION, type the exact name of the archive:"/>
-        <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnArchiveCancel" TabIndex="1" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnArchiveDelete" TabIndex="2" Content="DELETE" Width="90" Height="28" IsEnabled="False" IsDefault="True"
-                    Background="#A1260D" Foreground="#FFFFFF" BorderBrush="#BB2D0F"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$deleteXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\ArchiveGate.xaml"))
 
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($deleteXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -738,30 +677,7 @@ function Show-ArchiveGate {
 function Show-ArchivePrompt {
     param([string]$InstanceName, [bool]$IsRunning, [string]$ArchivesRoot)
 
-    [xml]$archiveXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Archive instance" Width="540" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Name="TxtRunning" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#D7BA7D"
-                   Text="It is running: it will be stopped for a consistent disk - anything unsaved in there is lost - then started again once the export is done."/>
-        <TextBlock Margin="0,14,0,0" Text="Name of the archive:"/>
-        <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtTaken" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"
-                   Text="An archive with this name exists: it will be replaced."/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnArchivePromptCancel" TabIndex="1" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnArchivePromptGo" TabIndex="2" Content="ARCHIVE" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$archiveXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\ArchivePrompt.xaml"))
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($archiveXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -896,30 +812,7 @@ function New-PackChecklist {
 function Show-PackEditor {
     param([string]$InstanceName, [string[]]$Installed, $Catalog)
 
-    [xml]$editorXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Packs" Width="560" SizeToContent="Height" MaxHeight="720"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <ScrollViewer MaxHeight="380" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Name="Boxes"/>
-        </ScrollViewer>
-        <TextBlock Name="TxtAdd" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#33FF66" Visibility="Collapsed"/>
-        <TextBlock Name="TxtDel" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#C05050" Visibility="Collapsed"/>
-        <TextBlock Name="TxtNotes" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#2F9E55"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnEditCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnEditApply" Content="APPLY" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$editorXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\PackEditor.xaml"))
 
     $editor = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($editorXaml))
     $editor.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -959,36 +852,7 @@ function Show-PackEditor {
 function Show-AddInstance {
     param($Catalog, [string]$ProposedUser, [string]$InstancesRoot, $Manager)
 
-    [xml]$addXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Add instance" Width="560" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Margin="0,10,0,0" Text="Instance name:"/>
-        <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtNameError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"/>
-        <TextBlock Margin="0,12,0,0" Text="User name:"/>
-        <TextBox Name="TxtUser" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtUserError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"/>
-        <TextBlock Margin="0,12,0,0" Text="Packs:"/>
-        <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Name="Boxes"/>
-        </ScrollViewer>
-        <TextBlock Name="TxtAdd" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#33FF66" Visibility="Collapsed"/>
-        <TextBlock Name="TxtDel" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#C05050" Visibility="Collapsed"/>
-        <TextBlock Name="TxtNotes" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#2F9E55"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnAddCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnAddCreate" Content="CREATE" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$addXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\AddInstance.xaml"))
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($addXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -1114,112 +978,7 @@ function Show-Appearance {
         [string]$IconScript
     )
 
-    [xml]$lookXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Appearance" Width="600" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <Grid Margin="18">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Column="0">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Name="TxtNoFragment" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#D7BA7D" Visibility="Collapsed"
-                   Text="This instance has no Terminal profile of ours - nothing changed here would show."/>
-        <TextBlock Margin="0,12,0,0" Text="Icon text:"/>
-        <TextBox Name="TxtIconText" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left"
-                 Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtIconError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"/>
-        </StackPanel>
-        <Image Name="ImgIconPreview" Grid.Column="1" Width="64" Height="64" VerticalAlignment="Top" Margin="14,0,0,0"
-               RenderOptions.BitmapScalingMode="HighQuality"/>
-        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
-        <TextBlock Margin="0,10,0,0" Text="Icon color:"/>
-        <ComboBox Name="LstPairs" Margin="0,6,0,0"/>
-        <TextBlock Margin="0,10,0,0" Text="Icon file:"/>
-        <Grid Margin="0,6,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Name="TxtIconPath" Grid.Column="0" FontSize="11" Foreground="#2F9E55"
-                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <Button Name="BtnImage" Grid.Column="1" Content="Upload" Width="90" Height="28"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-        </Grid>
-        <TextBlock Margin="0,14,0,0" Text="Font:"/>
-        <ComboBox Name="LstFonts" Margin="0,6,0,0"/>
-        <TextBlock Margin="0,4,0,0" Foreground="#2F9E55" Text="Get more Nerd Fonts at https://www.nerdfonts.com"/>
-        <TextBlock Margin="0,14,0,0" Text="Colour scheme:"/>
-        <ComboBox Name="LstSchemes" Margin="0,6,0,0"/>
-        <TextBlock Margin="0,14,0,0" Text="Preview:"/>
-        <Border Name="BrdPreview" Margin="0,6,0,0" Padding="8,6" CornerRadius="3"
-                Background="#0C0C0C" BorderBrush="#3F3F46" BorderThickness="1">
-            <StackPanel>
-                <!-- A real session, colours and all: the prompt this house's
-                     zsh draws (zsh/prompts/starship.toml) - directory in bold
-                     yellow, branch in bold purple behind its glyph, character
-                     in bold green - over two eza lines, the listing these
-                     instances really show (permissions green for folders,
-                     user yellow, dates magenta, folders blue with their
-                     icons). Each run is tagged with the palette slot it takes
-                     its colour from - the named colours the tools use ARE the
-                     terminal palette - and the form repaints them with the
-                     chosen scheme's own. -->
-                <TextBlock Name="TxtPreview1" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="c3" Text="[~/projects]" FontWeight="Bold"/>
-                </TextBlock>
-                <TextBlock Name="TxtPreview2" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="c5" Text="&#xF126; main " FontWeight="Bold"/>
-                    <Run Tag="c2" Text="&#x276F; " FontWeight="Bold"/>
-                    <Run Tag="fg" Text="ls"/>
-                </TextBlock>
-                <TextBlock Name="TxtPreview3" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="c2" Text="drwxr-xr-x"/>
-                    <Run Tag="fg" Text="  -  "/>
-                    <Run Tag="c3" Text="underfit"/>
-                    <Run Tag="fg" Text="  "/>
-                    <Run Tag="c4" Text="2 Oct 18:52"/>
-                    <Run Tag="fg" Text="  "/>
-                    <Run Tag="c4" Text="&#xF07B; .config"/>
-                </TextBlock>
-                <TextBlock Name="TxtPreview4" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="fg" Text="-rw-r--r-- "/>
-                    <Run Tag="c2" Text="165 "/>
-                    <Run Tag="c3" Text="underfit"/>
-                    <Run Tag="fg" Text="  "/>
-                    <Run Tag="c4" Text="2 Oct 18:52"/>
-                    <Run Tag="fg" Text="  &#xF15B; .wget-hsts"/>
-                </TextBlock>
-                <TextBlock Name="TxtPreview5" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="c3" Text="[~/projects]" FontWeight="Bold"/>
-                </TextBlock>
-                <TextBlock Name="TxtPreview6" FontFamily="Consolas" FontSize="13" Foreground="#33FF66">
-                    <Run Tag="c5" Text="&#xF126; main " FontWeight="Bold"/>
-                    <Run Tag="c2" Text="&#x276F; " FontWeight="Bold"/>
-                    <Run Tag="fg" Text="_"/>
-                </TextBlock>
-                <StackPanel Name="PnlPalette" Orientation="Horizontal" Margin="0,8,0,0"/>
-            </StackPanel>
-        </Border>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnLookCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnLookApply" Content="APPLY" Width="90" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-        </StackPanel>
-    </Grid>
-</Window>
-"@
+    [xml]$lookXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\Appearance.xaml"))
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($lookXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
@@ -1449,29 +1208,7 @@ function Show-Appearance {
 function Show-DuplicatePrompt {
     param([string]$InstanceName, [bool]$IsRunning, [string]$ProposedName, $Manager)
 
-    [xml]$dupXaml = @"
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Duplicate" Width="540" SizeToContent="Height" MaxHeight="760"
-        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
-        Background="#1E1E1E" Foreground="#33FF66"
-        FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Name="TxtRunning" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#D7BA7D"
-                   Text="It is running: it will be stopped for a consistent read - anything unsaved in there is lost - then started again once the copy is done."/>
-        <TextBlock Margin="0,14,0,0" Text="Name of the copy:"/>
-        <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
-        <TextBlock Name="TxtNameError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#E04040" Visibility="Collapsed"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnDupCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
-                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
-            <Button Name="BtnDupGo" Content="DUPLICATE" Width="110" Height="28" IsDefault="True"
-                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
-        </StackPanel>
-    </StackPanel>
-</Window>
-"@
+    [xml]$dupXaml = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\gui\Views\Popups\Duplicate.xaml"))
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($dupXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))

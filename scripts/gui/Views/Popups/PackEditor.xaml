@@ -1,0 +1,22 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Packs" Width="560" SizeToContent="Height" MaxHeight="720"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#1E1E1E" Foreground="#33FF66"
+        FontFamily="Segoe UI" FontSize="13">
+    <StackPanel Margin="18">
+        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
+        <ScrollViewer MaxHeight="380" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Name="Boxes"/>
+        </ScrollViewer>
+        <TextBlock Name="TxtAdd" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="#33FF66" Visibility="Collapsed"/>
+        <TextBlock Name="TxtDel" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#C05050" Visibility="Collapsed"/>
+        <TextBlock Name="TxtNotes" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#2F9E55"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Name="BtnEditCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
+                    Background="#333337" Foreground="#33FF66" BorderBrush="#555555"/>
+            <Button Name="BtnEditApply" Content="APPLY" Width="90" Height="28" IsDefault="True"
+                    Background="#33FF66" Foreground="#1E1E1E" BorderBrush="#33FF66"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
