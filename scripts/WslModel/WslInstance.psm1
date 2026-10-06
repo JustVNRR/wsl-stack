@@ -129,6 +129,51 @@ class WslInstance {
         return $Process.ExitCode
     }
 
+    # Opens the instance's Terminal profile in a window of its own - the look
+    # the profile carries comes with it: icon, name, colours, font. The
+    # profile is the one WSL registered under the instance's name, so the
+    # name matches. A bare console (plain wsl.exe) opens a shell too, but
+    # carries none of the look: it is the fallback, and the honest one when
+    # there is no profile to ask for. Nothing is waited on either way - the
+    # window outlives this call.
+    [void] OpenShell() {
+        # The fragment WSL wrote for the instance, on disk: without it
+        # `wt -p` resolves to nothing and Terminal opens its DEFAULT profile
+        # instead - a Windows PowerShell, measured. The scan is quick and has
+        # no retries (the retrying sibling is Get-WslProfileGuid, for the
+        # build flows).
+        $FragmentDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\Fragments\Microsoft.WSL"
+        $HasProfile = $false
+        if (Test-Path $FragmentDir) {
+            foreach ($File in @(Get-ChildItem $FragmentDir -Filter *.json)) {
+                try {
+                    $Named = @((Get-Content $File.FullName -Raw | ConvertFrom-Json).profiles |
+                        Where-Object { $_.name -eq $this.Name })
+                    if ($Named.Count -gt 0) { $HasProfile = $true; break }
+                } catch { }
+            }
+        }
+
+        if ($HasProfile) {
+            # The running Terminal re-reads its profiles when its settings are
+            # touched - the touch this repository already uses to show a new
+            # look without closing anything. A fragment that landed after the
+            # last touch (a fresh import, a restore) would otherwise not
+            # resolve yet; the pause lets the reload finish.
+            try {
+                Update-TerminalSettings
+                Start-Sleep -Milliseconds 400
+                $null = Start-Process wt.exe -ArgumentList ('-p "{0}"' -f $this.Name) -PassThru
+                return
+            } catch { }
+        }
+
+        # Same line as Shell(): the name goes in unquoted - wsl.exe parses
+        # its own line and does not strip quotes - and the `~` rides inside
+        # the string, where nothing expands it.
+        $null = Start-Process wsl.exe -ArgumentList ('-d {0} --cd ~' -f $this.Name) -PassThru
+    }
+
     # The .vhdx's size on disk, not what its filesystem holds.
     [long] DiskSize() {
         $vhdx = Join-Path $this.Path "ext4.vhdx"

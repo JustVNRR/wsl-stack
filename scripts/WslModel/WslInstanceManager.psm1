@@ -489,7 +489,11 @@ class WslInstanceManager {
         if (-not $this.IsNameUsable($Name)) {
             throw "'$Name' is not usable as an instance name (letters, digits, '.', '_' and '-' only)."
         }
-        if (-not $this.IsNameAvailable($Name)) {
+        # "An instance named X" means a REGISTERED one. IsNameAvailable would
+        # not tell: the inventory counts the archives too, and restoring an
+        # archive under its own name - the usual case - must not collide with
+        # its own entry there.
+        if ((Get-DistroNames) -contains $Name) {
             throw "An instance named '$Name' already exists."
         }
 
@@ -505,6 +509,29 @@ class WslInstanceManager {
         Set-InstanceState -Name $Name -InstallPath $InstallPath -Folder $ArchiveDir
         $this.Refresh()
         return $this.FindByName($Name)
+    }
+
+    # delete_archive - the folder and everything in it, gone for good: the
+    # tar, the look beside it. The name rule is the instance rule, and here it
+    # is also the safety rail: no separator can ride in, so no path can leave
+    # the archives folder. No confirmation either - the caller says the name,
+    # and the window's gate is the window's own.
+    [object] DeleteArchive([string]$Name) {
+        if (-not $this.IsNameUsable($Name)) {
+            throw "'$Name' is not usable as an archive name (letters, digits, '.', '_' and '-' only)."
+        }
+
+        $ArchiveDir = Join-Path $this.ArchivesRoot $Name
+        if (-not (Test-Path $ArchiveDir)) {
+            throw "There is no archive named '$Name': $ArchiveDir does not exist."
+        }
+
+        $Freed = (Get-ChildItem -Path $ArchiveDir -Recurse -File -ErrorAction SilentlyContinue |
+            Measure-Object -Property Length -Sum).Sum
+        Remove-Item -LiteralPath $ArchiveDir -Recurse -Force
+        $this.Refresh()
+
+        return [PSCustomObject]@{ Name = $Name; ArchiveDir = $ArchiveDir; Freed = [long]$Freed }
     }
 
     # duplicate - the source is only read; the copy lands under a name of its

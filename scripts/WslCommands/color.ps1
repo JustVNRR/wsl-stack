@@ -29,55 +29,6 @@ $ErrorActionPreference = "Stop"
 # Read-TerminalJson comes from the message module, imported by the entry: the
 # walk that knows what a string is lives there, once.
 
-# Every colour scheme this machine can wear, by name: the name is what a profile
-# takes, and what is behind it is what the list shows.
-function Get-ColorSchemes {
-    $Schemes = @{}
-
-    # What Terminal ships, from the file inside its own package - readable by a
-    # normal account, where the folder is not.
-    # Asked one at a time: an array handed to -Name binds to a parameter that
-    # takes one name, and the call is refused before it runs.
-    $Packages = @()
-    foreach ($PackageName in @("Microsoft.WindowsTerminal", "Microsoft.WindowsTerminalPreview")) {
-        $Packages += @(Get-AppxPackage -Name $PackageName -ErrorAction SilentlyContinue)
-    }
-    foreach ($Package in $Packages) {
-        $Parsed = Read-TerminalJson -Path (Join-Path $Package.InstallLocation "defaults.json")
-        foreach ($Scheme in @($Parsed.schemes)) {
-            if ($Scheme -and $Scheme.name -and -not $Schemes.ContainsKey($Scheme.name)) {
-                $Schemes[$Scheme.name] = $Scheme
-            }
-        }
-    }
-
-    # And what the user added, or wrote over: read last, so their own version of
-    # a name wins over the one Terminal ships.
-    foreach ($Path in @(
-        "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
-        "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",
-        "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json"
-    )) {
-        $Parsed = Read-TerminalJson -Path $Path
-        foreach ($Scheme in @($Parsed.schemes)) {
-            if ($Scheme -and $Scheme.name) { $Schemes[$Scheme.name] = $Scheme }
-        }
-    }
-
-    # And the schemes our instances wear when nothing above named them: leaving
-    # one out would hide the scheme the instance is using now.
-    $Ours = Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\Fragments\wsl-stack"
-    foreach ($File in @(Get-ChildItem $Ours -Filter *.json -ErrorAction SilentlyContinue)) {
-        $Parsed = Read-TerminalJson -Path $File.FullName
-        $Named = @($Parsed.profiles)[0].colorScheme
-        if ($Named -and -not $Schemes.ContainsKey($Named)) { $Schemes[$Named] = $null }
-    }
-
-    # The comma: a table written to the pipeline is unrolled into its entries,
-    # and the caller would get the first pair instead of the table.
-    return ,$Schemes
-}
-
 # 1. Which instance. Given, or asked.
 $HandedOver = [bool]$DistroName
 if ($HandedOver) {

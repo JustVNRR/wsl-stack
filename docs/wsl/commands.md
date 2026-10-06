@@ -108,11 +108,38 @@ everything else asks.
 ```
 
 It lists our instances - state and size, the same list `list` prints - with,
-on each row, its verbs: **start** or **stop** (whichever the state allows),
+on each row, its verbs: **open** (a new terminal window on the instance's
+own profile - its icon, colours and font ride along - where `shell` would
+borrow the console), **start** or **stop** (whichever the state allows),
+**edit** (the packs: tickboxes with the same rules as `manage_packs` -
+requirements and removals shown live underneath, with their reasons - and
+the run opens in a console window of its own, where the déroulé, the same
+lines `manage_packs` prints, can be watched), **appearance** (the look:
+icon letters and colours, font and colour scheme - the same lists the
+`theme` menu shows, note included - or an image of your own through the
+file picker, everything shown live in a small terminal preview),
+**duplicate** (a copy under a name of its own: the engine's own guard
+refuses a taken name, the room for twice the disk is checked, and a running
+source is stopped for the read and started again after), **archive** (the same backup
+`archive` writes: it asks the name, the instance's own prefilled, and stops
+a running instance for the export, starting it again once the tar is done),
 **Compact** (the same compact `shrink` runs, and the row shows a small
 scrolling band while it works), and the trash, which opens the same gate
-`unregister` puts up - what is lost, spelled out, and the exact name typed
-back - then removes it through the same engine. Below the list, **Refresh**.
+`unregister` puts up - what is lost, spelled out, and the exact
+name typed back - then removes it through the same engine. The archives sit
+in the same list, one alphabetical walk with the instances - a same-named
+archive shows right beside its instance - status **Archived** and the tar's
+size, with **restore** and the trash alone on their row: restore asks the
+name the new instance takes (the archive's own, prefilled - an empty name
+cancels), then imports through the same engine `restore` uses, the row
+scrolling its band while it works - the archive is kept; the trash opens a
+gate of the same manners as the instance's - what is lost, spelled out, and
+the exact name typed back - and the folder goes for good, tar and look
+together. Two icons sit up in the header beside the title: **+**, a new
+instance - name, user and packs in one form, a name that already exists
+refused right there - whose run then opens a console window of its own
+(Docker's questions and the first shell included, since only it can ask
+them); and the refresh, which rereads the fleet.
 Nothing here exists only in the window: it is a keystroke-free way in, not a
 second engine.
 

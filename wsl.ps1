@@ -24,9 +24,11 @@ param (
 #   .\wsl.ps1 archive               archive an instance
 #   .\wsl.ps1 archive -Format tar.xz
 #
-# None of the commands behind it takes an instance name on the command line:
-# they list what exists - this template's instances only, the ones carrying the
+# Almost none of the commands behind it takes a name on the command line: they
+# list what exists - this template's instances only, the ones carrying the
 # marker - or, for start and stop, what can still be acted on, and you pick.
+# delete_archive is the exception: called by name, kept out of the menu.
+#
 #
 # The module is imported here, once, for the whole run: its functions are
 # visible to every command launched below (they run in this session), and THE
@@ -99,9 +101,14 @@ $Menu = [WslMenu]::new("WSL Stack").
 # question - which command - and it is a question like the ones inside the
 # commands: the same menu, walked with the arrows, cancelled with Escape.
 if ($Command) {
-    # The word names its command, whatever its case. A word nobody knows is
-    # said here, with the list it should have come from.
+    # The word names its command, whatever its case. A word the menu does not
+    # carry may still be a command file - delete_archive is one, called by
+    # name and kept out of the menu - and a word neither knows is said here,
+    # with the list it should have come from.
     $Chosen = $Menu.Dispatch($Command)
+    if (-not $Chosen -and (Test-Path (Join-Path $CommandFiles "$Command.ps1"))) {
+        $Chosen = [PSCustomObject]@{ Key = $Command; Action = $Gesture }
+    }
     if (-not $Chosen) {
         Write-Host ""
         Write-Host "[ABORT] Invalid command '$Command'. Available commands:" -ForegroundColor (Get-MessageColour error)

@@ -286,6 +286,55 @@ function Select-EligibleInstance {
 # exists, and build, about one that is about to. It is asked here, once, so
 # that the two commands cannot drift apart.
 
+# What the ticked boxes mean: the diff, the requirements that ride along, the
+# packs nothing claims any more. Split from the checklist below so a second
+# asker - the window - can read the same rules; the two must not drift. The
+# two lists come back ready to apply, requirements already in, in order, and
+# with them what a caller still has to say: the boxes taken back, and the
+# packs carried here that this checkout does not carry at all.
+function Resolve-PackSelection {
+    param(
+        [WslPackCatalog]$Catalog,
+        [string[]]$Installed = @(),
+        [string[]]$Kept = @()
+    )
+
+    # The checklist's own surface: what a question shows is what can be taken
+    # back - and only that. A folder this checkout does not carry was never
+    # shown, so nobody can have unchecked it; it is named in grey instead.
+    $OfferedNames = @($Catalog.AvailablePacks | Where-Object { $_.Offered } | ForEach-Object { $_.Name })
+    $Carried = @($Catalog.AvailablePacks | ForEach-Object { $_.Name })
+
+    # Each list is read from a different side: kept and not installed goes in,
+    # installed and not kept comes out. Reading the first off the available
+    # packs instead is how a first run installed the pack nobody had asked for.
+    $Unticked = @($Installed | Where-Object { $OfferedNames -contains $_ -and $Kept -notcontains $_ })
+    $NotCarried = @($Installed | Where-Object { $Carried -notcontains $_ })
+
+    # What a pack requires travels with it, and what nothing requires any more
+    # leaves with it - both resolved here, so the console's lines, the window's
+    # preview and the run read the same lists.
+    #
+    # Kept and installed is not added: the resolver is given what the instance
+    # already has, and answers what is missing.
+    $ToAdd = @()
+    foreach ($Name in @($Catalog.ResolveSelection($Kept, $Installed))) {
+        $Pack = $Catalog.GetPack($Name)
+        if ($null -ne $Pack) { $ToAdd += $Pack }
+    }
+    # What arrives is worked out before what leaves, and that order matters: a
+    # pack on its way in holds the invisible pack it requires, so the removal
+    # must know about it.
+    $ToRemove = @($Catalog.ResolveRemoval($Installed, $Unticked, @($ToAdd | ForEach-Object { $_.Name })))
+
+    return [PSCustomObject]@{
+        ToAdd      = $ToAdd
+        ToRemove   = $ToRemove
+        Unticked   = $Unticked
+        NotCarried = $NotCarried
+    }
+}
+
 # The checklist, the two lists, and the one question that carries them. $null
 # means the user backed out (Escape, or "n" to the confirmation); otherwise
 # { ToAdd; ToRemove }, either possibly empty - empty is an answer, not a
@@ -308,7 +357,6 @@ function Select-Packs {
     # installed by a visible pack that requires it and leaves with the last one,
     # so it is in neither list and is never named here.
     $Offered = @($Catalog.AvailablePacks | Where-Object { $_.Offered })
-    $OfferedNames = @($Offered | ForEach-Object { $_.Name })
 
     $CheckedIndexes = @()
     for ($Index = 0; $Index -lt $Offered.Count; $Index++) {
@@ -323,39 +371,20 @@ function Select-Packs {
 
     if ($null -eq $Chosen) { return $null }
 
-    # Each list is read from a different side: checked and not installed goes
-    # in, installed and not checked comes out. Reading the first off the
-    # available packs instead is how a first run installed the pack nobody had
-    # asked for.
+    # The ticked names go to the shared resolver - the window reads its answer
+    # from the same rules - and what it says is then read out loud below.
     $Chosen = @($Chosen)
     $Kept = @($Chosen | ForEach-Object { $_.Name })
-    $Carried = @($Catalog.AvailablePacks | ForEach-Object { $_.Name })
 
-    # What leaves is what the checklist showed and the user unchecked - and
-    # only that. A folder this checkout does not carry was never shown, so
-    # nobody can have unchecked it; it is named in grey instead.
-    $Unticked = @($Installed | Where-Object { $OfferedNames -contains $_ -and $Kept -notcontains $_ })
-    $NotCarried = @($Installed | Where-Object { $Carried -notcontains $_ })
-    if ($NotCarried.Count -gt 0) {
+    $Resolved = Resolve-PackSelection -Catalog $Catalog -Installed $Installed -Kept $Kept
+    $ToAdd = @($Resolved.ToAdd)
+    $ToRemove = @($Resolved.ToRemove)
+    $Unticked = @($Resolved.Unticked)
+
+    if ($Resolved.NotCarried.Count -gt 0) {
         Write-Host ""
-        Write-Host ("       Installed here, not from this repository - left alone: {0}" -f ($NotCarried -join ", ")) -ForegroundColor (Get-MessageColour muted)
+        Write-Host ("       Installed here, not from this repository - left alone: {0}" -f ($Resolved.NotCarried -join ", ")) -ForegroundColor (Get-MessageColour muted)
     }
-
-    # What a pack requires travels with it, and what nothing requires any more
-    # leaves with it - both resolved here, so the lines below, the question and
-    # the run read the same lists.
-    #
-    # Ticked and installed is not added: the resolver is given what the
-    # instance already has, and answers what is missing.
-    $ToAdd = @()
-    foreach ($Name in @($Catalog.ResolveSelection($Kept, $Installed))) {
-        $Pack = $Catalog.GetPack($Name)
-        if ($null -ne $Pack) { $ToAdd += $Pack }
-    }
-    # What arrives is worked out before what leaves, and that order matters: a
-    # pack on its way in holds the invisible pack it requires, so the removal
-    # must know about it.
-    $ToRemove = @($Catalog.ResolveRemoval($Installed, $Unticked, @($ToAdd | ForEach-Object { $_.Name })))
 
     if ($ToAdd.Count -eq 0 -and $ToRemove.Count -eq 0) {
         return [PSCustomObject]@{ ToAdd = @(); ToRemove = @() }

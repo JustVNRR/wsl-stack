@@ -34,11 +34,13 @@
         'Write-DangerBanner'
         'Read-TerminalJson'
         'Get-SchemeColour'
+        'Get-ColorSchemes'
 
         # The instances - the marker, the look, Docker Desktop, the engine
         'Test-TemplateInstance'
         'New-InstanceMarker'
         'Test-FontInstalled'
+        'Get-UsableFonts'
         'Get-InstanceFolder'
         'Get-RegisteredDistros'
         'Get-InstanceLook'
@@ -93,6 +95,7 @@
         'Read-InstanceName'
         'Select-EligibleInstance'
         'Select-Packs'
+        'Resolve-PackSelection'
         'Resolve-InstallPath'
         'Resolve-InstanceIdentity'
         'Resolve-DefaultUser'

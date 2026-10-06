@@ -9,6 +9,15 @@ param (
     # it binds from the first line.
     [WslInstanceManager]$Manager,
 
+    # The window's road: the identity questions answered in a form, their
+    # answers riding in. Absent one, its question is asked here as it always
+    # was - the console's road is unchanged. On the window's road a name that
+    # exists is refused, never destroyed: that road offers no destruction to
+    # confirm, and the rails below hold it.
+    [string]$Name,
+    [string]$User,
+    [string]$Packs,
+
     # Must remain the VERY LAST parameter to allow valid PowerShell parsing
     [Parameter(ValueFromRemainingArguments = $true)]
     [object[]]$Ignored
@@ -18,7 +27,7 @@ $ErrorActionPreference = "Stop"
 
 if ($Ignored) {
     Write-Host ""
-    Write-Host "[ABORT] This command takes no options." -ForegroundColor (Get-MessageColour error)
+    Write-Host "[ABORT] Unknown options after the command." -ForegroundColor (Get-MessageColour error)
     Write-Host "        Run it on its own:  .\wsl.ps1 build" -ForegroundColor (Get-MessageColour hint)
     exit 1
 }
@@ -37,7 +46,7 @@ function Assert-DockerReady {
     if (-not (Test-NativeCommand { docker info })) {
         Write-Host ""
         Write-Host "[ABORT] Docker is not responding." -ForegroundColor (Get-MessageColour error)
-        Write-Host "        Start Docker Desktop, wait for it to finish starting, then run this script again." -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Start Docker Desktop, then run this script again." -ForegroundColor (Get-MessageColour hint)
         Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
@@ -272,10 +281,39 @@ Write-Host "==> Creating a new instance" -ForegroundColor (Get-MessageColour inf
 
 # Uses the Manager's configured root folder directly.
 $Root = $Manager.InstancesRoot
-$Identity = Resolve-InstanceIdentity -Root $Root
-$DistroName = $Identity.Name
-$InstallPath = $Identity.InstallPath
-$WasRegistered = $Identity.WasRegistered
+if ($PSBoundParameters.ContainsKey('Name')) {
+    # The name came with the form, and the window already refused what exists.
+    # On this road a taken name is refused here too - never destroyed: the
+    # destruction gate belongs to the console road, and this one offers no
+    # destruction to confirm.
+    if (-not $Manager.IsNameUsable($Name)) {
+        Write-Host ""
+        Write-Host "[ABORT] '$Name' is not usable as an instance name (letters, digits, '.', '_' and '-' only)." -ForegroundColor (Get-MessageColour error)
+        exit 1
+    }
+    if ((Get-DistroNames) -contains $Name) {
+        Write-Host ""
+        Write-Host "[ABORT] '$Name' is already registered." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Remove it first:  .\wsl.ps1 unregister" -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
+    }
+    $DistroName = $Name
+    $InstallPath = [System.IO.Path]::GetFullPath((Join-Path $Root $DistroName))
+    if ($Manager.IsPathOccupied($InstallPath)) {
+        Write-Host ""
+        Write-Host "[ABORT] The folder below already exists and is not empty:" -ForegroundColor (Get-MessageColour error)
+        Write-Host "        $InstallPath" -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Move or delete it, then run this again." -ForegroundColor (Get-MessageColour hint)
+        exit 1
+    }
+    $WasRegistered = $false
+} else {
+    $Identity = Resolve-InstanceIdentity -Root $Root
+    $DistroName = $Identity.Name
+    $InstallPath = $Identity.InstallPath
+    $WasRegistered = $Identity.WasRegistered
+}
 
 # 1. The export tar lands beside the install path - never on C:.
 $ParentInstallDir = Split-Path -Path $InstallPath -Parent
@@ -290,34 +328,57 @@ $TarPath = Join-Path -Path $ParentInstallDir -ChildPath "$DistroName-rootfs.tar"
 $PackSelection = $null
 $PackCatalog = Get-PackCatalog
 if ($PackCatalog.AvailablePacks.Count -gt 0) {
-    # The instance being replaced still exists here: what it carries is what
-    # the boxes show. A first build opens on an empty checklist.
-    $PreChecked = @()
-    if ($WasRegistered) {
-        $PreviousHome = Get-InstanceHome -DistroName $DistroName
-        if ($PreviousHome) {
-            $PreChecked = @(Get-InstalledPacks -DistroName $DistroName -PacksDirectory "$PreviousHome/.config/packs")
-        } else {
-            Write-Host "  Could not read what '$DistroName' carries: no pack arrives checked." -ForegroundColor (Get-MessageColour warning)
+    if ($PSBoundParameters.ContainsKey('Packs')) {
+        # The window answered this one too: names in, and the shared resolver
+        # turns them into the list to apply - requirements included, in order.
+        # Empty (or unknown) names simply leave nothing to install.
+        $Wanted = @($Packs -split ',' | Where-Object { $_ })
+        $Resolved = Resolve-PackSelection -Catalog $PackCatalog -Installed @() -Kept $Wanted
+        if ($Resolved.ToAdd.Count -gt 0) {
+            $PackSelection = [PSCustomObject]@{ ToAdd = $Resolved.ToAdd; ToRemove = @() }
         }
-    }
+    } else {
+        # The instance being replaced still exists here: what it carries is what
+        # the boxes show. A first build opens on an empty checklist.
+        $PreChecked = @()
+        if ($WasRegistered) {
+            $PreviousHome = Get-InstanceHome -DistroName $DistroName
+            if ($PreviousHome) {
+                $PreChecked = @(Get-InstalledPacks -DistroName $DistroName -PacksDirectory "$PreviousHome/.config/packs")
+            } else {
+                Write-Host "  Could not read what '$DistroName' carries: no pack arrives checked." -ForegroundColor (Get-MessageColour warning)
+            }
+        }
 
-    # -Installed stays at its default: the instance this build makes carries
-    # nothing yet - boxes to tick, no removal to compute.
-    $PackSelection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $PackCatalog -Checked $PreChecked
+        # -Installed stays at its default: the instance this build makes carries
+        # nothing yet - boxes to tick, no removal to compute.
+        $PackSelection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $PackCatalog -Checked $PreChecked
 
-    if ($null -eq $PackSelection -or $PackSelection.ToAdd.Count -eq 0) {
-        Write-Host ""
-        Write-Host "[OK] No pack selected." -ForegroundColor (Get-MessageColour success)
-        $PackSelection = $null
+        if ($null -eq $PackSelection -or $PackSelection.ToAdd.Count -eq 0) {
+            Write-Host ""
+            Write-Host "[OK] No pack selected." -ForegroundColor (Get-MessageColour success)
+            $PackSelection = $null
+        }
     }
 }
 
 # 0-quater. The user the instance opens as, asked here with everything else:
 # nothing asks again once the machine starts working - the answer waits in a
 # variable, the instance is born with it at step 5, and the onboarding
-# receives it at step 6.
-$UserName = Resolve-DefaultUser -DistroName $DistroName -Proposed (Get-WindowsUserProposal)
+# receives it at step 6. On the window's road the answer rides in, checked
+# with the same rule the question applies - the window could not know this one.
+if ($PSBoundParameters.ContainsKey('User')) {
+    if ("$User" -cnotmatch '^[a-z][a-z0-9_-]*$') {
+        Write-Host ""
+        Write-Host "[ABORT] '$User' is not a usable user name." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Lowercase letters, digits, '_' and '-' only, starting with a letter." -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
+    }
+    $UserName = $User
+} else {
+    $UserName = Resolve-DefaultUser -DistroName $DistroName -Proposed (Get-WindowsUserProposal)
+}
 
 # What this run has done, for the finally block and the exit code to read:
 # whether the instance that was there went away, whether this run registered

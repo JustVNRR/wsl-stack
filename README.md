@@ -201,7 +201,10 @@ the repository at runtime.
 │   │   └── starship.zsh     # Starship initialization hook
 │   └── unzip.zsh            # Interactive archive extraction handler
 ├── assets/
-│   └── make-icon.ps1        # Draws an instance's icon from its name (standalone PowerShell)
+│   ├── make-icon.ps1        # Draws an instance's icon from its name (standalone PowerShell)
+│   └── fonts/
+│       ├── VT323-Regular.ttf  # the manager window's face (retro terminal, OFL - see OFL.txt)
+│       └── fa-solid-900.ttf   # the buttons' icons (Font Awesome 6 Free Solid - see fa-LICENSE.txt)
 ├── docs/
 │   ├── make/                # Documentation of the socle's gmake modules
 │   ├── wsl/                 # Instance administration: the commands, their options, examples
