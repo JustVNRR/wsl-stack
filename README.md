@@ -318,7 +318,9 @@ the repository at runtime.
 │                            # colour a message takes, the name a Windows
 │                            # account proposes, starting and restarting
 │                            # over a stand-in wsl, archiving and coming back
-│                            # from an archive, removing an instance, doc drift
+│                            # from an archive, removing an instance, the
+│                            # window's own files - the XAML, the theme's
+│                            # keys, the runners' calls - and doc drift
 │   ├── fake-docker/         # That stand-in: answers the preflight, fails the import
 │   └── fake-wsl/            # And the suites that drive wsl: logs every call, writes
 │                            # what an export would, creates what an import would

@@ -20,7 +20,7 @@
 #
 # The second job, on windows-latest, is the one that RUNS the code instead of
 # reading it, because that is where PowerShell and wsl.exe are: every .ps1 must
-# parse under PowerShell 7 first, then twelve suites, none of which needs an
+# parse under PowerShell 7 first, then thirteen suites, none of which needs an
 # instance, a console or Docker Desktop. Every bug the scripts themselves have
 # had was caught there, and none of these checks can be replaced by reading the
 # files.
@@ -335,6 +335,11 @@ jobs:
       - name: PowerShell files parse
         shell: bash
         run: pwsh -NoProfile -File tests/parse-check.ps1
+
+      - name: The window's files - the XAML well-formed, the theme's keys, the runners pinned
+        if: always()
+        shell: bash
+        run: pwsh -NoProfile -File tests/gui-test.ps1
 
       # The answers, where a suite reads them from the numbered prompt, come
       # from the .answers file beside it, never a copy spelled out here: a
