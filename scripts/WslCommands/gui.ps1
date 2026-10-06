@@ -13,96 +13,12 @@ Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
 
-# The window's faces, shipped in the repository: assets\fonts\VT323 (the
-# retro terminal face) and Font Awesome 6 Free Solid (every button's icon).
-# WPF reads them straight from the folder - no install, no dependency on a
-# Windows font - and the families are asked of WPF itself rather than spelled
-# out: the two files carry different family names under different name-table
-# entries, and a guessed name would fail to a silent tofu. Missing files:
-# the XAML's own face stands.
-$script:UiFont = $null
-$script:IconFont = $null
-$FontDir = Join-Path $PSScriptRoot "..\..\assets\fonts"
-if (Test-Path $FontDir) {
-    try {
-        # The Uri overload, NOT the string one: handed a plain path, WPF
-        # answers an EMPTY collection without a word (measured), and the
-        # whole retro face fell back silently. And a folder-loaded family's
-        # Source comes back as "./#Family Name" - a relative reference - so
-        # the family travels as an OBJECT, never as a string for XAML.
-        $FontUri = [Uri]("file:///" + ($FontDir -replace '\\', '/') + "/")
-        foreach ($family in [Windows.Media.Fonts]::GetFontFamilies($FontUri)) {
-            if ("$($family.Source)" -like "*VT323*") { $script:UiFont = $family }
-            if ("$($family.Source)" -like "*Font Awesome*") { $script:IconFont = $family }
-        }
-    } catch { }
-}
-
-# The chart of every window: loaded on its own and merged in code - a
-# Source= reference needs a base URI the loose parser never hands the inner
-# dictionary (its setter dies on a null one: "baseUri cannot be null"), and
-# every window gets its own copy.
-function Get-ThemeDictionary {
-    $ThemePath = Join-Path $PSScriptRoot "..\gui\Theme\theme.xaml"
-    [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
-}
-
-# The icon buttons ask for the face through a DynamicResource, and the
-# FAMILY OBJECT is handed to the window below: a folder-loaded family's
-# Source is a code-side reference - turned back into a string for XAML it
-# fails to resolve, and WPF falls back silently (the icons came out as empty
-# boxes). An object needs no resolution.
-$DressWindow = {
-    param($Win)
-    if ($script:UiFont) {
-        $Win.FontFamily = $script:UiFont
-        $Win.FontSize = 15
-    }
-
-    # The frame treatment, once per window: no chrome, a transparent window,
-    # and the phosphor border + glow drawn in code - the eight popups get it
-    # without carrying XAML for it, and drag by their background like the
-    # main window does. The main window wears its own and is tagged
-    # 'framed', so it passes through here untouched.
-    if ($Win.Tag -ne 'framed') {
-        $Win.Tag = 'framed'
-        $Win.WindowStyle = [System.Windows.WindowStyle]::None
-        $Win.AllowsTransparency = $true
-        $Win.Background = [System.Windows.Media.Brushes]::Transparent
-
-        $content = $Win.Content
-        $Win.Content = $null
-        $border = New-Object System.Windows.Controls.Border
-        $border.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1F9E4C")
-        $border.BorderThickness = [System.Windows.Thickness]::new(1)
-        $border.CornerRadius = [System.Windows.CornerRadius]::new(6)
-        $border.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1E1E1E")
-        $border.Margin = [System.Windows.Thickness]::new(14)
-        $effect = New-Object System.Windows.Media.Effects.DropShadowEffect
-        $effect.Color = [System.Windows.Media.Color]::FromRgb(0x33, 0xFF, 0x66)
-        $effect.BlurRadius = 10
-        $effect.ShadowDepth = 0
-        $effect.Opacity = 0.30
-        $border.Effect = $effect
-        $border.Child = $content
-        $Win.Content = $border
-
-        $Win.Add_MouseLeftButtonDown({
-            param($sender, $e)
-            $node = $e.OriginalSource
-            try {
-                while ($node -and $node -ne $sender) {
-                    if ($node -is [System.Windows.Controls.Primitives.ButtonBase] -or
-                        $node -is [System.Windows.Controls.TextBox] -or
-                        $node -is [System.Windows.Controls.Primitives.ScrollBar] -or
-                        $node -is [System.Windows.Controls.ComboBox]) { return }
-                    $node = [System.Windows.Media.VisualTreeHelper]::GetParent($node)
-                }
-                $sender.DragMove()
-            } catch { }
-        })
-    }
-}
+# The window's furniture, out of this file: the faces, the chart's loader
+# and the frame dresser live in scripts/gui/Theme/ThemeManager.ps1, dot
+# sourced into the entry's scope.
+$GuiRoot = Join-Path $PSScriptRoot "..\gui"
+. (Join-Path $GuiRoot "Theme\ThemeManager.ps1")
+$GuiFonts = Initialize-GuiFonts -AssetsDir (Join-Path $PSScriptRoot "..\..\assets")
 
 # 1. The window's markup - the header, the list, an indeterminate bar for the
 # long work, and the actions: Add and Refresh up in the header, and on every
@@ -114,11 +30,11 @@ $reader = [System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($Xa
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
 $window.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
-& $DressWindow $window
+Set-WindowPhosphorFrame -Win $window -UiFont $GuiFonts.UiFont
 
 # The face every icon button asks for - rows and header alike, templates
 # included: a DynamicResource reaches them wherever they are built.
-if ($script:IconFont) { $window.Resources["IconFace"] = $script:IconFont }
+if ($GuiFonts.IconFont) { $window.Resources["IconFace"] = $GuiFonts.IconFont }
 
 # The controls, by name
 $lstInstances = $window.FindName("LstInstances")
@@ -393,7 +309,7 @@ function Show-RemoveGate {
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $gate
+    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont
     $gate.FindName("TxtLead").Text = "The WSL distribution '$($Instance.Name)' and ALL its data will be deleted."
     $txtName = $gate.FindName("TxtName")
     $btnRemove = $gate.FindName("BtnGateRemove")
@@ -435,7 +351,7 @@ function Show-RestorePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($restoreXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $prompt
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
     $prompt.FindName("TxtLead").Text = "The archive '$ArchiveName' comes back as a new instance."
     $txtName = $prompt.FindName("TxtName")
     $txtName.Text = $ArchiveName
@@ -473,7 +389,7 @@ function Show-ArchiveGate {
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($deleteXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $gate
+    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont
     $gate.FindName("TxtLead").Text = "The archive '$ArchiveName' will be deleted and will not be restorable again."
     $txtName = $gate.FindName("TxtName")
     $btnDelete = $gate.FindName("BtnArchiveDelete")
@@ -509,7 +425,7 @@ function Show-ArchivePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($archiveXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $prompt
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
     $prompt.FindName("TxtLead").Text = "Write '$InstanceName' to an archive."
     if (-not $IsRunning) { $prompt.FindName("TxtRunning").Visibility = [System.Windows.Visibility]::Collapsed }
 
@@ -644,7 +560,7 @@ function Show-PackEditor {
     $editor = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($editorXaml))
     $editor.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $editor
+    Set-WindowPhosphorFrame -Win $editor -UiFont $GuiFonts.UiFont
     $editor.FindName("TxtLead").Text = "The packs of '$InstanceName'."
 
     New-PackChecklist -Panel $editor.FindName("Boxes") -Installed $Installed -Catalog $Catalog `
@@ -684,7 +600,7 @@ function Show-AddInstance {
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($addXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $form
+    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont
     $txtName = $form.FindName("TxtName")
     $txtNameError = $form.FindName("TxtNameError")
     $txtUser = $form.FindName("TxtUser")
@@ -810,7 +726,7 @@ function Show-Appearance {
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($lookXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $form
+    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont
     $txtIconPath = $form.FindName("TxtIconPath")
     $txtIconPath.Text = "$IconPath"
     $txtIconPath.ToolTip = "$IconPath"
@@ -1040,7 +956,7 @@ function Show-DuplicatePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($dupXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    & $DressWindow $prompt
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
     $prompt.FindName("TxtLead").Text = "Copy '$InstanceName'."
     if (-not $IsRunning) { $prompt.FindName("TxtRunning").Visibility = [System.Windows.Visibility]::Collapsed }
 
