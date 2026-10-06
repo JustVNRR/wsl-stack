@@ -8,9 +8,12 @@
         <!-- Exceptions de couleur explicites -->
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and its content. This operation CANNOT be undone.</TextBlock>
+        <TextBlock Margin="0,20,0,0" TextWrapping="Wrap">Proceeding will PERMANENTLY DESTROY this distribution, erasing:</TextBlock>
+        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap">   - its install folder,</TextBlock>
+        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap">   - its virtual disk (VHDX), and its content.</TextBlock>
+        <TextBlock Margin="0,10,0,10" TextWrapping="Wrap">This operation CANNOT be undone.</TextBlock>
         <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Content="Archive it first"/>
-        <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
+        <TextBlock Margin="0,14,0,10" TextWrapping="Wrap" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
         <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnGateCancel" TabIndex="2" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"/>

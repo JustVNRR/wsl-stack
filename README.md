@@ -202,9 +202,13 @@ the repository at runtime.
 │   └── unzip.zsh            # Interactive archive extraction handler
 ├── assets/
 │   ├── make-icon.ps1        # Draws an instance's icon from its name (standalone PowerShell)
-│   └── fonts/
-│       ├── VT323-Regular.ttf  # the manager window's face (retro terminal, OFL - see OFL.txt)
-│       └── fa-solid-900.ttf   # the buttons' icons (Font Awesome 6 Free Solid - see fa-LICENSE.txt)
+│   └── fonts/               # One folder per face (the settings window
+│       ├── VT323/           #   uploads into its own too): the manager
+│       │   ├── VT323-Regular.ttf  # window's face - retro terminal, OFL (see OFL.txt)
+│       │   └── OFL.txt
+│       └── FontAwesome/     # The buttons' icons - Font Awesome 6 Free Solid
+│           ├── fa-solid-900.ttf
+│           └── fa-LICENSE.txt
 ├── docs/
 │   ├── make/                # Documentation of the socle's gmake modules
 │   ├── wsl/                 # Instance administration: the commands, their options, examples
@@ -301,7 +305,7 @@ the repository at runtime.
 │                            #   file: Theme/ (the chart every window merges
 │                            #   - the colours live in one place - and its
 │                            #   manager: the faces and the dresser), Views/
-│                            #   (the fleet window, and the eight popups
+│                            #   (the fleet window, and the popups
 │                            #   under Popups/), Runners/ (the three child
 │                            #   scripts) and Controllers/ (the jobs, the
 │                            #   dialogs' doors, the fleet's desk)

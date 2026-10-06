@@ -21,7 +21,14 @@ $GuiRoot = Join-Path $PSScriptRoot "..\gui"
 . (Join-Path $GuiRoot "Controllers\Jobs.ps1")
 . (Join-Path $GuiRoot "Controllers\Popups.ps1")
 . (Join-Path $GuiRoot "Controllers\Fleet.ps1")
-$GuiFonts = Initialize-GuiFonts -AssetsDir (Join-Path $PSScriptRoot "..\..\assets")
+$AssetsDir = Join-Path $PSScriptRoot "..\..\assets"
+$GuiSettings = Get-GuiSettings
+$GuiFonts = Initialize-GuiFonts -AssetsDir $AssetsDir
+# The saved face, resolved to its object; a name that matches nothing - a
+# settings file pointing at a font since deleted - keeps the shipped one.
+$chosenFont = Resolve-UiFont -AssetsDir $AssetsDir -Name $GuiSettings.FontFamily
+if ($chosenFont) { $GuiFonts.UiFont = $chosenFont }
+$GuiFonts.UiSize = $GuiSettings.FontSize
 
 # 1. The window's markup - the header, the list, an indeterminate bar for the
 # long work, and the actions: Add and Refresh up in the header, and on every
@@ -33,7 +40,7 @@ $reader = [System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($Xa
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
 $window.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
-Set-WindowPhosphorFrame -Win $window -UiFont $GuiFonts.UiFont
+Set-WindowPhosphorFrame -Win $window -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
 
 # The face every icon button asks for - rows and header alike, templates
 # included: a DynamicResource reaches them wherever they are built.
@@ -46,6 +53,7 @@ $txtStatus    = $window.FindName("TxtStatus")
 $prgWork      = $window.FindName("PrgWork")
 $btnRefresh   = $window.FindName("BtnRefresh")
 $btnAdd       = $window.FindName("BtnAdd")
+$btnSettings  = $window.FindName("BtnSettings")
 $btnQuit      = $window.FindName("BtnQuit")
 
 $txtRoot.Text = "Root: $($Manager.InstancesRoot)"
@@ -54,6 +62,53 @@ $txtRoot.Text = "Root: $($Manager.InstancesRoot)"
 # tick ever fails to fire, Refresh still ends the job and reports it.
 $btnRefresh.Add_Click({ & $WatchJob; & $LoadFleet })
 $btnQuit.Add_Click({ $window.Close() })
+
+# The safety net: a UI-thread exception kills the process outright - a family
+# whose file is gone throws deep in the text stack (measured). Caught here,
+# said on the status line, and the window lives on.
+$window.Dispatcher.Add_UnhandledException({
+    param($source, $e)
+    $e.Handled = $true
+    & $SetStatus "A drawing failed: $($e.Exception.Message)" -Alert
+})
+
+# Settings: the gui's own face - the family and its size today, the colours
+# in their own lot. Applied on the spot to this window; the popups follow on
+# their next open, which is where their dresser reads the face from.
+$btnSettings.Add_Click({
+    # The family really worn, not the saved name - which can be stale (a
+    # font since deleted) - so the select stands on the truth; with nothing
+    # resolved the XAML's own face stands, Segoe UI.
+    $worn = "Segoe UI"
+    if ($GuiFonts.UiFont) {
+        $worn = "$($GuiFonts.UiFont.FamilyNames.Values | Select-Object -First 1)"
+        if (-not $worn) { $worn = "$($GuiFonts.UiFont.Source)" -replace '^\./#', '' }
+    }
+    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize
+    if ($null -eq $look) { return }
+    # A folder face's file must be on disk right now - the filesystem is the
+    # truth. NOT a rendered glyph: rendering resolves the family NAME through
+    # the Windows font cache, which can still point it at a file that is gone
+    # (measured: it refused a just-uploaded face whose file sat right there).
+    if ($look.Folder) {
+        $faceFile = @(Get-ChildItem $look.Folder -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in ".ttf", ".otf" })
+        if ($faceFile.Count -eq 0) {
+            & $SetStatus "'$($look.Name)' cannot be used: its file seems gone." -Alert
+            return
+        }
+    }
+    $GuiSettings.FontFamily = $look.Name
+    $GuiSettings.FontSize = $look.Size
+    Save-GuiSettings $GuiSettings
+    $GuiFonts.UiFont = $look.Family
+    $GuiFonts.UiSize = $look.Size
+    Set-WindowPhosphorFrame -Win $window -UiFont $look.Family -UiFontSize $look.Size
+    # The columns re-measure under the new face, and the fitted width follows
+    # the zoom - then the face speaks, after the reload's own count line.
+    & $LoadFleet
+    & $SetStatus "Window face: '$($look.Name)' at $($look.Size) pt. Popups follow on their next open."
+})
 
 # Add: the form first, then the run in a console window of its own - the real
 # entry, not a copy of it, so the console's build and this one cannot drift
@@ -93,7 +148,7 @@ $lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RowActio
 # that lands on a button, a box or a scrollbar belongs to them - the walk up
 # the tree decides, or every button press would start a drag.
 $window.Add_MouseLeftButtonDown({
-    param($sender, $e)
+    param($source, $e)
     $node = $e.OriginalSource
     try {
         while ($node -and $node -ne $window) {
@@ -110,7 +165,7 @@ $window.Add_MouseLeftButtonDown({
 # Q and Escape close it - unless the hand is typing in a field: the status
 # line is the only box here, and a q inside it must stay a letter.
 $window.Add_PreviewKeyDown({
-    param($sender, $e)
+    param($source, $e)
     if ($e.Key -eq [System.Windows.Input.Key]::Q -or $e.Key -eq [System.Windows.Input.Key]::Escape) {
         if ([System.Windows.Input.Keyboard]::FocusedElement -is [System.Windows.Controls.TextBox]) { return }
         $window.Close()

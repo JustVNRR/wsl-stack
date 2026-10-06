@@ -1,5 +1,5 @@
 # The dialogs' doors, out of the command file: the exclusive gate and the
-# eight Show-* windows. Dot-sourced at the entry's script level, where the
+# Show-* windows. Dot-sourced at the entry's script level, where the
 # handlers read them by name; the XAML paths hang off the entry's $GuiRoot
 # ($PSScriptRoot would name this folder).
 # Every popup goes through here: the fleet window steps aside while a dialog
@@ -36,7 +36,7 @@ function Show-RemoveGate {
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $gate.FindName("TxtLead").Text = "The WSL distribution '$($Instance.Name)' and ALL its data will be deleted."
     $txtName = $gate.FindName("TxtName")
     $btnRemove = $gate.FindName("BtnGateRemove")
@@ -59,6 +59,7 @@ function Show-RemoveGate {
         $gate.Close()
     })
 
+    Set-WindowFitToContent -Win $gate
     Show-PopupExclusive $window { $null = $gate.ShowDialog() }
     return $script:GateResult
 }
@@ -78,7 +79,7 @@ function Show-RestorePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($restoreXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $prompt.FindName("TxtLead").Text = "The archive '$ArchiveName' comes back as a new instance."
     $txtName = $prompt.FindName("TxtName")
     $txtName.Text = $ArchiveName
@@ -95,6 +96,7 @@ function Show-RestorePrompt {
         $prompt.Close()
     })
 
+    Set-WindowFitToContent -Win $prompt
     Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     if ([string]::IsNullOrWhiteSpace($script:RestoreResult)) { return $null }
     return $script:RestoreResult
@@ -116,7 +118,7 @@ function Show-ArchiveGate {
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($deleteXaml))
     $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $gate.FindName("TxtLead").Text = "The archive '$ArchiveName' will be deleted and will not be restorable again."
     $txtName = $gate.FindName("TxtName")
     $btnDelete = $gate.FindName("BtnArchiveDelete")
@@ -132,6 +134,7 @@ function Show-ArchiveGate {
     $gate.FindName("BtnArchiveCancel").Add_Click({ $script:ArchiveGateResult = $false; $gate.Close() })
     $btnDelete.Add_Click({ $script:ArchiveGateResult = $true; $gate.Close() })
 
+    Set-WindowFitToContent -Win $gate
     Show-PopupExclusive $window { $null = $gate.ShowDialog() }
     return $script:ArchiveGateResult
 }
@@ -152,7 +155,7 @@ function Show-ArchivePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($archiveXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $prompt.FindName("TxtLead").Text = "Write '$InstanceName' to an archive."
     if (-not $IsRunning) { $prompt.FindName("TxtRunning").Visibility = [System.Windows.Visibility]::Collapsed }
 
@@ -177,6 +180,7 @@ function Show-ArchivePrompt {
         $prompt.Close()
     })
 
+    Set-WindowFitToContent -Win $prompt
     Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     if ([string]::IsNullOrWhiteSpace($script:ArchivePromptResult)) { return $null }
     return $script:ArchivePromptResult
@@ -197,6 +201,7 @@ function New-PackChecklist {
         $TxtAdd,
         $TxtDel,
         $TxtNotes,
+        $ApplyButton,
         [string]$NothingText
     )
 
@@ -205,6 +210,7 @@ function New-PackChecklist {
     $script:ChecklistTxtAdd = $TxtAdd
     $script:ChecklistTxtDel = $TxtDel
     $script:ChecklistTxtNotes = $TxtNotes
+    $script:ChecklistApplyButton = $ApplyButton
     $script:ChecklistNothingText = $NothingText
     $script:ChecklistSelection = $null
 
@@ -213,7 +219,13 @@ function New-PackChecklist {
     $script:ChecklistEntries = @()
     foreach ($pack in @($Catalog.AvailablePacks | Where-Object { $_.Offered })) {
         $check = New-Object System.Windows.Controls.CheckBox
-        $check.Content = "{0,-12} {1}" -f $pack.Name, $pack.Description
+        # The label folds instead of running off the window: a plain string
+        # refuses to wrap, and a wide face at a big zoom runs long
+        # descriptions past the edge (measured on screen).
+        $label = New-Object System.Windows.Controls.TextBlock
+        $label.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $label.Text = "{0,-12} {1}" -f $pack.Name, $pack.Description
+        $check.Content = $label
         $check.Margin = "0,3,0,3"
         $check.IsChecked = ($Installed -contains $pack.Name)
         $script:ChecklistEntries += [PSCustomObject]@{ Pack = $pack; Check = $check }
@@ -262,6 +274,13 @@ function New-PackChecklist {
         } else {
             $script:ChecklistTxtNotes.Text = ""
         }
+
+        # The editor's APPLY follows the answer: greyed on nothing to do.
+        # The add form passes no button - an instance with no pack is a real
+        # answer there.
+        if ($script:ChecklistApplyButton) {
+            $script:ChecklistApplyButton.IsEnabled = ($selection.ToAdd.Count -gt 0 -or $selection.ToRemove.Count -gt 0)
+        }
     }
 
     foreach ($entry in $script:ChecklistEntries) {
@@ -287,11 +306,12 @@ function Show-PackEditor {
     $editor = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($editorXaml))
     $editor.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $editor -UiFont $GuiFonts.UiFont
-    $editor.FindName("TxtLead").Text = "The packs of '$InstanceName'."
+    Set-WindowPhosphorFrame -Win $editor -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $editor.FindName("TxtLead").Text = "$InstanceName' Packs"
 
     New-PackChecklist -Panel $editor.FindName("Boxes") -Installed $Installed -Catalog $Catalog `
         -TxtAdd $editor.FindName("TxtAdd") -TxtDel $editor.FindName("TxtDel") -TxtNotes $editor.FindName("TxtNotes") `
+        -ApplyButton $editor.FindName("BtnEditApply") `
         -NothingText "Nothing to do: '$InstanceName' already has exactly that."
 
     $script:PackEditResult = $null
@@ -305,6 +325,7 @@ function Show-PackEditor {
         $editor.Close()
     })
 
+    Set-WindowFitToContent -Win $editor
     Show-PopupExclusive $window { $null = $editor.ShowDialog() }
     return $script:PackEditResult
 }
@@ -327,7 +348,7 @@ function Show-AddInstance {
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($addXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $txtName = $form.FindName("TxtName")
     $txtNameError = $form.FindName("TxtNameError")
     $txtUser = $form.FindName("TxtUser")
@@ -391,6 +412,7 @@ function Show-AddInstance {
         }
     })
 
+    Set-WindowFitToContent -Win $form
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:AddResult
 }
@@ -453,7 +475,8 @@ function Show-Appearance {
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($lookXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $form.FindName("TxtLead").Text = "$InstanceName's appearance."
     $txtIconPath = $form.FindName("TxtIconPath")
     $txtIconPath.Text = "$IconPath"
     $txtIconPath.ToolTip = "$IconPath"
@@ -622,7 +645,17 @@ function Show-Appearance {
     }
     $txtIcon.Add_TextChanged($DrawPreview)
     $lstPairs.Add_SelectionChanged($DrawPreview)
-    & $DrawPreview
+
+    # The icon as it stands: an uploaded image sits at the path above (its
+    # seat), so the preview shows IT and APPLY would keep it - the recipe
+    # lives behind. A text or colour edit takes the seat back, see
+    # DrawPreview. Without an image, the recipe draws as before.
+    if (Test-Path $IconPath) {
+        $script:LookImage = $IconPath
+        & $LoadIconFile $IconPath
+    } else {
+        & $DrawPreview
+    }
 
     # An image is a choice like the others: picked here and applied with
     # everything else on APPLY. The path under "Icon file:" is what answers -
@@ -630,11 +663,30 @@ function Show-Appearance {
     # picked - and a note added under it while the old path stayed above read
     # as nothing. It still replaces the picture alone: the recipe behind it
     # stays, the console's own manners.
+    # The file dialog's Enter lands on the owner once it closes, and the
+    # default button answers it - the icon pick has closed this very window
+    # on APPLY (measured): after each pick, the Enter's pair is eaten off
+    # the window.
+    $script:EatEnter = $false
+    $form.Add_PreviewKeyDown({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) { $e.Handled = $true }
+    })
+    $form.Add_PreviewKeyUp({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) {
+            $script:EatEnter = $false
+            $e.Handled = $true
+        }
+    })
+
     $form.FindName("BtnImage").Add_Click({
         $Dialog = New-Object Microsoft.Win32.OpenFileDialog
         $Dialog.Title = "Icon image for '$InstanceName'"
         $Dialog.Filter = "Images (*.png;*.jpg;*.jpeg;*.ico;*.bmp)|*.png;*.jpg;*.jpeg;*.ico;*.bmp"
-        if ($Dialog.ShowDialog($form) -eq $true) {
+        $picked = $Dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -eq $true) {
             $script:LookImage = $Dialog.FileName
             $txtIconPath.Text = $Dialog.FileName
             $txtIconPath.ToolTip = $Dialog.FileName
@@ -662,6 +714,7 @@ function Show-Appearance {
         $form.Close()
     })
 
+    Set-WindowFitToContent -Win $form
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:LookResult
 }
@@ -683,7 +736,7 @@ function Show-DuplicatePrompt {
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($dupXaml))
     $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
-    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont
+    Set-WindowPhosphorFrame -Win $prompt -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $prompt.FindName("TxtLead").Text = "Copy '$InstanceName'."
     if (-not $IsRunning) { $prompt.FindName("TxtRunning").Visibility = [System.Windows.Visibility]::Collapsed }
 
@@ -723,6 +776,134 @@ function Show-DuplicatePrompt {
         }
     })
 
+    Set-WindowFitToContent -Win $prompt
     Show-PopupExclusive $window { $null = $prompt.ShowDialog() }
     return $script:DupResult
+}
+
+# -----------------------------------------------------------------------------
+# THE WINDOW'S OWN FACE - THE SETTINGS, WINDOW-SIDE
+# -----------------------------------------------------------------------------
+# The four the gui wears; two ride today (the font's family and size), the
+# colours come in their own lot. The values in use are the ones shown: the
+# family marked in the list, its size selected. An uploaded font file lands
+# in the repository's own font folder, beside VT323, and the family it
+# carries joins the list, selected - the icon's own manners, one seat over.
+function Show-GuiSettings {
+    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize)
+
+    [xml]$settingsXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\GuiSettings.xaml"))
+
+    $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($settingsXaml))
+    $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+
+    Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $form.FindName("TxtLead").Text = "Appearance"
+
+    # The list: the folders first, then the machine's usable fonts - the
+    # console's own detection, which draws glyphs, so it is asked now and
+    # never at launch. The family in use is marked and stands selected.
+    # A List, not an array: the upload handler below APPENDS to it, and a
+    # scriptblock's `+=` would assign a local copy - the function's array
+    # would stay short, the selected index one past it, and APPLY would
+    # answer an empty row (measured: "Window face: ''", the dresser then
+    # skipped). Method calls mutate the shared object; assignments do not.
+    $choiceRows = [System.Collections.Generic.List[object]]::new()
+    foreach ($choice in @(Get-GuiFontChoices -AssetsDir $AssetsDir)) { $choiceRows.Add($choice) }
+    $taken = @{}
+    foreach ($choice in $choiceRows) { $taken[$choice.Name] = $true }
+    foreach ($font in @(Get-UsableFonts)) {
+        if ($taken.ContainsKey($font.Name)) { continue }
+        $taken[$font.Name] = $true
+        $choiceRows.Add([PSCustomObject]@{ Name = $font.Name; Family = [Windows.Media.FontFamily]::new($font.Name) })
+    }
+
+    # The worn face may not be in the list at all - Segoe UI, the XAML's own
+    # fallback, when nothing resolves - and a select standing on a silent
+    # first row lies about what the windows wear: it is prepended, marked,
+    # and selected like any other.
+    if (@($choiceRows | Where-Object { $_.Name -eq $CurrentFamily }).Count -eq 0) {
+        $choiceRows.Insert(0, [PSCustomObject]@{ Name = $CurrentFamily; Family = [Windows.Media.FontFamily]::new($CurrentFamily) })
+    }
+
+    $lstFonts = $form.FindName("LstGuiFonts")
+    $fontIndex = 0
+    for ($i = 0; $i -lt $choiceRows.Count; $i++) {
+        $here = if ($choiceRows[$i].Name -eq $CurrentFamily) { "  (current)" } else { "" }
+        if ($choiceRows[$i].Name -eq $CurrentFamily) { $fontIndex = $i }
+        $null = $lstFonts.Items.Add("$($choiceRows[$i].Name)$here")
+    }
+    if ($choiceRows.Count -gt 0) { $lstFonts.SelectedIndex = $fontIndex }
+
+    # The size: a short ladder; a hand-edited settings file keeps its rung.
+    $lstSizes = $form.FindName("LstGuiSizes")
+    $sizes = @(11, 13, 15, 17, 19)
+    if ($sizes -notcontains $CurrentSize) { $sizes = @($CurrentSize) + $sizes }
+    $sizeIndex = 0
+    for ($i = 0; $i -lt $sizes.Count; $i++) {
+        $here = if ($sizes[$i] -eq $CurrentSize) { "  (current)" } else { "" }
+        if ($sizes[$i] -eq $CurrentSize) { $sizeIndex = $i }
+        $null = $lstSizes.Items.Add("$($sizes[$i])$here")
+    }
+    $lstSizes.SelectedIndex = $sizeIndex
+
+    # The file dialog's Enter lands on the owner once it closes, and the
+    # default button answers it - the popup closed applying the old choice
+    # (measured). After each pick, the Enter's pair is eaten off the window.
+    $script:EatEnter = $false
+    $form.Add_PreviewKeyDown({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) { $e.Handled = $true }
+    })
+    $form.Add_PreviewKeyUp({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) {
+            $script:EatEnter = $false
+            $e.Handled = $true
+        }
+    })
+
+    # An uploaded face: the file lands in a folder of its own under the
+    # repository's fonts, and the family it carries joins the list, selected.
+    # A family travels as an OBJECT, so the row holds it, never a name to
+    # resolve again. The folder of its own, because the font cache never
+    # notices a file added to a folder it already knows (measured: the
+    # upload never showed up) - a folder WPF has never seen is served fresh.
+    $form.FindName("BtnGuiFontUpload").Add_Click({
+        $dialog = New-Object Microsoft.Win32.OpenFileDialog
+        $dialog.Title = "A font file for the window"
+        $dialog.Filter = "Fonts (*.ttf;*.otf)|*.ttf;*.otf"
+        $picked = $dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -ne $true) { return }
+        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $slot = Join-Path (Join-Path $AssetsDir "fonts") ("$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName))-$stamp")
+        $family = @()
+        try {
+            $null = New-Item -ItemType Directory -Path $slot -Force
+            Copy-Item -LiteralPath $dialog.FileName -Destination (Join-Path $slot ([IO.Path]::GetFileName($dialog.FileName))) -Force
+            $uri = [Uri]("file:///" + ($slot -replace '\\', '/') + "/")
+            $family = @([Windows.Media.Fonts]::GetFontFamilies($uri) | Select-Object -First 1)
+        } catch { }
+        if ($family.Count -eq 0) { return }
+        $family = $family[0]
+        $name = "$($family.FamilyNames.Values | Select-Object -First 1)"
+        if (-not $name) { $name = "$($family.Source)" -replace '^\./#', '' }
+        $choiceRows.Add([PSCustomObject]@{ Name = $name; Family = $family; Folder = $slot })
+        $null = $lstFonts.Items.Add("$name  (just uploaded)")
+        $lstFonts.SelectedIndex = $lstFonts.Items.Count - 1
+    })
+
+    $script:GuiSettingsResult = $null
+    $form.FindName("BtnGuiCancel").Add_Click({ $script:GuiSettingsResult = $null; $form.Close() })
+    $form.FindName("BtnGuiApply").Add_Click({
+        $choice = $choiceRows[[Math]::Max(0, $lstFonts.SelectedIndex)]
+        $size = $sizes[[Math]::Max(0, $lstSizes.SelectedIndex)]
+        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size }
+        $form.Close()
+    })
+
+    Set-WindowFitToContent -Win $form
+    Show-PopupExclusive $window { $null = $form.ShowDialog() }
+    return $script:GuiSettingsResult
 }

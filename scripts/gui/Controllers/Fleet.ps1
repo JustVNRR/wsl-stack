@@ -88,7 +88,11 @@ $LoadFleet = {
         # The header is measured too, its text must fit; the action column
         # keeps its width - icons do not vary.
         if ($sorted.Count -gt 0) {
-            $typeface = New-Object Windows.Media.Typeface("Segoe UI")
+            # Measured with the face the window actually wears: the columns
+            # keep their promise under a custom family too. The size is the
+            # base 15 - the chosen size is a zoom outside this measurement.
+            $typeface = New-Object Windows.Media.Typeface($window.FontFamily,
+                [Windows.FontStyles]::Normal, [Windows.FontWeights]::Normal, [Windows.FontStretches]::Normal)
             $measures = @(
                 @{ Column = 0; Header = "Name";   Values = @($sorted | ForEach-Object { "$($_.Name)" }) },
                 @{ Column = 1; Header = "Status"; Values = @($sorted | ForEach-Object { "$($_.Status)" }) },
@@ -114,7 +118,8 @@ $LoadFleet = {
             # scrollbar 17, and a breath.
             $total = 0.0
             foreach ($column in $lstInstances.View.Columns) { $total += $column.Width }
-            $window.Width = [Math]::Min(1100, [Math]::Max(560, $total + 84))
+            # Scaled like the content: the zoom multiplies the fitted width.
+            $window.Width = [Math]::Min(1100, [Math]::Max(560, $total + 84)) * ($GuiFonts.UiSize / 15.0)
         }
 
         $total = $instances.Count + $archives.Count
@@ -128,6 +133,17 @@ $LoadFleet = {
     }
 }
 
+# One reload, a beat after a shell opened: opening boots a stopped distro,
+# and WSL's own listing lags the boot - read right away, the row would still
+# say Stopped. The tick is made at the script level: a block built inside a
+# click reads its state through a scope that is gone when the timer fires
+# (measured).
+$ShellReloadTick = {
+    param($source, $e)
+    $source.Stop()
+    & $LoadFleet
+}
+
 # The row icons bubble their clicks to the list, and the OriginalSource is the
 # button: its DataContext is the row it sits on, and its Name says which
 # gesture was asked. Open is the one instant gesture: the shell gets a window
@@ -135,7 +151,7 @@ $LoadFleet = {
 # the row goes quiet, the window locks, and a child process does the work -
 # remove and restore ask their window first, and only then.
 $RowAction = [System.Windows.RoutedEventHandler]{
-    param($sender, $e)
+    param($source, $e)
     $button = $e.OriginalSource
     $row = $button.DataContext
     if ($null -eq $row) { return }
@@ -176,9 +192,17 @@ $RowAction = [System.Windows.RoutedEventHandler]{
     }
     if ($button.Name -eq "BtnRowOpen") {
         try {
+            $wasStopped = ($row.Status -eq "Stopped")
             $inst.OpenShell()
-            $note = if ($row.Status -eq "Stopped") { " It was stopped: WSL starts it on the way in." } else { "" }
+            $note = if ($wasStopped) { " It was stopped: WSL starts it on the way in." } else { "" }
             & $SetStatus "A shell for '$($inst.Name)' opened in a new window.$note"
+            # The row follows the boot, a beat later - the listing lags it.
+            if ($wasStopped) {
+                $shellReload = New-Object System.Windows.Threading.DispatcherTimer
+                $shellReload.Interval = [TimeSpan]::FromMilliseconds(2000)
+                $shellReload.Add_Tick($ShellReloadTick)
+                $shellReload.Start()
+            }
         } catch {
             & $SetStatus "Could not open a shell for '$($inst.Name)': $($_.Exception.Message)" -Alert
         }
@@ -233,7 +257,7 @@ $RowAction = [System.Windows.RoutedEventHandler]{
             "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
             "`"$($inst.Name)`"", "`"$($selection.ToAdd -join ',')`"", "`"$($selection.ToRemove -join ',')`"", "`"$ModulePath`""
         )
-        & $SetStatus "Editing the packs of '$($inst.Name)' in a window of its own."
+        & $SetStatus "Editing $($inst.Name)'s packs in a window of its own."
         return
     }
     if ($button.Name -eq "BtnRowAppearance") {
@@ -261,9 +285,15 @@ $RowAction = [System.Windows.RoutedEventHandler]{
             $changed = @()
             if ($look.Image) {
                 # The image took the icon's seat: it replaces the picture, the
-                # recipe behind it stays - the console's own manners.
-                $null = $Manager.SetIconImage($inst, $look.Image)
-                $changed += "icon image '$([IO.Path]::GetFileName($look.Image))'"
+                # recipe behind it stays - the console's own manners. The
+                # current seat comes back unchanged when nothing was picked
+                # (opening on an image and applying as-is): copying a file
+                # onto itself is not a change.
+                $seat = Join-Path $inst.Path "terminal-icon.png"
+                if ("$($look.Image)" -ne $seat) {
+                    $null = $Manager.SetIconImage($inst, $look.Image)
+                    $changed += "icon image '$([IO.Path]::GetFileName($look.Image))'"
+                }
             } else {
                 $recipeChanged = $true
                 if ($recipe -and $look.Text -eq $recipe.Text -and $look.Top -eq $recipe.Top -and
