@@ -876,8 +876,12 @@ function Show-GuiSettings {
         $picked = $dialog.ShowDialog($form)
         $script:EatEnter = $true
         if ($picked -ne $true) { return }
-        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $slot = Join-Path (Join-Path $AssetsDir "fonts") ("$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName))-$stamp")
+        # The folder's name is the file's identity - the base name and a
+        # short hash of the content: the same font uploaded again lands in
+        # the same folder (no pile of folders), a changed file takes a path
+        # the font cache has never seen (it must not serve stale bytes).
+        $fingerprint = (Get-FileHash -LiteralPath $dialog.FileName -Algorithm SHA1).Hash.Substring(0, 8).ToLower()
+        $slot = Join-Path (Join-Path $AssetsDir "fonts") ("$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName))-$fingerprint")
         $family = @()
         try {
             $null = New-Item -ItemType Directory -Path $slot -Force
