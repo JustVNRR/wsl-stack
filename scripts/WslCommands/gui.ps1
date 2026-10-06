@@ -887,8 +887,8 @@ function Show-RemoveGate {
     <StackPanel Margin="18">
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and everything in /home - projects, SSH keys, all of it. This operation CANNOT be undone.</TextBlock>
-        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Foreground="#33FF66" Content="Archive it first (a copy the restore command can bring back)"/>
+        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#33FF66">Proceeding will PERMANENTLY DESTROY this distribution, erasing its install folder, its virtual disk (VHDX), and its content. This operation CANNOT be undone.</TextBlock>
+        <CheckBox Name="ChkArchive" TabIndex="0" Margin="0,12,0,0" Foreground="#33FF66" Content="Archive it first"/>
         <TextBlock Margin="0,14,0,0" Text="To confirm DESTRUCTION, type the exact name of the instance:"/>
         <TextBox Name="TxtName" TabIndex="1" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -982,8 +982,7 @@ function Show-RestorePrompt {
     </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">The tar is imported as a new WSL 2 instance. The archive itself is kept - it can be restored again, or deleted by hand.</TextBlock>
-        <TextBlock Margin="0,14,0,0" Text="Name of the new instance:"/>
+        <TextBlock Margin="0,14,0,0" Text="Name of the restored instance:"/>
         <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnRestoreCancel" TabIndex="1" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
@@ -1073,7 +1072,6 @@ function Show-ArchiveGate {
     <StackPanel Margin="18">
         <TextBlock Text="WARNING: PERMANENT DELETION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">The tar and the look beside it are erased from disk, and no copy is kept: this archive will not be restorable again.</TextBlock>
         <TextBlock Margin="0,14,0,0" Text="To confirm DELETION, type the exact name of the archive:"/>
         <TextBox Name="TxtName" TabIndex="0" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -1089,7 +1087,7 @@ function Show-ArchiveGate {
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($deleteXaml))
 
     & $DressWindow $gate
-    $gate.FindName("TxtLead").Text = "The archive '$ArchiveName' ($Size) will be deleted for good."
+    $gate.FindName("TxtLead").Text = "The archive '$ArchiveName' will be deleted and will not be restorable again."
     $txtName = $gate.FindName("TxtName")
     $btnDelete = $gate.FindName("BtnArchiveDelete")
 
@@ -1161,7 +1159,6 @@ function Show-ArchivePrompt {
     </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#C0C0C0">The tar and the look go under the archives folder - restore brings them back as a new instance.</TextBlock>
         <TextBlock Name="TxtRunning" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#D7BA7D"
                    Text="It is running: it will be stopped for a consistent disk - anything unsaved in there is lost - then started again once the export is done."/>
         <TextBlock Margin="0,14,0,0" Text="Name of the archive:"/>
