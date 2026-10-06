@@ -300,9 +300,10 @@ the repository at runtime.
 │   ├── gui/                 # The window's furniture, out of the command
 │                            #   file: Theme/theme.xaml, the chart every
 │                            #   window merges - the colours live in one
-│                            #   place - and Views/, the windows' markup:
-│                            #   the fleet window, and the eight popups
-│                            #   under Popups/
+│                            #   place - Views/, the windows' markup: the
+│                            #   fleet window, and the eight popups under
+│                            #   Popups/ - and Runners/, the three child
+│                            #   scripts (the job, the packs run, the build)
 │   ├── WslModel/            # The model, one file per class - a module the
 │                            #   naming files pull in by using: the manager
 │                            #   (one door per command), the instance, the

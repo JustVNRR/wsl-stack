@@ -252,177 +252,6 @@ $LoadFleet = {
     }
 }
 
-# The job the window's buttons run, for real: a CHILD PROCESS. A runspace of
-# one's own was tried first, and it hangs - the engine's very first move reads
-# wsl.exe, and a native program invoked in a runspace with no host never comes
-# back on Windows (measured: the trail stopped at "imported", before "manager
-# made"). A child pwsh HAS a host and runs wsl.exe like every other console;
-# the trail file is how it reports. This source goes to the temp folder at
-# each launch, its arguments on the command line: verb, name, archive, module.
-$JobRunnerSource = @'
-param([string]$Verb, [string]$Name, [string]$ArchiveFirst, [string]$Module)
-
-$Log = Join-Path $env:TEMP "wsl-stack-gui-job.log"
-function Write-Stamp($Message) {
-    $null = Add-Content -LiteralPath $Log -Value "$(Get-Date -Format HH:mm:ss) $Message"
-}
-
-try {
-    Write-Stamp "importing"
-    Import-Module $Module -Force
-    Write-Stamp "imported"
-    $mgr = New-InstanceManager
-    Write-Stamp "manager made"
-
-    if ($Verb -eq "restore") {
-        # No instance to find: the row was an archive. -ArchiveFirst carries
-        # the archive folder here, and -Name the name the new instance takes.
-        Write-Stamp "restoring"
-        $r = $mgr.RestoreFromArchive($ArchiveFirst, $Name)
-        Write-Stamp ("RESULT OK " + $Name + ": restored from '" + (Split-Path $ArchiveFirst -Leaf) + "'")
-    } elseif ($Verb -eq "delete") {
-        # No instance to find here either: the archive's own folder goes.
-        Write-Stamp "deleting the archive"
-        $r = $mgr.DeleteArchive($Name)
-        Write-Stamp ("RESULT OK " + $Name + ": archive deleted - " + [math]::Round($r.Freed / 1MB, 1) + " MB freed")
-    } else {
-        $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
-        Write-Stamp "list read: $([bool]$inst)"
-        if (-not $inst) { throw "'$Name' is not in our list any more." }
-
-        if ($Verb -eq "archive") {
-            # The export reads a still disk: a running instance is stopped for
-            # it and started again after - the console's own manners. The
-            # state is compared by name: no class literal resolves here (the
-            # module came in through Import-Module).
-            Write-Stamp "archiving"
-            $wasRunning = ("$($inst.State)" -eq "Running")
-            if ($wasRunning) {
-                $inst.Stop()
-                Write-Stamp "stopped for a consistent export"
-            }
-            $r = $mgr.Archive($inst, $ArchiveFirst, "tar.gz")
-            if ($wasRunning) {
-                $inst.Start()
-                Write-Stamp "started again"
-            }
-            Write-Stamp ("RESULT OK " + $Name + ": archived as '" + $ArchiveFirst + "' (" + [math]::Round($r.Archive.Length / 1MB, 1) + " MB)")
-        } elseif ($Verb -eq "duplicate") {
-            # -ArchiveFirst carries the copy's name here. The source is
-            # stopped for a consistent read - and started again whatever the
-            # outcome, where the console would leave it down on a refusal.
-            Write-Stamp "duplicating"
-            $wasRunning = ("$($inst.State)" -eq "Running")
-            if ($wasRunning) {
-                $inst.Stop()
-                Write-Stamp "stopped for a consistent read"
-            }
-            $cost = $mgr.DuplicationCost($inst, $ArchiveFirst)
-            if ($cost.FreeBytes -lt $cost.NeededBytes) {
-                if ($wasRunning) { $inst.Start() }
-                throw ("Not enough room on {0}: needed {1}, free {2}." -f $cost.DriveLetter, (Format-Size $cost.NeededBytes), (Format-Size $cost.FreeBytes))
-            }
-            Write-Stamp "copying"
-            $r = $mgr.Duplicate($inst, $ArchiveFirst)
-            if ($wasRunning) {
-                $inst.Start()
-                Write-Stamp "started again"
-            }
-            Write-Stamp ("RESULT OK " + $ArchiveFirst + ": duplicated from '" + $Name + "'")
-        } elseif ($Verb -eq "compact") {
-            Write-Stamp "compacting"
-            $r = $mgr.Shrink($inst)
-            Write-Stamp ("RESULT OK " + $Name + ": compacted - reclaimed " + [math]::Round($r.Freed / 1MB, 1) + " MB")
-        } elseif ($Verb -eq "start") {
-            Write-Stamp "starting"
-            $inst.Start()
-            Write-Stamp ("RESULT OK " + $Name + ": started")
-        } elseif ($Verb -eq "stop") {
-            Write-Stamp "stopping"
-            $inst.Stop()
-            Write-Stamp ("RESULT OK " + $Name + ": stopped")
-        } else {
-            Write-Stamp "removing"
-            $r = $mgr.Unregister($inst, [bool]::Parse($ArchiveFirst))
-            Write-Stamp ("RESULT OK " + $Name + ": removed - folder " + $r.Removed.FolderState)
-        }
-    }
-    exit 0
-} catch {
-    Write-Stamp ("RESULT FAIL " + ($_.Exception.Message -replace "`r?`n", " "))
-    exit 1
-}
-'@
-
-# The pack run's own window, for real: VISIBLE, this one - the installs can
-# take minutes, and what they are doing is the point. It prints the same lines
-# the console's manage_packs prints, because it is the same engine doing the
-# work; the window then waits for Enter, so a failure can be read before it
-# closes. Nothing watches it: the window IS the progress.
-$EditRunnerSource = @'
-param([string]$Name, [string]$Add, [string]$Remove, [string]$Module)
-
-try {
-    Import-Module $Module -Force
-    $mgr = New-InstanceManager
-
-    $inst = @($mgr.OursHere()) | Where-Object { $_.Name -eq $Name } | Select-Object -First 1
-    if (-not $inst) { throw "'$Name' is not in our list any more." }
-
-    # The distro must be up to carry packs - the console's own first move.
-    Invoke-External { wsl.exe -d $Name --exec /bin/true } "Could not start '$Name'."
-
-    $catalog = Get-PackCatalog
-    $toAdd = @()
-    foreach ($n in @($Add -split ',' | Where-Object { $_ })) {
-        $pack = $catalog.GetPack($n)
-        if ($null -ne $pack) { $toAdd += $pack }
-    }
-    $toRemove = @($Remove -split ',' | Where-Object { $_ })
-
-    Write-Host ""
-    Write-Host "==> Packs of '$Name'" -ForegroundColor (Get-MessageColour info)
-    $report = $mgr.ManagePacks($inst, $toAdd, $toRemove, "")
-
-    if ($null -eq $report.Failure) {
-        Write-Host ""
-        $now = @($report.Now)
-        Write-Host "==> '$Name' now carries: $(if ($now.Count -gt 0) { $now -join ', ' } else { 'no pack' })" -ForegroundColor (Get-MessageColour success)
-    }
-} catch {
-    # No colour helper here: this very catch exists for the case where the
-    # module did not load - and the helper lives in the module.
-    Write-Host ""
-    Write-Host "[ERROR] $($_.Exception.Message)"
-}
-
-Write-Host ""
-$null = Read-Host "Press Enter to close this window"
-'@
-
-# The build's own window, for real: VISIBLE, like the packs run - the build is
-# long, loud, and still has questions only it can ask (the account the image
-# already carries, the Docker image, Docker Desktop, the first shell). It is
-# called in PowerShell with its arguments NAMED - wsl.ps1's road hands extra
-# arguments over positionally, which is how they used to land nowhere - and
-# the window waits for Enter at the end: an abort must not vanish with the
-# process.
-$BuildRunnerSource = @'
-param([string]$Name, [string]$User, [string]$Packs, [string]$Module, [string]$BuildScript)
-
-try {
-    Import-Module $Module -Force
-    $mgr = New-InstanceManager
-    & $BuildScript -Name $Name -User $User -Packs $Packs -Manager $mgr
-} catch {
-    Write-Host ""
-    Write-Host "[ERROR] $($_.Exception.Message)"
-}
-
-Write-Host ""
-$null = Read-Host "Press Enter to close this window"
-'@
-
 # The watcher every job the window starts shares - created HERE, at the script
 # level, where the scope every handler reads from stays alive: a block made
 # inside a click handler reads its state through a scope that is gone when the
@@ -474,9 +303,8 @@ $WatchJob = {
         & $LoadFleet
         # After the reload: its own count line would otherwise bury the ending.
         if ($script:EndingText) { & $SetStatus $script:EndingText -Alert:$script:EndingAlert }
-        # The menage: the runner served its launch, and the trail is done once
-        # it has told the ending - kept only when it could not.
-        Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.ps1") -ErrorAction SilentlyContinue
+        # The menage: the trail is done once it has told the ending - kept
+        # only when it could not.
         if (-not $script:KeepTrail) {
             Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
         }
@@ -523,8 +351,7 @@ $btnAdd.Add_Click({
 
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
     $BuildScript = Join-Path $PSScriptRoot "build.ps1"
-    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-build.ps1"
-    Set-Content -LiteralPath $RunnerPath -Value $BuildRunnerSource -Encoding utf8NoBOM
+    $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\BuildRunner.ps1"
     $null = Start-Process pwsh -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
         "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"", "`"$ModulePath`"", "`"$BuildScript`""
@@ -1257,15 +1084,14 @@ function Show-DuplicatePrompt {
     return $script:DupResult
 }
 
-# The launch every row gesture shares: the runner to the temp folder, the
+# The launch every row gesture shares: the runner from the gui folder, the
 # trail cleared, the child out, the watcher on - the verb says what it does.
 $LaunchJob = {
     param([string]$Verb, [string]$Name, [string]$ArchiveFirst)
 
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
-    $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-job.ps1"
+    $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\JobRunner.ps1"
     Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
-    Set-Content -LiteralPath $RunnerPath -Value $JobRunnerSource -Encoding utf8NoBOM
 
     # The paths travel quoted - an array of arguments is joined blindly, and a
     # folder with a space would split it.
@@ -1380,8 +1206,7 @@ $RowAction = [System.Windows.RoutedEventHandler]{
         # installs can take minutes, and the déroulé is what there is to see.
         # No lock, no bandeau: the window is the progress.
         $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
-        $RunnerPath = Join-Path $env:TEMP "wsl-stack-gui-packs.ps1"
-        Set-Content -LiteralPath $RunnerPath -Value $EditRunnerSource -Encoding utf8NoBOM
+        $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\EditRunner.ps1"
         # Every argument quoted, the lists included: an empty list would
         # otherwise vanish from the command line and shift every argument
         # after it by one (measured - Import-Module received the wrong file,
