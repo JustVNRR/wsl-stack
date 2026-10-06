@@ -298,12 +298,13 @@ the repository at runtime.
 │                            #   sixteen the menu offers, and theme's three
 │                            #   children - icon, font and color
 │   ├── gui/                 # The window's furniture, out of the command
-│                            #   file: Theme/theme.xaml, the chart every
-│                            #   window merges - the colours live in one
-│                            #   place - Views/, the windows' markup: the
-│                            #   fleet window, and the eight popups under
-│                            #   Popups/ - and Runners/, the three child
-│                            #   scripts (the job, the packs run, the build)
+│                            #   file: Theme/ (the chart every window merges
+│                            #   - the colours live in one place - and its
+│                            #   manager: the faces and the dresser), Views/
+│                            #   (the fleet window, and the eight popups
+│                            #   under Popups/), Runners/ (the three child
+│                            #   scripts) and Controllers/ (the jobs, the
+│                            #   dialogs' doors, the fleet's desk)
 │   ├── WslModel/            # The model, one file per class - a module the
 │                            #   naming files pull in by using: the manager
 │                            #   (one door per command), the instance, the
