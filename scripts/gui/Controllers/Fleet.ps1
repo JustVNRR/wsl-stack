@@ -120,8 +120,12 @@ $LoadFleet = {
             # scrollbar 17, and a breath.
             $total = 0.0
             foreach ($column in $lstInstances.View.Columns) { $total += $column.Width }
-            # Scaled like the content: the zoom multiplies the fitted width.
-            $window.Width = [Math]::Min(1100, [Math]::Max(560, $total + 84)) * ($GuiFonts.UiSize / 15.0)
+            # The frame's own 58 pixels - its margins and its line, all
+            # OUTSIDE the zoom - do not scale: multiplied like the rest, the
+            # budget left them a smaller and smaller share under 15, and at
+            # 11 the list wore a scrollbar (measured: ~15 pixels short).
+            $base = [Math]::Min(1100, [Math]::Max(560, $total + 84))
+            $window.Width = ($base - 58) * ($GuiFonts.UiSize / 15.0) + 58
         }
 
         $total = $instances.Count + $archives.Count
@@ -276,9 +280,14 @@ $RowAction = [System.Windows.RoutedEventHandler]{
         $pairs = @(& $IconScript -ListPairs | Where-Object { $_ })
         $ourFragment = Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\Fragments\wsl-stack\$($inst.Name).json"
 
+        # The machine's two lists come from the session's one read - warm
+        # since launch, see Get-GuiLookups - where re-reading them at every
+        # open was this form's slow part.
+        $machine = Get-GuiLookups
+
         $look = Show-Appearance -InstanceName $inst.Name -HasFragment ([bool](Test-Path $ourFragment)) `
-            -Fonts (@(Get-UsableFonts)) -CurrentFont $appearance.FontName `
-            -Schemes (Get-ColorSchemes) -CurrentScheme $appearance.ColorScheme `
+            -Fonts $machine.Fonts -CurrentFont $appearance.FontName `
+            -Schemes $machine.Schemes -CurrentScheme $appearance.ColorScheme `
             -Recipe $recipe -Pairs $pairs -SuggestedText $suggested `
             -IconPath (Join-Path $inst.Path "terminal-icon.png") -IconScript $IconScript
         if ($null -eq $look) { return }

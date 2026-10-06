@@ -103,3 +103,36 @@ $LaunchJob = {
         & $SetBusyState $false $null
     }
 }
+
+# The machine's two lookup lists - the fonts a terminal can use and the
+# Terminal's colour schemes - are heavy to read (every family probed glyph
+# by glyph, every package asked) and read at most once per session. The
+# reading STARTS at launch, in a thread of its own (the entry starts it);
+# this is where the popups harvest it, and only when it has finished: a
+# popup opened first waits for nothing, it reads the lists itself. The
+# schemes travel as a HASHTABLE, never wrapped in @(): wrapped, the
+# appearance form finds no scheme and its preview falls back to the bare
+# phosphor literals (measured, by his eye).
+function Get-GuiLookups {
+    if ($script:GuiFontList -and $script:GuiSchemeList) {
+        return @{ Fonts = $script:GuiFontList; Schemes = $script:GuiSchemeList }
+    }
+
+    if ($script:GuiLookupJob) {
+        if ($script:GuiLookupJob.State -eq 'Completed') {
+            try {
+                $warm = @(Receive-Job $script:GuiLookupJob | Where-Object { $_ -is [hashtable] })
+                if ($warm.Count -gt 0) {
+                    $script:GuiFontList = @($warm[-1].Fonts)
+                    $script:GuiSchemeList = $warm[-1].Schemes
+                }
+            } catch { }
+        }
+        Remove-Job $script:GuiLookupJob -Force -ErrorAction SilentlyContinue
+        $script:GuiLookupJob = $null
+    }
+
+    if (-not $script:GuiFontList) { $script:GuiFontList = @(Get-UsableFonts) }
+    if (-not $script:GuiSchemeList) { $script:GuiSchemeList = Get-ColorSchemes }
+    return @{ Fonts = $script:GuiFontList; Schemes = $script:GuiSchemeList }
+}

@@ -809,10 +809,12 @@ function Get-VhdxSize {
     return 0
 }
 
+# Under the gigabyte the size reads whole megabytes - a tenth of one is
+# noise, and the comma it wore was the machine's culture.
 function Format-Size {
     param([double]$Bytes)
     if ($Bytes -ge 1GB) { return ("{0:N1} GB" -f ($Bytes / 1GB)) }
-    if ($Bytes -ge 1MB) { return ("{0:N1} MB" -f ($Bytes / 1MB)) }
+    if ($Bytes -ge 1MB) { return ("{0:N0} MB" -f ($Bytes / 1MB)) }
     return ("{0:N0} KB" -f ($Bytes / 1KB))
 }
 

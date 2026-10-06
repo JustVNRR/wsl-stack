@@ -7,17 +7,35 @@
 # dialog closes. The parent must be a plain window, never a dialog: hiding a
 # dialog window runs WPF's dialog teardown (DoDialogHide unblocks the modal
 # frame - the ShowDialog behind it returns).
+# The step-aside is choreographed, its other half lives in the dresser: the
+# popup lands OVER the fleet window, and only once it has rendered does the
+# window sink away - the screen is never empty while the popup builds (the
+# first cut hid the window first, and the wait for the render read as a
+# stall). The modal frame makes the parent deaf from the first instant, so
+# nothing can be clicked through the handoff. The depth says how many
+# dialogs are up: a sink completing after the last close must not hide the
+# window the gate has just brought back.
 function Show-PopupExclusive {
     param(
         [System.Windows.Window]$ParentWindow,
         [scriptblock]$DialogAction
     )
-    $ParentWindow.Hide()
+
+    $script:DialogDepth = [int]$script:DialogDepth + 1
     try {
         & $DialogAction
     }
     finally {
-        $ParentWindow.Show()
+        $script:DialogDepth = [int]$script:DialogDepth - 1
+        # The parent comes back solid: sunk and hidden, or still sinking
+        # as the dialog flash-closed - the fade-in takes the place of
+        # whatever rode it, from where it stood. A window that never faded
+        # (a system alert never passes the dresser) stays as it is.
+        if ($ParentWindow.Opacity -lt 1) {
+            $ParentWindow.Show()
+            $fadeIn = [System.Windows.Media.Animation.DoubleAnimation]::new($ParentWindow.Opacity, 1, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(130)))
+            $ParentWindow.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fadeIn)
+        }
         $null = $ParentWindow.Activate()
     }
 }
@@ -413,6 +431,48 @@ function Show-AddInstance {
     })
 
     Set-WindowFitToContent -Win $form
+
+    # Docker, asked in parallel now: the probe rides behind the form where
+    # it used to hold the door for a second. Not up when it answers: a
+    # message box over the form - start Docker Desktop, the form stays and
+    # the filling overlaps the boot; or close the form. The ticks read this
+    # function's scope, alive through the modal loop below (like every
+    # handler here); the probe process carries on by itself if the form
+    # closes first.
+    $dockerProbe = $null
+    try { $dockerProbe = Start-Process docker -ArgumentList "info" -PassThru -WindowStyle Hidden -ErrorAction Stop } catch { }
+    $dockerAsk = New-Object System.Windows.Threading.DispatcherTimer
+    $dockerAsk.Interval = [TimeSpan]::FromMilliseconds(300)
+    $dockerAsk.Add_Tick({
+        param($source, $e)
+        if ($dockerProbe -and -not $dockerProbe.HasExited) { return }
+        $source.Stop()
+        if ($dockerProbe -and $dockerProbe.ExitCode -eq 0) { return }
+
+        # The system's own alert: a question and two buttons, with the keys
+        # every Windows alert answers to.
+        $answer = [System.Windows.MessageBox]::Show($form,
+            "Docker Desktop is not running.`n`nStart it now? The form stays open and you can keep filling it - the creation itself waits for Docker later on.",
+            "Docker is not running",
+            [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning)
+        if ($answer -ne [System.Windows.MessageBoxResult]::Yes) { $form.Close(); return }
+        # Started the way its installer leaves it; the CLI as the fallback.
+        try {
+            Start-Process (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe") -ErrorAction Stop
+        } catch {
+            try {
+                $null = Start-Process docker -ArgumentList "desktop", "start" -ErrorAction Stop
+            } catch {
+                $null = [System.Windows.MessageBox]::Show($form,
+                    "Could not start Docker Desktop - start it yourself.",
+                    "WSL Stack",
+                    [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            }
+        }
+    })
+    $form.Add_Closed({ $dockerAsk.Stop() })
+    $dockerAsk.Start()
+
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:AddResult
 }
@@ -812,7 +872,10 @@ function Show-GuiSettings {
     foreach ($choice in @(Get-GuiFontChoices -AssetsDir $AssetsDir)) { $choiceRows.Add($choice) }
     $taken = @{}
     foreach ($choice in $choiceRows) { $taken[$choice.Name] = $true }
-    foreach ($font in @(Get-UsableFonts)) {
+    # The machine's list, read once per session like the appearance form's
+    # (see Get-GuiLookups): probing every family at every open made this
+    # window wait.
+    foreach ($font in @((Get-GuiLookups).Fonts)) {
         if ($taken.ContainsKey($font.Name)) { continue }
         $taken[$font.Name] = $true
         $choiceRows.Add([PSCustomObject]@{ Name = $font.Name; Family = [Windows.Media.FontFamily]::new($font.Name) })

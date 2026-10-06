@@ -154,6 +154,36 @@ function Set-WindowPhosphorFrame {
                 $source.DragMove()
             } catch { }
         })
+
+        # The arrival - and, a beat behind it, the fleet window's exit.
+        # The popup lands through a short fade waited on ContentRendered -
+        # AFTER its first layout and render, never on Loaded (started
+        # before, the animation competed with the window's own first pass
+        # and stuttered - the creation form, the heaviest). And only once
+        # the popup has rendered does the fleet window sink away and hide:
+        # while the popup was building, the window stood - the screen is
+        # never empty in between. The main window is tagged 'framed' and
+        # never comes through here; the gate carries its return.
+        $Win.Opacity = 0
+        $Win.Add_ContentRendered({
+            param($source, $e)
+            $fade = [System.Windows.Media.Animation.DoubleAnimation]::new(0, 1, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(180)))
+            $fade.EasingFunction = [System.Windows.Media.Animation.QuadraticEase]::new()
+            $fade.EasingFunction.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+            $source.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $fade)
+            # The fleet window follows, a touch slower, and hides at the
+            # end - unless the dialog is already gone (a flash close), in
+            # which case the gate's return has taken over. Both names are
+            # script-scope: this block outlives the function that built it.
+            if ($script:window) {
+                $sink = [System.Windows.Media.Animation.DoubleAnimation]::new(1, 0, [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(220)))
+                $sink.Add_Completed({
+                    param($source, $e)
+                    if ($script:DialogDepth -gt 0) { $script:window.Hide() }
+                })
+                $script:window.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $sink)
+            }
+        })
     }
 }
 

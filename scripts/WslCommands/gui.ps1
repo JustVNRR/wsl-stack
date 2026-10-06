@@ -30,6 +30,27 @@ $chosenFont = Resolve-UiFont -AssetsDir $AssetsDir -Name $GuiSettings.FontFamily
 if ($chosenFont) { $GuiFonts.UiFont = $chosenFont }
 $GuiFonts.UiSize = $GuiSettings.FontSize
 
+# How many exclusive dialogs are up right now: the gate keeps the count,
+# the theme's sink reads it (a fade completing after the last close must
+# not hide the window the gate has just brought back).
+$DialogDepth = 0
+
+# The machine's font list and the Terminal's schemes, read at most once
+# per session: both are heavy at the read (every family probed glyph by
+# glyph, every Terminal package asked) and neither moves while the window
+# is open. The settings window and the appearance form share them - and
+# the reading starts right here, in a thread of its own, so the first of
+# the two plucks a finished answer instead of paying the probe (see
+# Get-GuiLookups, which harvests it - or reads the lists itself when a
+# popup opened before the thread finished).
+$GuiFontList = $null
+$GuiSchemeList = $null
+$GuiLookupJob = Start-ThreadJob -ScriptBlock {
+    param($ModulePath)
+    Import-Module $ModulePath
+    @{ Fonts = @(Get-UsableFonts); Schemes = Get-ColorSchemes }
+} -ArgumentList (Resolve-Path (Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1")).Path
+
 # 1. The window's markup - the header, the list, an indeterminate bar for the
 # long work, and the actions: Add and Refresh up in the header, and on every
 # row Open, Start or Stop, Edit, Archive, Compact and the trash, with the
@@ -78,12 +99,16 @@ $btnQuit.Add_Click({ $window.Close() })
 
 # The safety net: a UI-thread exception kills the process outright - a family
 # whose file is gone throws deep in the text stack (measured). Caught here,
-# said on the status line, and the window lives on.
-$window.Dispatcher.Add_UnhandledException({
+# said on the status line, and the window lives on. The handler is kept as a
+# named object: the finally below unhooks THIS one (the dispatcher belongs
+# to the process, and a handler left on it pins the whole launch - the
+# window, its rows - for the life of the terminal).
+$safetyNet = [System.Windows.Threading.DispatcherUnhandledExceptionEventHandler]{
     param($source, $e)
     $e.Handled = $true
     & $SetStatus "A drawing failed: $($e.Exception.Message)" -Alert
-})
+}
+$window.Dispatcher.Add_UnhandledException($safetyNet)
 
 # Settings: the gui's own face - the family, its size, the colour set.
 # Applied on the spot to this window; the popups follow on their next
@@ -147,20 +172,9 @@ $btnTheme.Add_Click({
 # apart. It stays interactive there: the account the image already carries,
 # the Docker image, Docker Desktop, and the shell at the end.
 $btnAdd.Add_Click({
-    # Docker first: a build cannot move without it, and the form is long
-    # enough that finding out at the end would be a waste.
-    if (-not (Test-NativeCommand { docker info })) {
-        # The system's own alert, not a window of ours: a sentence and one
-        # button, with the keys every Windows alert answers to.
-        Show-PopupExclusive $window {
-            $null = [System.Windows.MessageBox]::Show($window,
-                "Please start Docker Desktop and try again.",
-                "Docker is not running",
-                [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        }
-        return
-    }
-
+    # The Docker check rides behind the form now - it used to hold the door
+    # for a second and told nothing the questions could not (see
+    # Show-AddInstance).
     $catalog = Get-PackCatalog
     $form = Show-AddInstance -Catalog $catalog -ProposedUser (Get-WindowsUserProposal) -InstancesRoot $Manager.InstancesRoot -Manager $Manager
     if ($null -eq $form) { return }
@@ -225,5 +239,16 @@ $window.MaxHeight = [Math]::Max(360, [System.Windows.SystemParameters]::WorkArea
 # - a one-way door - and the menu reopens this window in the same process.
 $frame = [System.Windows.Threading.DispatcherFrame]::new()
 $window.Add_Closed({ $frame.Continue = $false })
-$window.Show()
-[System.Windows.Threading.Dispatcher]::PushFrame($frame)
+try {
+    $window.Show()
+    [System.Windows.Threading.Dispatcher]::PushFrame($frame)
+} finally {
+    # Whichever way the pump came back - not only the window's own close
+    # (the finally is the certain one): nothing of this launch stays hooked
+    # to the process. The safety net goes back off the dispatcher, and a
+    # running job's poller stops - left ticking, it would hold this launch
+    # until the child ends (a build: minutes), the dispatcher living as long
+    # as the terminal does.
+    $window.Dispatcher.Remove_UnhandledException($safetyNet)
+    if ($Poller) { $Poller.Stop() }
+}
