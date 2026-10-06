@@ -37,6 +37,16 @@ if (Test-Path $FontDir) {
         }
     } catch { }
 }
+
+# The chart of every window: loaded on its own and merged in code - a
+# Source= reference needs a base URI the loose parser never hands the inner
+# dictionary (its setter dies on a null one: "baseUri cannot be null"), and
+# every window gets its own copy.
+function Get-ThemeDictionary {
+    $ThemePath = Join-Path $PSScriptRoot "..\gui\Theme\theme.xaml"
+    [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
+}
+
 # The icon buttons ask for the face through a DynamicResource, and the
 # FAMILY OBJECT is handed to the window below: a folder-loaded family's
 # Source is a code-side reference - turned back into a string for XAML it
@@ -255,14 +265,7 @@ $DressWindow = {
 $reader = [System.Xml.XmlNodeReader]::new($xaml)
 $window = [Windows.Markup.XamlReader]::Load($reader)
 
-# The chart: loaded on its own and merged in code - a Source= reference
-# needs a base URI the loose parser never hands the inner dictionary (its
-# setter dies on a null one: "baseUri cannot be null"). Merged before the
-# show, so the templates and the implicit styles still find it at their
-# first use.
-$ThemePath = Join-Path $PSScriptRoot "..\gui\Theme\theme.xaml"
-$theme = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
-$window.Resources.MergedDictionaries.Add($theme)
+$window.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 & $DressWindow $window
 
 # The face every icon button asks for - rows and header alike, templates
@@ -717,52 +720,6 @@ function Show-RemoveGate {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- Définition unique de la couleur -->
-        <SolidColorBrush x:Key="GreenBrush" Color="#33FF66"/>
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#2D2D30"/>
-            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="4"/>
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="{StaticResource GreenBrush}"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource GreenBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <!-- Exceptions de couleur explicites -->
         <TextBlock Text="WARNING: PERMANENT DESTRUCTION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
@@ -781,6 +738,7 @@ function Show-RemoveGate {
 "@
 
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
+    $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $gate
     $gate.FindName("TxtLead").Text = "The WSL distribution '$($Instance.Name)' and ALL its data will be deleted."
@@ -826,39 +784,6 @@ function Show-RestorePrompt {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock Margin="0,14,0,0" Text="Name of the restored instance:"/>
@@ -874,6 +799,7 @@ function Show-RestorePrompt {
 "@
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($restoreXaml))
+    $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $prompt
     $prompt.FindName("TxtLead").Text = "The archive '$ArchiveName' comes back as a new instance."
@@ -915,39 +841,6 @@ function Show-ArchiveGate {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Text="WARNING: PERMANENT DELETION" FontSize="16" FontWeight="Bold" Foreground="#E04040"/>
         <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
@@ -964,6 +857,7 @@ function Show-ArchiveGate {
 "@
 
     $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($deleteXaml))
+    $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $gate
     $gate.FindName("TxtLead").Text = "The archive '$ArchiveName' will be deleted and will not be restorable again."
@@ -1003,39 +897,6 @@ function Show-ArchivePrompt {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock Name="TxtRunning" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#D7BA7D"
@@ -1055,6 +916,7 @@ function Show-ArchivePrompt {
 "@
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($archiveXaml))
+    $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $prompt
     $prompt.FindName("TxtLead").Text = "Write '$InstanceName' to an archive."
@@ -1193,51 +1055,6 @@ function Show-PackEditor {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- The boxes colour themselves: built in code, they have no colour
-             of their own and do not take the window's - their labels came out
-             black on this dark background. The gate's box never showed that
-             because it carries its Foreground explicitly. -->
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Style.Triggers>
-                <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter Property="Foreground" Value="#33FF66"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <ScrollViewer MaxHeight="380" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
@@ -1257,6 +1074,7 @@ function Show-PackEditor {
 "@
 
     $editor = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($editorXaml))
+    $editor.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $editor
     $editor.FindName("TxtLead").Text = "The packs of '$InstanceName'."
@@ -1300,49 +1118,6 @@ function Show-AddInstance {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- The boxes colour themselves, like the editor's: built in code they
-             have no colour of their own and do not take the window's. -->
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Style.Triggers>
-                <Trigger Property="IsKeyboardFocused" Value="True">
-                    <Setter Property="Foreground" Value="#33FF66"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Margin="0,10,0,0" Text="Instance name:"/>
         <TextBox Name="TxtName" Margin="0,6,0,0" Background="#2D2D30" Foreground="#33FF66" BorderBrush="#555555" Padding="4"/>
@@ -1368,6 +1143,7 @@ function Show-AddInstance {
 "@
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($addXaml))
+    $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $form
     $txtName = $form.FindName("TxtName")
@@ -1497,98 +1273,6 @@ function Show-Appearance {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- The selects dress themselves: the default chrome is white on
-             this window, and the whole point of a select here is that the
-             screen stays small. -->
-        <Style TargetType="ComboBox">
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton x:Name="Toggle" Focusable="False" ClickMode="Press"
-                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="#2D2D30" BorderBrush="#555555" BorderThickness="1" CornerRadius="3">
-                                            <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-                                                  Data="M 0 0 L 4 4 L 8 0 Z" Fill="#33FF66"/>
-                                        </Border>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-                            <ContentPresenter Margin="8,4,24,4" VerticalAlignment="Center" IsHitTestVisible="False"
-                                              Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-                            <Popup IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
-                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Border Background="#252526" BorderBrush="#555555" BorderThickness="1"
-                                        MinWidth="{TemplateBinding ActualWidth}" MaxHeight="240">
-                                    <ScrollViewer>
-                                        <StackPanel IsItemsHost="True"/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="Padding" Value="6,3"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBoxItem">
-                        <Border x:Name="Face" Background="Transparent" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Face" Property="Background" Value="#2D2D30"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Face" Property="Background" Value="#14532D"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <Grid Margin="18">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
@@ -1690,6 +1374,7 @@ function Show-Appearance {
 "@
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($lookXaml))
+    $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $form
     $txtIconPath = $form.FindName("TxtIconPath")
@@ -1923,39 +1608,6 @@ function Show-DuplicatePrompt {
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="#1E1E1E" Foreground="#33FF66"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The same button, dressed by itself - styles do not cross windows. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <StackPanel Margin="18">
         <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
         <TextBlock Name="TxtRunning" Margin="0,10,0,0" TextWrapping="Wrap" Foreground="#D7BA7D"
@@ -1974,6 +1626,7 @@ function Show-DuplicatePrompt {
 "@
 
     $prompt = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($dupXaml))
+    $prompt.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
 
     & $DressWindow $prompt
     $prompt.FindName("TxtLead").Text = "Copy '$InstanceName'."
