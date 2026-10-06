@@ -105,146 +105,6 @@ $DressWindow = {
         WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Foreground="#33FF66" Tag="framed"
         FontFamily="Segoe UI" FontSize="13">
-    <Window.Resources>
-        <!-- The buttons dress themselves: no system chrome shows through - it
-             was painting the hover, the focus and the disabled states in the
-             system's light colours (the "white rectangles"). Hover and
-             disabled dim the face instead of recolouring it, so an icon
-             keeps its colour in every state. -->
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="BorderBrush" Value="#555555"/>
-            <Setter Property="Padding" Value="10,4"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Face" Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                                CornerRadius="3" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                              Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Face" Property="BorderBrush" Value="#33FF66"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- The rows too: the system highlight painted hover and selection in
-             its light colours - white on white, "tout blanc". Now hover is a
-             slightly lighter row, and the selection is the Start button's
-             blue; the arrows walk the list, the colour follows. -->
-        <Style TargetType="ListViewItem">
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <!-- No dotted focus frame around the last-clicked row: the
-                 selection's blue already says where we stand, and the frame
-                 read as a box drawn around the row. The row itself is no tab
-                 stop: the tab walks its buttons, one row after the next -
-                 TabNavigation Continue on the list, IsTabStop off here. -->
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListViewItem">
-                        <Border x:Name="Row" Background="Transparent" Padding="2,2" SnapsToDevicePixels="True">
-                            <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}"
-                                                  Content="{TemplateBinding Content}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <!-- The stripes: every other row a touch lighter,
-                                 so the eye follows one line across the
-                                 columns. No hover band and no selection
-                                 blue: the row carries icons, a row that
-                                 stays blue after clicking elsewhere read
-                                 wrong, and the stripes are what tells the
-                                 lines apart. -->
-                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                                <Setter TargetName="Row" Property="Background" Value="#2A2A2D"/>
-                            </Trigger>
-                            <!-- An archived row reads greyed - cold storage
-                                 next to the live ones. -->
-                            <DataTrigger Binding="{Binding Status}" Value="Archived">
-                                <Setter Property="Foreground" Value="#2F9E55"/>
-                            </DataTrigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- The list itself, same disease, same cure: the default template
-             paints a blue focus frame around the whole ListView as soon as
-             anything in it has focus - the last "liseret" left. Our own
-             template draws the border and nothing else; the ScrollViewer
-             takes no focus of its own. -->
-        <Style TargetType="ListView">
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListView">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="1" SnapsToDevicePixels="True">
-                            <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
-                                <ItemsPresenter/>
-                            </ScrollViewer>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- And the headers, same disease, same cure - the template too, this
-             time: the default one paints its own light separators and the
-             notch at the right end, whatever colours the style sets. A thin
-             dark line between the columns, and nothing else. -->
-        <Style TargetType="GridViewColumnHeader">
-            <Setter Property="Background" Value="#333337"/>
-            <Setter Property="Foreground" Value="#33FF66"/>
-            <Setter Property="Padding" Value="6,4"/>
-            <!-- The cells take their alignment from the HEADER, not from the
-                 cell content: HorizontalContentAlignment is what a GridView
-                 propagates down, and the template has to hand it over. -->
-            <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="GridViewColumnHeader">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="#3F3F46"
-                                BorderThickness="0,0,1,1" SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <!-- What a row's Status allows: an archived row carries its own two -
-             restore and the trash - a live one the eight gestures. The states
-             hide what does not apply, the way Start/Stop already did. -->
-        <Style x:Key="LiveRowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Status}" Value="Archived">
-                    <Setter Property="Visibility" Value="Collapsed"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="ArchivedRowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Visibility" Value="Collapsed"/>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Status}" Value="Archived">
-                    <Setter Property="Visibility" Value="Visible"/>
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-    </Window.Resources>
     <!-- The phosphor frame: a thin green line and its glow. The margin is
          the halo's room - both live inside the transparent window, and the
          fully transparent corners let clicks through, as this mode does. -->
@@ -305,79 +165,65 @@ $DressWindow = {
                                              in a terminal of its own, then Start or Stop -
                                              whichever the state allows - the pack editor,
                                              the appearance, the copy, the archive, the
-                                             Compact and the trash. -->
+                                             Compact and the trash. The styles arrive by
+                                             DynamicResource: this template loads after the
+                                             window is parsed, and a StaticResource from
+                                             here cannot see the dictionary merged in code
+                                             (measured, cell template beside a local key). -->
                                         <Button Name="BtnRowRestore" Content="&#xF2EA;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource ArchivedRowButton}"
+                                                Style="{DynamicResource ArchivedRowButton}"
                                                 ToolTip="Restore"/>
                                         <Button Name="BtnRowDeleteArchive" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource ArchivedRowButton}"
+                                                Style="{DynamicResource ArchivedRowButton}"
                                                 ToolTip="Delete"/>
                                         <Button Name="BtnRowOpen" Content="&#xF120;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Shell"/>
                                         <Button Name="BtnRowStart" Content="&#xF04B;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                ToolTip="Start">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource LiveRowButton}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="Running">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                                Style="{DynamicResource BtnRowStart}"
+                                                ToolTip="Start"/>
                                         <Button Name="BtnRowStop" Content="&#xF04D;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                ToolTip="Stop">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource LiveRowButton}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="Stopped">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                        </Button>
+                                                Style="{DynamicResource BtnRowStop}"
+                                                ToolTip="Stop"/>
                                         <Button Name="BtnRowEdit" Content="&#xF304;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Edit"/>
                                         <Button Name="BtnRowAppearance" Content="&#xF53F;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Appearance"/>
                                         <Button Name="BtnRowDuplicate" Content="&#xF0C5;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Duplicate"/>
                                         <Button Name="BtnRowArchive" Content="&#xF187;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Archive"/>
                                         <Button Name="BtnRowCompact" Content="&#xF066;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Margin="0,0,4,0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Compact"/>
                                         <Button Name="BtnRowRemove" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" FontSize="13"
                                                 Width="26" Height="22" Padding="0" Background="Transparent"
                                                 Foreground="#33FF66" BorderBrush="Transparent"
-                                                Style="{StaticResource LiveRowButton}"
+                                                Style="{DynamicResource LiveRowButton}"
                                                 ToolTip="Remove"/>
                                     </StackPanel>
                                     <ProgressBar Name="RowSpinner" IsIndeterminate="True" Height="4" Width="24"
@@ -408,6 +254,15 @@ $DressWindow = {
 
 $reader = [System.Xml.XmlNodeReader]::new($xaml)
 $window = [Windows.Markup.XamlReader]::Load($reader)
+
+# The chart: loaded on its own and merged in code - a Source= reference
+# needs a base URI the loose parser never hands the inner dictionary (its
+# setter dies on a null one: "baseUri cannot be null"). Merged before the
+# show, so the templates and the implicit styles still find it at their
+# first use.
+$ThemePath = Join-Path $PSScriptRoot "..\gui\Theme\theme.xaml"
+$theme = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($ThemePath)))
+$window.Resources.MergedDictionaries.Add($theme)
 & $DressWindow $window
 
 # The face every icon button asks for - rows and header alike, templates

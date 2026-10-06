@@ -12,6 +12,8 @@ Dockerfile text eol=lf
 *.ps1 text eol=crlf
 *.psm1 text eol=crlf
 *.psd1 text eol=crlf
+# The windows' XAML travels with them
+*.xaml text eol=crlf
 
 # Binary assets
 *.png binary

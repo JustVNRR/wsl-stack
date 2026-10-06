@@ -1,0 +1,222 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ================================================================= -->
+    <!-- The chart, once: every window merges this file, so a colour is    -->
+    <!-- changed here or nowhere. No font settings on purpose - the retro  -->
+    <!-- face arrives from the code as an OBJECT (a folder-loaded family   -->
+    <!-- cannot travel through XAML as a string), and a family named here  -->
+    <!-- would override it on every control.                               -->
+    <!-- ================================================================= -->
+
+    <SolidColorBrush x:Key="AppForegroundBrush" Color="#33FF66"/>
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="AppInputBackgroundBrush" Color="#2D2D30"/>
+    <SolidColorBrush x:Key="AppBorderBrush" Color="#555555"/>
+    <SolidColorBrush x:Key="AppDangerBrush" Color="#E04040"/>
+    <SolidColorBrush x:Key="AppFaceBrush" Color="#333337"/>
+    <SolidColorBrush x:Key="AppStripeBrush" Color="#2A2A2D"/>
+    <SolidColorBrush x:Key="AppArchivedBrush" Color="#2F9E55"/>
+    <SolidColorBrush x:Key="AppDividerBrush" Color="#3F3F46"/>
+
+    <!-- No TextBlock style here: the list's cells take their colour by
+         inheritance (the archived grey comes down from the row), and a
+         blanket foreground would flatten it. -->
+
+    <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource AppInputBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="Padding" Value="4"/>
+    </Style>
+
+    <!-- The buttons dress themselves: no system chrome shows through - it
+         was painting the hover, the focus and the disabled states in the
+         system's light colours (the "white rectangles"). Hover and
+         disabled dim the face instead of recolouring it, so an icon
+         keeps its colour in every state. -->
+    <Style TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+        <Setter Property="Padding" Value="10,4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Face" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                            CornerRadius="3" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Face" Property="Opacity" Value="0.85"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Face" Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource AppForegroundBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The rows too: the system highlight painted hover and selection in
+         its light colours - white on white, "tout blanc". Now hover is a
+         slightly lighter row, and the selection is the Start button's
+         blue; the arrows walk the list, the colour follows. -->
+    <Style TargetType="ListViewItem">
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <!-- No dotted focus frame around the last-clicked row: the
+             selection's blue already says where we stand, and the frame
+             read as a box drawn around the row. The row itself is no tab
+             stop: the tab walks its buttons, one row after the next -
+             TabNavigation Continue on the list, IsTabStop off here. -->
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <Border x:Name="Row" Background="Transparent" Padding="2,2" SnapsToDevicePixels="True">
+                        <GridViewRowPresenter Columns="{TemplateBinding GridView.ColumnCollection}"
+                                              Content="{TemplateBinding Content}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- The stripes: every other row a touch lighter,
+                             so the eye follows one line across the
+                             columns. No hover band and no selection
+                             blue: the row carries icons, a row that
+                             stays blue after clicking elsewhere read
+                             wrong, and the stripes are what tells the
+                             lines apart. -->
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter TargetName="Row" Property="Background" Value="{StaticResource AppStripeBrush}"/>
+                        </Trigger>
+                        <!-- An archived row reads greyed - cold storage
+                             next to the live ones. -->
+                        <DataTrigger Binding="{Binding Status}" Value="Archived">
+                            <Setter Property="Foreground" Value="{StaticResource AppArchivedBrush}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The list itself, same disease, same cure: the default template
+         paints a blue focus frame around the whole ListView as soon as
+         anything in it has focus - the last "liseret" left. Our own
+         template draws the border and nothing else; the ScrollViewer
+         takes no focus of its own. -->
+    <Style TargetType="ListView">
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListView">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1" SnapsToDevicePixels="True">
+                        <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- And the headers, same disease, same cure - the template too, this
+         time: the default one paints its own light separators and the
+         notch at the right end, whatever colours the style sets. A thin
+         dark line between the columns, and nothing else. -->
+    <Style TargetType="GridViewColumnHeader">
+        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <!-- The cells take their alignment from the HEADER, not from the
+             cell content: HorizontalContentAlignment is what a GridView
+             propagates down, and the template has to hand it over. -->
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="GridViewColumnHeader">
+                    <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource AppDividerBrush}"
+                            BorderThickness="0,0,1,1" SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- What a row's Status allows: an archived row carries its own two -
+         restore and the trash - a live one the eight gestures. The states
+         hide what does not apply, the way Start/Stop already did. -->
+    <Style x:Key="LiveRowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="Archived">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="ArchivedRowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Visibility" Value="Collapsed"/>
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="Archived">
+                <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The two that hide themselves on the row's own state: Start steps
+         aside while it runs, Stop while it does not. They live here rather
+         than inline in the template: the template reaches styles by
+         DynamicResource only, and a BasedOn cannot be dynamic. -->
+    <Style x:Key="BtnRowStart" TargetType="Button" BasedOn="{StaticResource LiveRowButton}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="Running">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="BtnRowStop" TargetType="Button" BasedOn="{StaticResource LiveRowButton}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Status}" Value="Stopped">
+                <Setter Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- The semantic buttons: cancel is the neutral face, apply wears the
+         phosphor with the ink dark, delete the destructive red. -->
+    <Style x:Key="BtnCancel" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource AppFaceBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+    </Style>
+
+    <Style x:Key="BtnApply" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="{StaticResource AppForegroundBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource AppBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AppForegroundBrush}"/>
+    </Style>
+
+    <Style x:Key="BtnDelete" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Background" Value="#A1260D"/>
+        <Setter Property="Foreground" Value="#FFFFFF"/>
+        <Setter Property="BorderBrush" Value="#BB2D0F"/>
+    </Style>
+
+</ResourceDictionary>
