@@ -121,6 +121,14 @@ either one would pull the base out from under a pack still installed. It arrives
 with the pack that requires it, it leaves with the last one that does, and it is
 never alone.
 
+The rule runs the other way too, and that half is the guard: a pack still
+installed cannot lose one it requires. Unchecking it in the checklist is
+refused — the claimant is named, and nothing of the answer is applied — and
+`remove_pack` refuses the choice the same way. The demanding pack goes out in
+the same pass, or both stay. And the cascade never takes a *visible* pack
+along: a visible one leaves only because somebody unticked it — it is the
+invisible ones that follow their last claimant.
+
 `devops` and `scaffold` are the two: the project targets `python` and `gcp`
 both need, and the act of creating a project.
 

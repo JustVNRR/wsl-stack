@@ -68,6 +68,19 @@ $ToRemove = @($Plan.ToRemove)
 $Also = @($ToRemove | Where-Object { $_ -ne $PackName })
 $Missing = @($Plan.Missing)
 
+# A pack a still-installed pack requires does not leave: the removal would
+# break what stays. Refused before anything moves - nothing has been said or
+# touched yet.
+$Conflicts = @($Catalog.GetRemovalConflicts(@($Installed), @($ToRemove), @()))
+if ($Conflicts.Count -gt 0) {
+    Write-Host ""
+    foreach ($Conflict in $Conflicts) {
+        Write-Host ("[ABORT] '{0}' cannot be removed: required by {1}." -f $Conflict.Name, ($Conflict.Blockers -join " and ")) -ForegroundColor (Get-MessageColour error)
+        Write-Host ("        Take {0} out first, or leave '{1}' where it is." -f ($Conflict.Blockers -join " and "), $Conflict.Name) -ForegroundColor (Get-MessageColour hint)
+    }
+    exit 1
+}
+
 # 3. What is about to happen, and only then the question. A pack without a
 # remove.sh was installed before packs had one: its folder can leave, but
 # nothing is undone on the system side - said, not discovered afterwards.

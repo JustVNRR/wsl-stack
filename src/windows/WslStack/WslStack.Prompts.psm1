@@ -327,11 +327,17 @@ function Resolve-PackSelection {
     # must know about it.
     $ToRemove = @($Catalog.ResolveRemoval($Installed, $Unticked, @($ToAdd | ForEach-Object { $_.Name })))
 
+    # What cannot leave yet: a pack a still-standing pack requires. Resolved
+    # here, with both lists in hand, so the console and the window refuse
+    # from the same answer.
+    $Conflicts = @($Catalog.GetRemovalConflicts($Installed, $ToRemove, @($ToAdd | ForEach-Object { $_.Name })))
+
     return [PSCustomObject]@{
         ToAdd      = $ToAdd
         ToRemove   = $ToRemove
         Unticked   = $Unticked
         NotCarried = $NotCarried
+        Conflicts  = $Conflicts
     }
 }
 
@@ -380,6 +386,18 @@ function Select-Packs {
     $ToAdd = @($Resolved.ToAdd)
     $ToRemove = @($Resolved.ToRemove)
     $Unticked = @($Resolved.Unticked)
+
+    # A pack a standing pack requires cannot leave: the whole answer is
+    # refused, the claimant named - applying the rest without it would break
+    # what stays. The checklist is the question; this is its guard.
+    if ($Resolved.Conflicts.Count -gt 0) {
+        Write-Host ""
+        foreach ($Conflict in $Resolved.Conflicts) {
+            Write-Host ("[ABORT] '{0}' cannot be removed: required by {1}." -f $Conflict.Name, ($Conflict.Blockers -join " and ")) -ForegroundColor (Get-MessageColour error)
+            Write-Host ("        Untick {0} as well, or leave '{1}' ticked." -f ($Conflict.Blockers -join " and "), $Conflict.Name) -ForegroundColor (Get-MessageColour hint)
+        }
+        return $null
+    }
 
     if ($Resolved.NotCarried.Count -gt 0) {
         Write-Host ""

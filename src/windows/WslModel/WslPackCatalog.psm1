@@ -104,4 +104,31 @@ class WslPackCatalog {
 
         return @($gone)
     }
+
+    # The packs that would still be standing and require $name: what a
+    # removal of $name would break. A claimant leaving with it is no claimant
+    # - the two go together. One just arriving does hold it: it lands on what
+    # must still be there. Only the declarations this checkout carries count:
+    # a pack from elsewhere is read where it lies, invisible here.
+    [string[]] GetBlockers([string]$name, [string[]]$installed, [string[]]$leaving, [string[]]$arriving) {
+        $standing = @(@($installed) + @($arriving) | Where-Object { $leaving -notcontains $_ -and $_ -ne $name })
+        $blockers = @()
+        foreach ($other in $standing) {
+            $pack = @($this.AvailablePacks | Where-Object { $_.Name -eq $other })[0]
+            if ($null -ne $pack -and $pack.Requires -contains $name) { $blockers += $other }
+        }
+        return @($blockers | Sort-Object -Unique)
+    }
+
+    # Every removal those two lists would break, one entry per pack that
+    # cannot leave: its name, and the packs that hold it. Empty is the
+    # ordinary answer - the leaving list may go as it stands.
+    [object[]] GetRemovalConflicts([string[]]$installed, [string[]]$leaving, [string[]]$arriving) {
+        $conflicts = @()
+        foreach ($name in $leaving) {
+            $who = @($this.GetBlockers($name, $installed, $leaving, $arriving))
+            if ($who.Count -gt 0) { $conflicts += [PSCustomObject]@{ Name = $name; Blockers = $who } }
+        }
+        return @($conflicts)
+    }
 }

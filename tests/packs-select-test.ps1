@@ -31,6 +31,8 @@
 #   2, v, (empty)   a second claimant installed -> only the ticked one leaves
 #   v               an invisible pack among the pre-checked ones: ONE answer,
 #                   because it has no box and nothing else was ticked
+#   3, v            a visible pack unticked under a standing claimant - refused
+#   1, 3, v, (empty) both unticked -> the same answer goes through
 #
 #   powershell -File tests\packs-select-test.ps1 < tests\packs-select-test.answers
 #
@@ -157,6 +159,63 @@ Check "another claimant holds it -> it stays, and the other one goes" `
 $Selection = Select-Packs -Title "T" -Catalog $Catalog -Installed @() -Checked @("devops")
 Check "a checked invisible pack installs nothing" ($null -eq $Selection) "False"
 Check "  ... and both lists are empty" ("$($Selection.ToAdd.Count)$($Selection.ToRemove.Count)") "00"
+
+Write-Output ""
+Write-Output "--- The refusal: a pack a standing pack requires does not leave ---"
+
+# A second catalog of its own: a shape the first one does not carry - a
+# VISIBLE pack that another visible one requires, which is what the guard is
+# about. The first catalog's scenarios answer by box number, so one more box
+# there would shift every answer; this root has its runs to itself.
+$PacksRoot2 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-guard-" + [Guid]::NewGuid().ToString("N"))
+$Declarations2 = @(
+    @{ Name = "zsh";    Description = "The shell socle" },
+    @{ Name = "python"; Description = "Python toolchain"; Requires = "zsh" },
+    @{ Name = "web";    Description = "Web tooling";      Requires = "zsh" }
+)
+foreach ($Declaration in $Declarations2) {
+    $Folder = Join-Path $PacksRoot2 $Declaration.Name
+    New-Item -ItemType Directory -Path $Folder -Force | Out-Null
+    $Conf = @("PACK_DESCRIPTION := $($Declaration.Description)")
+    if ($Declaration.Requires) { $Conf += "PACK_REQUIRES := $($Declaration.Requires)" }
+    Set-Content -Path (Join-Path $Folder "pack.conf") -Value $Conf
+}
+$Guarded = Get-PackCatalog -Root $PacksRoot2
+
+# The resolver reports what cannot leave, with the packs that hold it - and
+# the two directions at once: a standing claimant holds, one leaving with it
+# does not.
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh", "python") -Kept @("python")
+Check "a visible pack unticked under a standing claimant is a conflict" `
+    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "zsh/python"
+Check "  ... and the rest of the selection still comes back" `
+    ("$($R.ToRemove -join ',')/$($R.ToAdd.Count)") "zsh/0"
+
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh", "python") -Kept @()
+Check "both unticked -> both leave, nothing holds" ("$($R.Conflicts.Count)") "0"
+
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh") -Kept @("web")
+Check "a claimant just arriving holds it too" `
+    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "zsh/web"
+
+# The rule under the guard: a visible pack is NEVER taken along by the
+# cascade - only an invisible one leaves with the pack nothing requires any
+# more. Both sides of that line, on the same departure.
+Check "a visible pack is never cascaded out" `
+    (($Guarded.ResolveRemoval(@("zsh", "python"), @("python"), @())) -join ",") "python"
+Check "  ... where an invisible one follows its last claimant" `
+    (($Catalog.ResolveRemoval(@("python", "devops"), @("python"), @())) -join ",") "python,devops"
+
+# The console's own refusal: the unticked box under a standing claimant
+# stops the question where it is instead of applying the rest of it.
+$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("zsh", "python")
+Check "the console refuses the answer" ($null -eq $Selection) "True"
+
+# ... and the same answer with the claimant unticked as well goes through:
+# the guard refuses a broken removal, never a removal.
+$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("zsh", "python")
+Check "both unticked -> the run goes through" `
+    ((($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") + " / " + ($Selection.ToRemove -join ",")) " / zsh,python"
 
 Write-Output ""
 Write-Output "--- Invoke-PackApply: the order, and where a failure stops ---"
@@ -304,7 +363,7 @@ Check "a failed copy takes the earlier placed folder back out" `
     "rm -rf $Directory/fake-b | rm -rf $Directory/fake-a"
 Check "  ... and the run names the pack that stopped it" "$($Result.Pack)/$($Result.ExitCode)" "fake-b/1"
 
-Remove-Item -Recurse -Force $PacksRoot -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $PacksRoot, $PacksRoot2 -ErrorAction SilentlyContinue
 
 Write-Output ""
 Write-Output ("failures: " + $Failures)

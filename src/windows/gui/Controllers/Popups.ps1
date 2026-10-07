@@ -258,6 +258,7 @@ function New-PackChecklist {
         $TxtAdd,
         $TxtDel,
         $TxtNotes,
+        $TxtWarn,
         $ApplyButton,
         [string]$NothingText
     )
@@ -267,6 +268,7 @@ function New-PackChecklist {
     $script:ChecklistTxtAdd = $TxtAdd
     $script:ChecklistTxtDel = $TxtDel
     $script:ChecklistTxtNotes = $TxtNotes
+    $script:ChecklistTxtWarn = $TxtWarn
     $script:ChecklistApplyButton = $ApplyButton
     $script:ChecklistNothingText = $NothingText
     $script:ChecklistSelection = $null
@@ -332,11 +334,27 @@ function New-PackChecklist {
             $script:ChecklistTxtNotes.Text = ""
         }
 
-        # The editor's APPLY follows the answer: greyed on nothing to do.
+        # The refusal, said under the lists: a pack a standing pack requires
+        # cannot leave - the same guard as the console's, from the same
+        # answer. The add form passes no block: nothing is installed there,
+        # so nothing can be held.
+        if ($script:ChecklistTxtWarn) {
+            if ($selection.Conflicts.Count -gt 0) {
+                $script:ChecklistTxtWarn.Text = (@($selection.Conflicts | ForEach-Object {
+                    "'{0}' cannot be removed: required by {1}.`nUntick {1} as well, or leave '{0}' ticked." -f $_.Name, ($_.Blockers -join " and ")
+                }) -join "`n")
+                $script:ChecklistTxtWarn.Visibility = [System.Windows.Visibility]::Visible
+            } else {
+                $script:ChecklistTxtWarn.Visibility = [System.Windows.Visibility]::Collapsed
+            }
+        }
+
+        # The editor's APPLY follows the answer: greyed on nothing to do, and
+        # greyed while the answer is refused.
         # The add form passes no button - an instance with no pack is a real
         # answer there.
         if ($script:ChecklistApplyButton) {
-            $script:ChecklistApplyButton.IsEnabled = ($selection.ToAdd.Count -gt 0 -or $selection.ToRemove.Count -gt 0)
+            $script:ChecklistApplyButton.IsEnabled = (($selection.ToAdd.Count -gt 0 -or $selection.ToRemove.Count -gt 0) -and $selection.Conflicts.Count -eq 0)
         }
     }
 
@@ -368,6 +386,7 @@ function Show-PackEditor {
 
     New-PackChecklist -Panel $editor.FindName("Boxes") -Installed $Installed -Catalog $Catalog `
         -TxtAdd $editor.FindName("TxtAdd") -TxtDel $editor.FindName("TxtDel") -TxtNotes $editor.FindName("TxtNotes") `
+        -TxtWarn $editor.FindName("TxtWarn") `
         -ApplyButton $editor.FindName("BtnEditApply") `
         -NothingText "Nothing to do: '$InstanceName' already has exactly that."
 
