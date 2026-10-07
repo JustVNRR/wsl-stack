@@ -191,8 +191,7 @@ Builds a new instance from the rootfs image, asks for the user the instance
 will open as, walks you through the first-boot onboarding (password or
 passwordless sudo — the timezone comes from Windows), applies the Windows
 Terminal profile, and opens the fresh instance in a window of its own — look
-included; the build's console closes on its own, pausing first only when
-there is a warning to read.
+included; the build's console closes with the run.
 
 ```powershell
 .\wsl.ps1 build

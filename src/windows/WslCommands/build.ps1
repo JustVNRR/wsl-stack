@@ -591,15 +591,6 @@ if ($Deployment.Succeeded) {
     }
     Write-Host ""
     $Instance.OpenShell()
-
-    # This console goes with the run. It pauses for one keystroke only when
-    # something above wants reading - a failed pack, a Docker that needs
-    # attention - and closes straight away when there is nothing to say.
-    if ($PackResult.Colour -eq "Red" -or ($DockerReport -and $DockerReportColour -ne "Green")) {
-        Write-Host ""
-        Write-Host "Press Enter to close this window." -ForegroundColor (Get-MessageColour muted)
-        $null = Read-Host
-    }
 }
 
 # A failed deployment must not look like a success to whatever called this
