@@ -69,6 +69,7 @@
         'Invoke-InInstance'
         'Get-InInstanceOutput'
         'Get-InstanceHome'
+        'Get-InstanceFamily'
         'New-InstanceManager'
 
         # The packs - the catalog, and the moves a pack makes - the manager's
