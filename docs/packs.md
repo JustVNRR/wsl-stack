@@ -24,7 +24,7 @@ quiet no-op on a built instance. Its page is
 src/distro/packs/<name>/
 ├── pack.conf              # what the socle and the installer read
 ├── install.sh             # what `.\wsl.ps1 add_pack` runs inside the instance
-├── install_root.sh        # what needs root, run by install.sh as one sudo
+├── install_root.sh        # what needs root, run by the engine as WSL's root, before install.sh
 ├── remove.sh              # what `.\wsl.ps1 remove_pack` runs before the folder goes
 ├── remove_root.sh         # what needs root, run by remove.sh as one sudo
 ├── make/*.mk              # its targets, loaded as soon as the folder is there

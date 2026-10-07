@@ -207,7 +207,7 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │   │   └── docs/    # the pack's pages, one per module
 │   │   │   ├── gcp/         # Google Cloud CLI, BigQuery, Cloud Run, VMs, Artifact Registry
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── remove_root.sh # the root half of the removal, run by remove.sh
 │   │   │   │   ├── env.global.sample # the pack's shared defaults (GCP_REGION, CLOUDRUN_MEMORY…)
@@ -218,7 +218,7 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │   ├── pandoc/      # Pandoc and XeLaTeX: Markdown to PDF, bibliography included
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── env.project.sample # the pack's project variables (PDF_SRC, DOCX_REFERENCE...)
 │   │   │   │   ├── bin/     # the scripts behind the targets: the build, the viewer, the styles, the fonts
@@ -228,7 +228,7 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │   ├── python/      # Python 3, uv, ruff, the compiler a wheel is built with
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── make/    # its modules: lint, the test lanes, the venv
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets, and the catalog fnew reads
@@ -246,14 +246,14 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │   ├── vision/      # ffmpeg, ImageMagick, Tesseract: media and OCR tools
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── cheatsheets/ # their commands, in the fcheat picker
 │   │   │   │   └── docs/    # the pack's page
 │   │   │   ├── web/         # Firefox (Mozilla's repository) and the WireGuard tunnel
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── fox-privacy-*.js # the two privacy profiles (light, strict) the launchers choose
 │   │   │   │   ├── privacy-check.html # the live check page pfox opens
@@ -268,7 +268,7 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │       │            #   what dresses a foreign Debian the same way
 │   │   │       ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │       ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
-│   │   │       ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │       ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │       ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │       ├── docs/    # the pack's page
 │   │   │       └── config/  # The socle's files, copied into ~/.config/zsh

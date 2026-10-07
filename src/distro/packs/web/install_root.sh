@@ -2,9 +2,9 @@
 # ==============================================================================
 # THE WEB PACK - WHAT IT INSTALLS AS ROOT
 # ==============================================================================
-# Run by install.sh as one sudo: everything here belongs to root. What it
-# installs is read from pack.conf, beside this file - the same line remove.sh
-# reads.
+# Run by the engine as WSL's own root, before install.sh - no password asked.
+# Everything here belongs to root; what it installs is read from pack.conf,
+# beside this file - the same line remove.sh reads.
 
 set -euo pipefail
 

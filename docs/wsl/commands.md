@@ -399,14 +399,17 @@ it, before it, in the same run:
 ==> Installing 'devops' in 'ubuntu-template'...
     It comes with 'gcp', which requires it.
 
+==> Installing 'gcp' in 'ubuntu-template' (as root)...
 ==> Installing 'gcp' in 'ubuntu-template'...
 ```
 
-**It asks nothing.** The packages and the APT address belong to root, and the
-pack's `install.sh` takes `sudo` where it needs to - but the engine opens
-WSL's own passwordless root door to `sudo` for the length of the installs, and
-closes it after: the run never stops to ask. (Run `install.sh` by hand inside
-the instance and `sudo` asks as usual.)
+**It asks nothing.** The root halves run first, one per pack, as WSL's own
+root - `wsl -u root`, no password - before anything else: that is what lets
+the `zsh` pack install `sudo` itself on a machine that has none, since the
+door below is a `sudo` rule and cannot open before `sudo` exists. Then the
+engine opens WSL's own passwordless root door to `sudo` for the length of the
+`install.sh` runs, and closes it after: the run never stops to ask. (Run
+`install.sh` by hand inside the instance and `sudo` asks as usual.)
 
 Nothing has to be reopened afterwards: `gmake` reads the pack's files at every
 run, and `fcheat` re-reads its cheatsheets at every opening.

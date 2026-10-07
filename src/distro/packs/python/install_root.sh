@@ -2,9 +2,9 @@
 # ==============================================================================
 # THE PYTHON PACK - WHAT IT INSTALLS AS ROOT
 # ==============================================================================
-# Run by install.sh as one sudo: the compiler and the headers are root's
-# business. What it installs is read from pack.conf, beside this file - the
-# same line remove.sh reads.
+# Run by the engine as WSL's own root, before install.sh - no password asked.
+# The compiler and the headers are root's business; what it installs is read
+# from pack.conf, beside this file - the same line remove.sh reads.
 
 set -euo pipefail
 

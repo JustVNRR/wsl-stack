@@ -10,8 +10,8 @@
 # ~/.config/vpn/servers.json - seeded here, or migrated from old
 # /etc/wireguard profiles.
 #
-# The commands that need root are in install_root.sh, beside this file: one
-# sudo, asked once.
+# The commands that need root are in install_root.sh, beside this file, and
+# the engine runs it as root before this one starts.
 
 set -euo pipefail
 
@@ -25,12 +25,11 @@ fi
 
 here=$(cd "$(dirname "$0")" && pwd)
 
-# sudo's own prompt has no trailing newline, and the line-based capture
-# behind wsl.exe only showed whole lines: the question stayed invisible and
-# the call waited forever. This prompt ends its line, so it shows.
+# The root half ran before this script - the engine's call, as WSL's own
+# root, ahead of the door. The sudo lines below pass through that door: it
+# asks nothing, and this prompt ends its line, which is what would show if it
+# ever asked.
 sudo_prompt=$(printf '[sudo] password:\n')
-
-sudo -p "$sudo_prompt" bash "$here/install_root.sh"
 
 # The boot hook, installed with the pack: it puts the base resolver back at
 # each start. vpn_auto_on/off only decide whether it also raises the tunnel.

@@ -13,11 +13,13 @@ param (
 # No parameter on purpose: the instance and the pack both come from lists -
 # typing either by heart is a name you can get wrong.
 #
-# Then the pack's folder is copied into the instance and its install script runs
-# there, in front of you. The packages belong to root, and the engine opens
-# WSL's own passwordless root door to sudo for the length of the installs - the
-# run never stops to ask, and nothing of it remains after. The copies and the
-# runs are the engine's; the questions and the lines are here.
+# Then the pack's folder is copied into the instance, its root half runs first
+# as WSL's own root - the door below cannot open before sudo exists, and the
+# socle pack carries sudo itself - and its install script runs there, in front
+# of you. The engine opens WSL's own passwordless root door to sudo for the
+# length of the installs: the run never stops to ask, and nothing of it
+# remains after. The copies and the runs are the engine's; the questions and
+# the lines are here.
 
 $ErrorActionPreference = "Stop"
 

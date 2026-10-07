@@ -6,7 +6,7 @@
 # runs this script from inside it, as the instance's own user.
 #
 # The root half - the repository, the key, the package - is in install_root.sh,
-# beside this file: one sudo, asked once.
+# beside this file, and the engine runs it as root before this one starts.
 #
 # The image carries no trace of Google - no signing key, no APT address. This
 # script registers both, then installs the package; remove.sh undoes exactly
@@ -24,11 +24,8 @@ fi
 
 here=$(cd "$(dirname "$0")" && pwd)
 
-# sudo's own prompt has no trailing newline, and the line-based capture
-# behind wsl.exe only showed whole lines: the question stayed invisible and
-# the call waited forever. This prompt ends its line, so it shows.
-sudo_prompt=$(printf '[sudo] password:\n')
-
-sudo -p "$sudo_prompt" bash "$here/install_root.sh"
+# The root half ran before this script - the engine's call, as WSL's own
+# root, ahead of the passwordless door. What is left here is the user's own
+# part.
 
 success "Google Cloud CLI installed."

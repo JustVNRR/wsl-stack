@@ -155,9 +155,10 @@ function Invoke-PackScript {
 
 # The passwordless door, opened for a run: WSL trusts its Windows side with
 # root and no password (wsl -u root), and the pack scripts run as the
-# instance's user - their files must be his. The engine opens that same door to
-# sudo for the length of the installs and closes it after: sudo inside a pack
-# asks nothing, and nothing of it remains once the run ends.
+# instance's user - their files must be his. The installs' root halves run
+# before this door, as WSL's own root; what it opens for is the install.sh
+# half, which needs apt to ask nothing while it runs the user's own steps.
+# Nothing of it remains once the run ends.
 #
 # Written through visudo's own check, never beside it: a broken rule in
 # /etc/sudoers.d breaks sudo itself. -Quiet: the answer is this function's.
@@ -305,12 +306,39 @@ function Invoke-PackApply {
         }
     }
 
-    # The installs run behind WSL's own door: passwordless sudo for
+    # 3a. The root halves first, one by one, as WSL's own root - before the
+    # door opens. The door is a sudoers rule, and the socle pack carries sudo
+    # itself: on a bare Debian its install_root.sh must run where no door can
+    # open yet. The gesture is the removals' (wsl -u root, the user's home in
+    # HOME), the scripts' content is unchanged - only who runs them, and when.
+    foreach ($Pack in $ToAdd) {
+        $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Pack.Name
+        if (Test-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code)) {
+            Write-Host ""
+            Write-Host "==> Installing '$($Pack.Name)' in '$DistroName' (as root)..." -ForegroundColor (Get-MessageColour info)
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code) -AsRoot
+            if ($Code -ne 0) {
+                # Nothing has run its install.sh yet, so no folder here is an
+                # installation: they all go back out. What the root part had
+                # already put in place stays - running this again picks up
+                # there.
+                $RootCode = $Code
+                Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs $ToAdd -ExitCode ([ref]$Code)
+                Write-Host ""
+                Write-Host "[FAIL] The root part of '$($Pack.Name)' did not complete (exit code $RootCode)." -ForegroundColor (Get-MessageColour error)
+                Write-Host "       No pack was installed; the folders were taken back out." -ForegroundColor (Get-MessageColour hint)
+                Write-Host "       What the root part had already put in place stays - run this again to finish." -ForegroundColor (Get-MessageColour hint)
+                return [PSCustomObject]@{ Pack = $Pack.Name; ExitCode = $RootCode }
+            }
+        }
+    }
+
+    # 3b. The installs run behind WSL's own door: passwordless sudo for
     # their length, nothing of it after - their files stay the user's.
     $sudoWindow = $false
     if ($ToAdd.Count -gt 0) { $sudoWindow = Enable-PackSudo -DistroName $DistroName }
     try {
-        # 3. What arrives: the folders are already there, so this is their install.sh.
+        # 3c. What arrives: the folders are already there, so this is their install.sh.
         for ($Index = 0; $Index -lt $ToAdd.Count; $Index++) {
             $Pack = $ToAdd[$Index]
             $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Pack.Name

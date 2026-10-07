@@ -2,9 +2,8 @@
 # ==============================================================================
 # THE GCP PACK - WHAT IT INSTALLS AS ROOT
 # ==============================================================================
-# Run by install.sh as one sudo, asked while the keyboard is still free: a
-# `curl ... | sudo gpg` in the middle of the install would have no terminal on
-# its input for the password.
+# Run by the engine as WSL's own root, before install.sh - no password asked.
+# The repository, the key and the package are root's business.
 
 set -euo pipefail
 

@@ -2,11 +2,12 @@
 # ==============================================================================
 # THE ZSH PACK - WHAT IT INSTALLS AS ROOT
 # ==============================================================================
-# Run by install.sh as one sudo: the packages, the two third-party
-# repositories they install from, and the system-side touches the socle needs.
-# What it installs is read from pack.conf, beside this file - the same line
-# remove.sh reads. Every step asks before it acts: on the built image
-# everything here is already in place and the whole script is a quiet no-op.
+# Run by the engine as WSL's own root, before install.sh - no password asked.
+# The packages, the two third-party repositories they install from, and the
+# system-side touches the socle needs; what it installs is read from
+# pack.conf, beside this file - the same line remove.sh reads. Every step
+# asks before it acts: on the built image everything here is already in place
+# and the whole script is a quiet no-op.
 
 set -euo pipefail
 

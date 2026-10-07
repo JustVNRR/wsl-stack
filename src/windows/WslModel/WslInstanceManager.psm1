@@ -331,9 +331,10 @@ class WslInstanceManager {
     }
 
     # add_pack - the pack and whatever it requires, requirements first. Each
-    # step: the folder copied in, the install script run from inside it, and a
-    # step that halves is undone - a half-installed pack is worse than none,
-    # the Makefile loads whatever folder is there.
+    # step: the folder copied in, the root half run as WSL's own root, the
+    # install script run from inside it behind the door - and a step that
+    # halves is undone, a half-installed pack is worse than none, the Makefile
+    # loads whatever folder is there.
     [object] AddPack([WslInstance]$Instance, [string]$PackName) {
         $Catalog = Get-PackCatalog
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
@@ -345,19 +346,50 @@ class WslInstanceManager {
             if ($null -ne $Entry) { $ToInstall += $Entry }
         }
 
-        # The installs run behind WSL's own door: passwordless sudo for their
-        # length, nothing of it after - their files stay the user's.
+        $Steps = @()
+        $Code = 0
+
+        # 1. The folders, all of them first: every root half below runs from
+        # inside its own. A failed copy takes back the folders already placed
+        # - the failed one is taken back by the copy itself - because nothing
+        # has been installed, and a folder left behind is what the menu reads.
+        $Placed = @()
+        foreach ($Entry in $ToInstall) {
+            $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Entry.Name
+            if (-not (Copy-PackIntoInstance -DistroName $Instance.Name -PackPath $Entry.Path -Target $Target -ExitCode ([ref]$Code))) {
+                Remove-PlacedFolders -DistroName $Instance.Name -PacksDirectory $PacksDirectory -Packs $Placed -ExitCode ([ref]$Code)
+                return [PSCustomObject]@{ Outcome = "copy-failed"; Steps = $Steps; Entry = $Entry; ExitCode = $Code; ToInstall = $ToInstall }
+            }
+            $Placed += $Entry
+        }
+
+        # 2. The root halves, before the door - the removals' gesture, and for
+        # the same reason: the door is a sudoers rule, and the socle pack
+        # carries sudo itself, so on a bare Debian there is no door to open
+        # yet. The scripts' content is unchanged; only who runs them, and when.
+        foreach ($Entry in $ToInstall) {
+            $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Entry.Name
+            if (Test-PackScript -DistroName $Instance.Name -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code)) {
+                Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code) -AsRoot
+                if ($Code -ne 0) {
+                    # No install.sh has run yet, so no folder here is an
+                    # installation: they all go back out. What the root parts
+                    # put in place stays - running this again picks up there.
+                    $RootCode = $Code
+                    Remove-PlacedFolders -DistroName $Instance.Name -PacksDirectory $PacksDirectory -Packs $ToInstall -ExitCode ([ref]$Code)
+                    return [PSCustomObject]@{ Outcome = "failed"; Steps = $Steps; Entry = $Entry; ExitCode = $RootCode; ToInstall = $ToInstall }
+                }
+            }
+        }
+
+        # 3. The installs run behind WSL's own door: passwordless sudo for
+        # their length, nothing of it after - their files stay the user's.
         $SudoWindow = $false
         if ($ToInstall.Count -gt 0) { $SudoWindow = Enable-PackSudo -DistroName $Instance.Name }
         try {
-            $Steps = @()
             foreach ($Entry in $ToInstall) {
                 $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Entry.Name
                 $Code = 0
-
-                if (-not (Copy-PackIntoInstance -DistroName $Instance.Name -PackPath $Entry.Path -Target $Target -ExitCode ([ref]$Code))) {
-                    return [PSCustomObject]@{ Outcome = "copy-failed"; Steps = $Steps; Entry = $Entry; ExitCode = $Code; ToInstall = $ToInstall }
-                }
 
                 Invoke-PackScript -DistroName $Instance.Name -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
                 $InstallCode = $Code

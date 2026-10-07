@@ -333,7 +333,38 @@ $DoorClose = "rm -f /etc/sudoers.d/90-wsl-stack-packs"
 Reset
 $Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
 Check "nothing to remove -> no removal, and no cleanup" `
-    ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | $DoorOpen | bash install.sh | $DoorClose"
+    ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | test -f $Directory/fake-a/install_root.sh | env HOME=/home/u bash install_root.sh | $DoorOpen | bash install.sh | $DoorClose"
+
+# The root half runs BEFORE the door, as WSL's own root: the door is a
+# sudoers rule, and the socle pack carries sudo itself - on a bare Debian its
+# root half must run where no door can open yet.
+Check "  ... and it ran before the door opened" `
+    ($script:Calls.IndexOf("$Directory/fake-a :: env HOME=/home/u bash install_root.sh") -lt
+     $script:Calls.IndexOf("~ :: $DoorOpen")) "True"
+
+# A pack without a root half - claude is one - installs all the same.
+Reset
+$script:FailCommand = "test -f $Directory/fake-a/install_root.sh"
+$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+Check "a pack without a root half skips it" `
+    (@($script:Calls | Where-Object { $_ -like "*install_root.sh*" }).Count) "1"
+Check "  ... and still runs its install behind the door" `
+    ($script:Calls.IndexOf("$Directory/fake-a :: bash install.sh") -gt
+     $script:Calls.IndexOf("~ :: $DoorOpen")) "True"
+Check "  ... nothing failed" ($null -eq $Result) "True"
+
+# A root half that fails stops everything before the door: no install.sh has
+# run, so every folder goes back out - and the door never opens.
+Reset
+$script:FailCommand = "env HOME=/home/u bash install_root.sh"
+$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+Check "a failed root half names the pack" "$($Result.Pack)/$($Result.ExitCode)" "fake-a/1"
+Check "  ... no install.sh ran" `
+    (@($script:Calls | Where-Object { $_ -like "*bash install.sh*" }).Count) "0"
+Check "  ... the door never opened" `
+    (@($script:Calls | Where-Object { $_ -like "*NOPASSWD*" }).Count) "0"
+Check "  ... and every folder went back out" `
+    (@($script:Calls | Where-Object { $_ -like "*rm -rf $Directory/fake-a*" }).Count) "1"
 
 Reset
 $script:FailCommand = "test -f"

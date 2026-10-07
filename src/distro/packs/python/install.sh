@@ -28,12 +28,9 @@ export PATH=$clean_path
 
 here=$(cd "$(dirname "$0")" && pwd)
 
-# sudo's own prompt has no trailing newline, and the line-based capture
-# behind wsl.exe only showed whole lines: the question stayed invisible and
-# the call waited forever. This prompt ends its line, so it shows.
-sudo_prompt=$(printf '[sudo] password:\n')
-
-sudo -p "$sudo_prompt" bash "$here/install_root.sh"
+# The root half ran before this script - the engine's call, as WSL's own
+# root, ahead of the passwordless door. What is left here is the user's own
+# part.
 
 # uv may already be there: this pack requires the scaffold pack, which installs
 # it and comes first. Asking the machine rather than installing a second time
