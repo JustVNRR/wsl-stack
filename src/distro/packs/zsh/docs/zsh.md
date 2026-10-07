@@ -1,19 +1,24 @@
-# The Shell Socle, as a Pack
+# The Shell, as a Pack
 
 [← Back to the README](../../../../README.md#bundled-software--stack)
 
-The shell socle — zsh, Oh-My-Zsh, Starship and the daily CLI tools — is a pack
-like any other: one folder, `src/distro/packs/zsh/`, with its own `pack.conf`,
-install, removal, and the `config/` folder holding the configuration itself.
-Two roads deploy it, and they read the same files:
+The shell's settings — the `.zshrc`, the modules, `gmake`, the cheatsheets,
+the prompt — live in one folder, `src/distro/packs/zsh/config/`, and the pack
+is what deploys them: `.\wsl.ps1 add_pack` copies the folder in and runs
+`install.sh`, which fills `~/.config/zsh`, writes the `.zshenv` that points
+zsh at it, and lays the same files into `/etc/skel` for the accounts that
+come after. Chosen while an instance is built, it runs the same way, right
+after the image is in place.
 
-- the **built image**: the Dockerfile's one `COPY` line bakes `config/` into
-  `/etc/skel`, and the rest of the socle (packages, repositories, clones,
-  binaries) is baked earlier in the same Dockerfile — every instance starts
-  with the shell in place;
-- a **foreign Debian**: `.\wsl.ps1 add_pack` copies the folder in and runs
-  `install.sh`, which lays down the same packages, repositories, clones,
-  binaries, configuration and skeleton.
+The image carries the tools: the zsh package itself, Oh-My-Zsh and its two
+plugins, Starship, tealdeer, the modern CLI set. An instance built without
+the pack has zsh and none of the settings — a bare shell. The tools are never
+fetched twice, and the settings arrive only when asked for.
+
+On a **foreign Debian** — a base this repository never built — the pack
+carries the tools too: `PACK_PACKAGES` names them, `install_root.sh` installs
+them from the two repositories it registers itself, and the clones and the
+two static binaries land under `~/.local`.
 
 ## What it carries
 
@@ -21,11 +26,12 @@ What the shell's own pages describe — [`docs/zsh/`](../../../../docs/zsh/) for
 plugins, keys, aliases and tools, [`docs/make/`](../../../../docs/make/) for
 the gmake modules — arrives with this pack. Its `pack.conf` names it once:
 
-- `PACK_PACKAGES` — the apt list the image installs: zsh and Oh-My-Zsh's
+- `PACK_PACKAGES` — the apt list, the image's own: zsh and Oh-My-Zsh's
   runtime dependencies, git, the modern CLI set (fzf, eza, bat, ripgrep,
   fd-find, zoxide, direnv), jq, gh, sqlite3, the archive tools, locales, and
   sudo — every other pack stands on this one, and the installs' passwordless
-  door needs it.
+  door needs it. On the built image every name is already there, and the
+  install's apt side is skipped whole.
 - `PACK_OUTSIDE_APT` — `starship` and `tldr`, the two static binaries apt
   never sees: fetched into `~/.local/bin` when the machine does not already
   carry them.
@@ -39,16 +45,15 @@ the gmake modules — arrives with this pack. Its `pack.conf` names it once:
 
 ## Installing it on a running instance
 
-Every step asks before it acts. On the built image everything is already in
-place, so the whole install is a quiet no-op except for the configuration
-copy — which is the point: `add_pack` again after a `git pull` is how an
-instance picks up a socle change, since `~/.config/zsh` is a copy and the
-repository is the truth. An instance built by an older image and never touched
-is brought up to the current socle the same way.
+Every step asks before it acts, and nothing that exists is ever replaced: the
+configuration copy skips files already in place, the apt side is skipped
+whole when every declared package is already installed, and the clones and
+the binaries are asked about before they start. Re-running the install on an
+instance whose settings are already there writes nothing and fetches nothing.
 
-The one file that is never touched is `~/.zshenv`: it is where a login starts,
-and a file of your own is yours. The install writes it only when it is
-missing, and when it exists without a `ZDOTDIR` line it says what to add
+The one file that is never touched is `~/.zshenv`: it is where a login
+starts, and a file of your own is yours. The install writes it only when it
+is missing, and when it exists without a `ZDOTDIR` line it says what to add
 rather than add it.
 
 ## Removing it

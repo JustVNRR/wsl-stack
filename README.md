@@ -152,7 +152,7 @@ leaves with `remove_pack`.
 | Python | [Python](src/distro/packs/python/docs/python.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
 | Vision & OCR | [Vision & OCR](src/distro/packs/vision/docs/vision.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
 | Firefox & VPN | [Web browser and tunnel](src/distro/packs/web/docs/web.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Shell socle | [The shell socle](src/distro/packs/zsh/docs/zsh.md) — in the image; [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) dresses a foreign base with it |
+| The shell | [The shell, as a pack](src/distro/packs/zsh/docs/zsh.md) — the settings; the image carries the tools, and [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) also dresses a foreign base with them |
 
 ### Python & Data Science
 
@@ -170,10 +170,9 @@ Two distinct trees: the **repository** you clone and version, and the **distro**
 the build produces. The `src/` folder holds both sides: the instance
 administration (`src/windows/` — the entry, the module, the commands), and the
 distro's recipe and baggage — the build recipe (`src/distro/build/`) and the
-packs (`src/distro/packs/` — copied into the image by the one COPY line, read
-at runtime by the console otherwise, one at a time). The shell socle is the
-`zsh` pack: the image bakes its `config/` folder into `/etc/skel`, and the
-pack's own `install.sh` dresses a foreign Debian with the same files.
+packs (`src/distro/packs/` — read at runtime by the console, one at a time).
+The image carries the tools; the packs carry the settings, the `zsh` pack
+first of all: its `config/` folder is what fills `~/.config/zsh`.
 
 ### The repository
 
@@ -183,9 +182,9 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │                            #   (windows/)
 │   ├── distro/              # The repository's half of the two trees: what the
 │   │                        #   build bakes (build/) and deploys (packs/ - the
-│   │                        #   socle is the zsh pack's config/ folder)
-│   │   ├── packs/           # Optional tooling, one folder per pack - and the
-│   │   │                    #   socle, which is the zsh pack's own
+│   │                        #   zsh pack's config/ is the shell's settings)
+│   │   ├── packs/           # Optional tooling, one folder per pack - the zsh
+│   │   │                    #   pack carrying the shell's settings
 │   │   │   ├── cleanup_orphans.sh # The one thing a removal runs inside an instance
 │   │   │   ├── claude/      # Claude Code, the agentic CLI, under ~/.local
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
@@ -264,8 +263,8 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │   │   ├── zsh/     # its shell files: the `fox` and `pfox` functions
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets: the browser and the tunnel
 │   │   │   │   └── docs/    # the pack's pages, one per module
-│   │   │   └── zsh/         # The shell socle as a pack: what the image bakes, and
-│   │   │       │            #   what dresses a foreign Debian the same way
+│   │   │   └── zsh/         # The shell's settings as a pack; on a foreign Debian
+│   │   │       │            #   the pack carries the tools too
 │   │   │       ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │       ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │       ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
@@ -299,7 +298,7 @@ pack's own `install.sh` dresses a foreign Debian with the same files.
 │   │   │           │   └── starship.zsh # Starship initialization hook
 │   │   │           └── unzip.zsh    # Interactive archive extraction handler
 │   │   └── build/
-│   │       ├── Dockerfile   # Rootfs build recipe: Ubuntu 24.04 and the socle's tools
+│   │       ├── Dockerfile   # Rootfs build recipe: Ubuntu 24.04 and the tools
 │   │       ├── Dockerfile.dockerignore # Keeps the context lean, keeps .env.global out of the image
 │   │       └── first_boot.sh # User creation, sudo, timezone, /etc/wsl.conf
 │   ├── windows/             # Instance administration, one file per command

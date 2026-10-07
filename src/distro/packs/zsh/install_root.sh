@@ -42,32 +42,47 @@ apt_install() {
 # DEBIAN_FRONTEND, so that a package reconfigured on the way (tzdata and its
 # continent question) never stops the install to ask something.
 export DEBIAN_FRONTEND=noninteractive
-apt-get -qq update
 
-# The two third-party repositories the image registers are the socle's too:
-# gh and eza install from there. Each is registered only when its keyring is
-# missing - on the built image both are already in place.
-if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ] || [ ! -f /etc/apt/keyrings/gierens.gpg ]; then
-    # install -d, not `mkdir -p -m`: with -p the -m only reaches the deepest
-    # directory, which is exactly the one that must be world-readable.
-    install -d -m 0755 /etc/apt/keyrings
-    apt_install ca-certificates curl gnupg
-fi
-if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ]; then
-    echo "Registering the GitHub CLI repository..."
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-    apt-get -qq update
-fi
-if [ ! -f /etc/apt/keyrings/gierens.gpg ]; then
-    echo "Registering the eza repository..."
-    curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | tee /etc/apt/sources.list.d/gierens.list > /dev/null
-    apt-get -qq update
-fi
+# The apt side, skipped whole when nothing is missing: dpkg answers locally,
+# and everything below - the list refresh, the two repositories, the install -
+# only exists so apt can answer "already installed". This is what makes the
+# install on the built image a quiet no-op instead of half a minute of
+# network for nothing.
+missing=""
+for package in "${packages[@]}"; do
+    dpkg-query -W -f '${Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing="$missing $package"
+done
 
-apt_install "${packages[@]}"
+if [ -z "$missing" ]; then
+    echo "Every declared package is already installed - nothing to fetch."
+else
+    apt-get -qq update
+
+    # The two third-party repositories this pack needs are the ones the image
+    # registers: gh and eza install from there. Each is registered only when
+    # its keyring is missing - on the built image both are already in place.
+    if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ] || [ ! -f /etc/apt/keyrings/gierens.gpg ]; then
+        # install -d, not `mkdir -p -m`: with -p the -m only reaches the deepest
+        # directory, which is exactly the one that must be world-readable.
+        install -d -m 0755 /etc/apt/keyrings
+        apt_install ca-certificates curl gnupg
+    fi
+    if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ]; then
+        echo "Registering the GitHub CLI repository..."
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+        chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+        apt-get -qq update
+    fi
+    if [ ! -f /etc/apt/keyrings/gierens.gpg ]; then
+        echo "Registering the eza repository..."
+        curl -fsSL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc | gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" | tee /etc/apt/sources.list.d/gierens.list > /dev/null
+        apt-get -qq update
+    fi
+
+    apt_install "${packages[@]}"
+fi
 
 # The UTF-8 locales exports.zsh points LANG at: generated here when the
 # machine has never seen them - the built image has them from its own

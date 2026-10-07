@@ -68,12 +68,13 @@ if ! command -v tldr >/dev/null 2>&1; then
     chmod +x "$HOME/.local/bin/tldr"
 fi
 
-# The socle's own files, over the home: on the built image the same content
-# is already there, and writing it again changes nothing - the .env files the
-# gmake keeps your variables in are not in this folder and never overwritten.
+# The shell's own files, into the home. -n: a file that is already there is
+# never replaced - the settings are the ones you have, and re-running the
+# install cannot overwrite an edit. The .env files the gmake keeps your
+# variables in are not in this folder either way.
 echo "Installing the shell configuration..."
 mkdir -p "$HOME/.config/zsh" "$HOME/.local/state/zsh" "$HOME/.cache/zsh"
-cp -r "$here/config/." "$HOME/.config/zsh/"
+cp -rn "$here/config/." "$HOME/.config/zsh/"
 
 # The one line that points zsh at the socle. A ~/.zshenv of your own is never
 # touched: either it already does this, or it is told what to add.

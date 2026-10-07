@@ -136,26 +136,20 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.local/
     && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
        /etc/skel/.local/share/oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 
-# Copy modular Zsh configuration to the user skeleton directory. The socle is
-# the zsh pack's config/ folder - one copy in the repository, deployed here by
-# the image and onto a foreign Debian by the pack's own install.sh.
-COPY src/distro/packs/zsh/config /etc/skel/.config/zsh
+# Nothing of the packs, and none of the zsh configuration either: the image
+# carries the tools - the shell, Oh-My-Zsh, the modern CLI set - and the zsh
+# pack carries the settings. The pack installs like every other one, with
+# `.\wsl.ps1 add_pack` or by being chosen while an instance is built, and
+# fills ~/.config/zsh and the skeleton from its own config/ folder. Without
+# it, an instance has zsh and no settings.
 
-# Nothing else of the packs: the image carries the socle, and the zsh pack IS
-# the socle. The other packs arrive afterwards, on a living instance, with
-# `.\wsl.ps1 add_pack`, which copies their folder into ~/.config/packs and runs
-# their install script there - files and tool together. A machine that never
-# wants one never pays for it.
-
-# Bootstrap ZDOTDIR and create the skeleton directories. The base image leaves
-# a bash dotfile set (.bashrc, .bash_logout, .profile) in /etc/skel, inherited
-# by accounts for a shell this image never runs - they go.
-RUN echo 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' > /etc/skel/.zshenv \
-    && echo 'skip_global_compinit=1' >> /etc/skel/.zshenv \
-    && rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
+# The skeleton's directories. The base image leaves a bash dotfile set
+# (.bashrc, .bash_logout, .profile) in /etc/skel, inherited by accounts for a
+# shell this image never runs - they go. The ZDOTDIR bootstrap and the shell's
+# state/cache directories are not here: they come with the configuration, so
+# they are the zsh pack's to write, into the home and into this skeleton.
+RUN rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
     && mkdir -p /etc/skel/.ssh \
-    && mkdir -p /etc/skel/.local/state/zsh \
-    && mkdir -p /etc/skel/.cache/zsh \
     && mkdir -p /etc/skel/projects \
     && chmod 700 /etc/skel/.ssh
 
@@ -164,8 +158,5 @@ COPY src/distro/build/first_boot.sh /root/first_boot.sh
 RUN chmod +x /root/first_boot.sh \
     && echo '/root/first_boot.sh' >> /root/.bashrc \
     && chown -R root:root /etc/skel
-
-# Purge any potential runtime dump caches
-RUN rm -f /etc/skel/.config/zsh/.zcompdump* /root/.zcompdump*
 
 CMD ["/bin/bash"]

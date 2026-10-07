@@ -11,12 +11,12 @@ what they carry. Adding a pack touches no file outside that folder.
 A pack needs no tool: what it brings is what its folder carries, and that may be
 targets, a tool, or both — `devops` is targets only, `vision` a tool only.
 
-The socle itself is one of them: the `zsh` pack carries zsh, Oh-My-Zsh,
-Starship and the shell configuration, and two roads deploy the same files — the
-image's one `COPY` line bakes `config/` at build time, and the pack's own
-`install.sh` dresses a foreign Debian, where the whole install is otherwise a
-quiet no-op on a built instance. Its page is
-[the shell socle](packs/zsh/docs/zsh.md).
+The `zsh` pack is one of them, and the one with a special job: the image bakes
+the tools (the shell, Oh-My-Zsh, Starship, the modern CLI set), and this pack
+deploys the settings — its `config/` folder, the `.zshenv` that points zsh at
+it, and the skeleton. An instance built without it has zsh and no settings;
+on a foreign Debian the same pack carries the tools too. Its page is
+[the shell, as a pack](packs/zsh/docs/zsh.md).
 
 ## The folder
 
