@@ -53,7 +53,7 @@ claimed_elsewhere() {
     return 1
 }
 
-echo "Removing the socle's tools..."
+echo "Removing the shell's tools..."
 apt_failed=0
 for package in $packages; do
     if claimed_elsewhere "$package"; then
@@ -72,7 +72,7 @@ for package in $packages; do
     fi
 done
 
-# The socle's files, out of ~/.config/zsh. The gmake folder keeps your .env
+# The shell's files, out of ~/.config/zsh. The gmake folder keeps your .env
 # files - only its Makefile and modules, which are the pack's, leave; the
 # shell's history and cache live under ~/.local and are never touched.
 echo "Removing the shell configuration..."
@@ -116,6 +116,6 @@ if [ "$apt_failed" = 1 ]; then
     exit 1
 fi
 
-echo "The shell socle is gone."
+echo "The shell is gone."
 echo "   Your history, your cache and your .env files are where they were; the"
 echo "   shell comes back on bash at the next login."

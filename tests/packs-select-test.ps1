@@ -171,7 +171,7 @@ Write-Output "--- The refusal: a pack a standing pack requires does not leave --
 # there would shift every answer; this root has its runs to itself.
 $PacksRoot2 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-guard-" + [Guid]::NewGuid().ToString("N"))
 $Declarations2 = @(
-    @{ Name = "zsh";    Description = "The shell socle" },
+    @{ Name = "zsh";    Description = "The shell" },
     @{ Name = "python"; Description = "Python toolchain"; Requires = "zsh" },
     @{ Name = "web";    Description = "Web tooling";      Requires = "zsh" }
 )

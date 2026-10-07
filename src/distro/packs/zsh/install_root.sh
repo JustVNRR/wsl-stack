@@ -4,7 +4,7 @@
 # ==============================================================================
 # Run by the engine as WSL's own root, before install.sh - no password asked.
 # The packages, the two third-party repositories they install from, and the
-# system-side touches the socle needs; what it installs is read from
+# system-side touches the settings need; what it installs is read from
 # pack.conf, beside this file - the same line remove.sh reads. Every step
 # asks before it acts: on the built image everything here is already in place
 # and the whole script is a quiet no-op.
@@ -92,7 +92,7 @@ if command -v locale-gen >/dev/null 2>&1 && ! locale -a 2>/dev/null | grep -qi '
     locale-gen en_US.UTF-8 fr_FR.UTF-8 > /dev/null
 fi
 
-# fd and bat wear their Debian names (fdfind, batcat), and the socle calls
+# fd and bat wear their Debian names (fdfind, batcat), and the settings call
 # them by those; the short names are for the hand. The same links the image
 # makes, with the same conditions.
 if command -v fdfind >/dev/null 2>&1 && [ ! -e /usr/local/bin/fd ]; then

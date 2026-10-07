@@ -5,8 +5,8 @@
 # `wsl.ps1 add_pack` copies this pack's folder into ~/.config/packs/zsh, then
 # runs this script from inside it, as the instance's own user.
 #
-# The socle in one pack: on the built image everything here is already in
-# place and every step answers "already there" - the same run that dresses a
+# The shell in one pack: on the built image the tools are already in place
+# and every step answers "already there" - the same run that dresses a
 # foreign Debian. Nothing is ever re-downloaded: the clones are asked about
 # before they start, and a binary on the PATH is left where it is.
 
@@ -48,7 +48,7 @@ done
 
 # Starship and tealdeer, the two binaries apt never sees: a name already on
 # the PATH - the image's /usr/local/bin, or another pack's - is left where it
-# is, and only a missing one is fetched, into ~/.local/bin (the socle's own
+# is, and only a missing one is fetched, into ~/.local/bin (the settings' own
 # PATH, from exports.zsh).
 case "$(dpkg --print-architecture)" in
     amd64) release_arch="x86_64" ;;
@@ -76,16 +76,16 @@ echo "Installing the shell configuration..."
 mkdir -p "$HOME/.config/zsh" "$HOME/.local/state/zsh" "$HOME/.cache/zsh"
 cp -rn "$here/config/." "$HOME/.config/zsh/"
 
-# The one line that points zsh at the socle. A ~/.zshenv of your own is never
-# touched: either it already does this, or it is told what to add.
+# The one line that points zsh at the settings. A ~/.zshenv of your own is
+# never touched: either it already does this, or it is told what to add.
 if [ ! -e "$HOME/.zshenv" ]; then
     # The single quotes are the point: this line goes into the file as
     # written, and the variable must expand in the login shell, not here.
     # shellcheck disable=SC2016
     printf '%s\n%s\n' 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' 'skip_global_compinit=1' > "$HOME/.zshenv"
 elif ! grep -q 'ZDOTDIR' "$HOME/.zshenv"; then
-    echo "NOTE: ~/.zshenv exists and does not set ZDOTDIR - the socle will not"
-    echo "      load until it does. Yours is yours, so nothing was added; put"
+    echo "NOTE: ~/.zshenv exists and does not set ZDOTDIR - the settings will"
+    echo "      not load until it does. Yours is yours, so nothing was added; put"
     echo "      this line in it:"
     echo "        export ZDOTDIR=\"\${XDG_CONFIG_HOME:-\$HOME/.config}/zsh\""
 fi
@@ -110,4 +110,4 @@ if [ -s "$HOME/.zsh_history" ]; then
 fi
 rm -f "$HOME/.zsh_history"
 
-success "The shell socle is installed. Open a new shell, or run:  exec zsh"
+success "The shell is installed. Open a new shell, or run:  exec zsh"
