@@ -98,6 +98,8 @@
         'Select-Packs'
         'Resolve-PackSelection'
         'Get-BuildDefaultPacks'
+        'Get-BuildRecipes'
+        'Format-BuildRecipeName'
         'Resolve-InstallPath'
         'Resolve-InstanceIdentity'
         'Resolve-DefaultUser'

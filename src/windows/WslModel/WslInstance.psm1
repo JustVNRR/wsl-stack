@@ -35,12 +35,14 @@ class WslInstance {
     [string[]]$InstalledPacks = @()
 
     # The recipe the instance was built with: the Dockerfile the image came
-    # from, and the first_boot its account was made by - full paths, as they
-    # were on this machine. They ride with the look (instance.json): a build
-    # records them, an archive and a copy carry them along. Empty - an
-    # instance from before the fields, or an archive that carried none -
+    # from - or the uploaded Docker image it was loaded from, whichever road
+    # the build took - and the first_boot its account was made by, full paths
+    # as they were on this machine. They ride with the look (instance.json):
+    # a build records them, an archive and a copy carry them along. Empty -
+    # an instance from before the fields, or an archive that carried none -
     # means unknown, and the repository's own files are the build's default.
     [string]$Dockerfile
+    [string]$DockerImage
     [string]$FirstBoot
 
     # The empty constructor only: an instance is built property by property,
@@ -439,9 +441,10 @@ class WslInstance {
         # What this instance looks like, in its own folder - the file an
         # archive carries. Written here, the fragment in place, so the font and
         # colours it reads are the ones just applied, icon recipe included.
-        # The build's recipe (Dockerfile, first_boot) is written with it.
+        # The build's recipe (Dockerfile or image, first_boot) is written
+        # with it.
         Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
-            -Icon $Icon -Dockerfile $this.Dockerfile -FirstBoot $this.FirstBoot)
+            -Icon $Icon -Dockerfile $this.Dockerfile -Image $this.DockerImage -FirstBoot $this.FirstBoot)
 
         # Asked to look again, so the new profile appears without closing
         # anything.

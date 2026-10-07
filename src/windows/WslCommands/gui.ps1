@@ -198,7 +198,7 @@ $btnAdd.Add_Click({
     $script:BuildChild = Start-Process pwsh -PassThru -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
         "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"",
-        "`"$($form.Dockerfile)`"", "`"$($form.FirstBoot)`"",
+        "`"$($form.Dockerfile)`"", "`"$($form.FirstBoot)`"", "`"$($form.Image)`"",
         "`"$ModulePath`"", "`"$BuildScript`""
     )
     $script:BuildWatch = New-Object System.Windows.Threading.DispatcherTimer

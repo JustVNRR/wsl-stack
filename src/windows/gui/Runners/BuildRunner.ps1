@@ -7,13 +7,13 @@
 # Enter only when the build ABORTED, so the error is read instead of vanishing
 # with the process.
 
-param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Module, [string]$BuildScript)
+param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Image, [string]$Module, [string]$BuildScript)
 
 $failed = $false
 try {
     Import-Module $Module -Force
     $mgr = New-InstanceManager
-    & $BuildScript -Name $Name -User $User -Packs $Packs -Dockerfile $Dockerfile -FirstBoot $FirstBoot -Manager $mgr
+    & $BuildScript -Name $Name -User $User -Packs $Packs -Dockerfile $Dockerfile -FirstBoot $FirstBoot -Image $Image -Manager $mgr
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)"

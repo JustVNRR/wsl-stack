@@ -19,10 +19,11 @@ param (
     [string]$Packs,
 
     # The build's recipe, when one was chosen - the window's lists, or the
-    # command line. Absent, the repository's own files under
-    # src\distro\build\ are used: the Dockerfile the image is built from,
-    # and the first_boot the onboarding runs.
+    # command line. -Dockerfile and -Image are the two roads and exclude each
+    # other; absent both, the repository's own Dockerfile is used. -FirstBoot
+    # is common to both roads: the onboarding script every build runs.
     [string]$Dockerfile,
+    [string]$Image,
     [string]$FirstBoot,
 
     # Must remain the VERY LAST parameter to allow valid PowerShell parsing
@@ -99,6 +100,37 @@ function Invoke-DockerBuild {
     # written against it, and one of your own brings its own ignore file
     # beside it (Dockerfile.dockerignore) or none.
     Invoke-NativeCommand { docker build -t $Tag -f $Dockerfile . } "Docker build failed."
+}
+
+# The other road: an uploaded image, loaded into the local store - and,
+# when the tar does not already carry the run's tag, tagged with it, so
+# everything below is the same road as a built one. Answers whether the tag
+# was added: that is the only trace this run leaves in Docker, and the only
+# thing the cleanup takes back. The image itself, under its own name, is
+# never touched.
+function Invoke-DockerLoad {
+    param([string]$Tag, [string]$ImagePath)
+
+    $PreviousEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $Output = @(& docker load -i $ImagePath 2>&1)
+    $Code = $LASTEXITCODE
+    $ErrorActionPreference = $PreviousEAP
+    if ($Code -ne 0) {
+        throw "The Docker image could not be loaded:`n$($Output -join "`n")"
+    }
+
+    # docker load says what it put where: "Loaded image: name:tag" for a
+    # saved tagged image, "Loaded image ID: sha256:..." for one saved by id.
+    $Loaded = $null
+    foreach ($Line in $Output) {
+        if ("$Line" -match '^Loaded image(?: ID)?: (.+)$') { $Loaded = $Matches[1].Trim(); break }
+    }
+    if (-not $Loaded) { throw "docker load told nothing usable about the image in '$ImagePath'." }
+
+    if ($Loaded -eq $Tag) { return $false }
+    Invoke-NativeCommand { docker tag $Loaded $Tag } "The loaded image could not be tagged for the build."
+    return $true
 }
 
 function New-DockerContainer {
@@ -278,15 +310,24 @@ function Configure-DockerDesktopIntegration {
 $RepoRoot = Split-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -Parent
 Set-Location -Path $RepoRoot
 
-# The recipe: the chosen files, or the repository's own. Resolved here so a
-# path typed on the command line may be relative to the repository, and
-# checked before anything is asked or destroyed - a path that names no file
-# stops the run with nothing confirmed and nothing touched. Only its presence
-# is checked: whether a Dockerfile builds is docker build's to say.
-if (-not $Dockerfile) { $Dockerfile = Join-Path $RepoRoot "src/distro/build/Dockerfile" }
+# The recipe: the chosen files, or the repository's own Dockerfile. Resolved
+# here so a path typed on the command line may be relative to the repository,
+# and checked before anything is asked or destroyed - a path that names no
+# file stops the run with nothing confirmed and nothing touched. Only
+# presence is checked: whether a Dockerfile builds, or an image loads, is the
+# engine's own to say.
+if ($Image -and $Dockerfile) {
+    Write-Host ""
+    Write-Host "[ABORT] Choose one recipe: a Dockerfile, or a Docker image - not both." -ForegroundColor (Get-MessageColour error)
+    Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+    exit 1
+}
+if (-not $Image -and -not $Dockerfile) { $Dockerfile = Join-Path $RepoRoot "src/distro/build/Dockerfile" }
 if (-not $FirstBoot) { $FirstBoot = Join-Path $RepoRoot "src/distro/build/first_boot.sh" }
-foreach ($Named in @(@{ What = "Dockerfile"; Path = $Dockerfile },
-                     @{ What = "first_boot"; Path = $FirstBoot })) {
+$ToCheck = @(@{ What = "first_boot"; Path = $FirstBoot })
+if ($Image) { $ToCheck += @{ What = "Docker image"; Path = $Image } }
+else { $ToCheck += @{ What = "Dockerfile"; Path = $Dockerfile } }
+foreach ($Named in $ToCheck) {
     if (-not (Test-Path -Path $Named.Path -PathType Leaf)) {
         Write-Host ""
         Write-Host "[ABORT] The $($Named.What) is not a file: $($Named.Path)" -ForegroundColor (Get-MessageColour error)
@@ -294,7 +335,8 @@ foreach ($Named in @(@{ What = "Dockerfile"; Path = $Dockerfile },
         exit 1
     }
 }
-$Dockerfile = [System.IO.Path]::GetFullPath($Dockerfile)
+$Dockerfile = if ($Dockerfile) { [System.IO.Path]::GetFullPath($Dockerfile) } else { "" }
+$Image = if ($Image) { [System.IO.Path]::GetFullPath($Image) } else { "" }
 $FirstBoot = [System.IO.Path]::GetFullPath($FirstBoot)
 
 $ImageTag = "wsl-stack:latest"
@@ -371,6 +413,24 @@ if ($PSBoundParameters.ContainsKey('Name')) {
     $DistroName = $Identity.Name
     $InstallPath = $Identity.InstallPath
     $WasRegistered = $Identity.WasRegistered
+}
+
+# 0-bis-bis. What to build from, when an image was ever uploaded: the
+# repository's Dockerfile, or one of the uploaded images. No image around -
+# or a road already chosen, which is how the window answers this one, and
+# how a command line that passed -Dockerfile or -Image does - and the
+# question is not asked: the Dockerfile road, as always.
+if (-not $PSBoundParameters.ContainsKey('Dockerfile') -and -not $PSBoundParameters.ContainsKey('Image')) {
+    $Recipes = Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")
+    if ($Recipes.Images.Count -gt 0) {
+        $Options = @($Recipes.Dockerfiles[0]) + @($Recipes.Images)
+        $Picked = Select-FromList -Title "Build from" -Items $Options -Label { param($Row) $Row.Name }
+        if ($null -eq $Picked) { Stop-Cancelled }
+        if ($Picked.Uploaded) {
+            $Image = $Picked.Path
+            $Dockerfile = ""
+        }
+    }
 }
 
 # 1. The export tar lands beside the install path - never on C:.
@@ -452,9 +512,18 @@ $Deployment = [ordered]@{
     Succeeded        = $false
 }
 
+# Whether the image road added the run's tag to the loaded image - the only
+# trace of this run in Docker, and the only thing the cleanup takes back.
+$ImageAliased = $false
+
 try {
-    Write-Host "==> 1. Building Docker rootfs image..." -ForegroundColor (Get-MessageColour info)
-    Invoke-DockerBuild -Tag $ImageTag -Dockerfile $Dockerfile
+    if ($Image) {
+        Write-Host "==> 1. Loading the Docker image ($Image)..." -ForegroundColor (Get-MessageColour info)
+        $ImageAliased = Invoke-DockerLoad -Tag $ImageTag -ImagePath $Image
+    } else {
+        Write-Host "==> 1. Building Docker rootfs image..." -ForegroundColor (Get-MessageColour info)
+        Invoke-DockerBuild -Tag $ImageTag -Dockerfile $Dockerfile
+    }
 
     Write-Host "==> 2. Creating temporary export container..." -ForegroundColor (Get-MessageColour info)
     New-DockerContainer -Name $ContainerName -Image $ImageTag
@@ -509,8 +578,9 @@ try {
 
     # The recipe rides with the instance from its birth: the look file the
     # profile step writes (step 7) carries it, and an archive or a copy keeps
-    # it from there.
-    $Instance.Dockerfile = $Dockerfile
+    # it from there. Dockerfile and image are the two roads; only the one
+    # taken is recorded.
+    if ($Image) { $Instance.DockerImage = $Image } else { $Instance.Dockerfile = $Dockerfile }
     $Instance.FirstBoot = $FirstBoot
 
     # The recipe's other half, in place before step 6 runs it: the image
@@ -576,7 +646,23 @@ finally {
         Write-Host ""
         Write-Host ("-" * 60) -ForegroundColor (Get-MessageColour muted)
 
-        if (-not (Confirm-YesNo "Keep Docker image?")) {
+        if ($Image) {
+            # The image road asks nothing: Docker did not create this image -
+            # it came from the tar - and loading it again costs seconds, so
+            # there is nothing worth keeping or asking about. Only the tag
+            # this run added goes back; the image itself, under its own name,
+            # stays where Docker put it.
+            if ($ImageAliased) {
+                Write-Host "==> Taking back the build's tag on the loaded image..." -ForegroundColor (Get-MessageColour info)
+                if (Test-NativeCommand { docker rmi -f $ImageTag }) {
+                    Write-Host "The build's tag '$ImageTag' was taken back - the loaded image stays in Docker." -ForegroundColor (Get-MessageColour success)
+                } else {
+                    Write-Host "The build's tag could not be taken back - the image stays as it is." -ForegroundColor (Get-MessageColour warning)
+                }
+            } else {
+                Write-Host "The loaded image already carries '$ImageTag' - nothing was added to take back." -ForegroundColor (Get-MessageColour muted)
+            }
+        } elseif (-not (Confirm-YesNo "Keep Docker image?")) {
             Write-Host "==> Removing Docker image '$ImageTag'..." -ForegroundColor (Get-MessageColour info)
             if (Test-NativeCommand { docker rmi -f $ImageTag }) {
                 Write-Host "Docker image removed." -ForegroundColor (Get-MessageColour success)

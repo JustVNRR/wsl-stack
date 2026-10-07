@@ -4,47 +4,80 @@
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"
         FontFamily="Segoe UI" FontSize="13">
-    <StackPanel Margin="18">
-        <TextBlock Margin="0,10,0,0" Text="Instance name:"/>
-        <TextBox Name="TxtName" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
-        <TextBlock Name="TxtNameError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
-        <TextBlock Margin="0,12,0,0" Text="User name:"/>
-        <TextBox Name="TxtUser" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
-        <TextBlock Name="TxtUserError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
-        <TextBlock Margin="0,12,0,0" Text="Dockerfile:"/>
-        <Grid Margin="0,6,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <ComboBox Name="CmbDockerfile" Grid.Column="0"/>
-            <Button Name="BtnDockerfileDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
-            <Button Name="BtnDockerfileUpload" Grid.Column="2" Content="Upload a Dockerfile..." Margin="8,0,0,0"/>
-        </Grid>
-        <TextBlock Margin="0,12,0,0" Text="First boot:"/>
-        <Grid Margin="0,6,0,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
-            <Button Name="BtnFirstBootDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
-            <Button Name="BtnFirstBootUpload" Grid.Column="2" Content="Upload a first_boot..." Margin="8,0,0,0"/>
-        </Grid>
-        <TextBlock Margin="0,12,0,0" Text="Packs:"/>
-        <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
-            <StackPanel Name="Boxes"/>
+    <!-- The content scrolls, the buttons do not: past the window's own cap -
+         a big window font makes the form taller than any screen allowance -
+         the fields keep a scrollbar and Cancel/CREATE stay in reach at the
+         bottom, where a clipped row of buttons would be a dead end. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="18,18,18,4">
+                <TextBlock Margin="0,10,0,0" Text="Instance name:"/>
+                <TextBox Name="TxtName" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+                <TextBlock Name="TxtNameError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+                <TextBlock Margin="0,12,0,0" Text="User name:"/>
+                <TextBox Name="TxtUser" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+                <TextBlock Name="TxtUserError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+                <TextBlock Margin="0,12,0,0" Text="Build from:"/>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <RadioButton Name="RbFromDockerfile" Content="Dockerfile" IsChecked="True" Foreground="{DynamicResource AppForegroundBrush}"/>
+                    <RadioButton Name="RbFromImage" Content="Docker image" Margin="16,0,0,0" Foreground="{DynamicResource AppForegroundBrush}"/>
+                </StackPanel>
+                <StackPanel Name="BoxDockerfile">
+                    <TextBlock Margin="0,10,0,0" Text="Dockerfile:"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Name="CmbDockerfile" Grid.Column="0"/>
+                        <Button Name="BtnDockerfileDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+                        <Button Name="BtnDockerfileUpload" Grid.Column="2" Content="Upload a Dockerfile..." Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+                <StackPanel Name="BoxDockerImage" Visibility="Collapsed">
+                    <TextBlock Margin="0,10,0,0" Text="Docker image:"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Name="CmbDockerImage" Grid.Column="0"/>
+                        <Button Name="BtnDockerImageDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+                        <Button Name="BtnDockerImageUpload" Grid.Column="2" Content="Upload an image (.tar)..." Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Name="TxtImageError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+                </StackPanel>
+                <TextBlock Margin="0,12,0,0" Text="First boot:"/>
+                <Grid Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
+                    <Button Name="BtnFirstBootDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+                    <Button Name="BtnFirstBootUpload" Grid.Column="2" Content="Upload a first_boot..." Margin="8,0,0,0"/>
+                </Grid>
+                <TextBlock Margin="0,12,0,0" Text="Packs:"/>
+                <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Name="Boxes"/>
+                </ScrollViewer>
+                <TextBlock Name="TxtAdd" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppForegroundBrush}" Visibility="Collapsed"/>
+                <TextBlock Name="TxtDel" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppSoftDangerBrush}" Visibility="Collapsed"/>
+                <TextBlock Name="TxtNotes" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppMutedBrush}"/>
+            </StackPanel>
         </ScrollViewer>
-        <TextBlock Name="TxtAdd" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppForegroundBrush}" Visibility="Collapsed"/>
-        <TextBlock Name="TxtDel" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppSoftDangerBrush}" Visibility="Collapsed"/>
-        <TextBlock Name="TxtNotes" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppMutedBrush}"/>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="18,10,18,16">
             <Button Name="BtnAddCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
                     Background="{DynamicResource AppFaceBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}"/>
             <Button Name="BtnAddCreate" Content="CREATE" Width="90" Height="28" IsDefault="True"
                     Background="{DynamicResource AppForegroundBrush}" Foreground="{DynamicResource AppBackgroundBrush}" BorderBrush="{DynamicResource AppForegroundBrush}"/>
         </StackPanel>
-    </StackPanel>
+    </Grid>
 </Window>

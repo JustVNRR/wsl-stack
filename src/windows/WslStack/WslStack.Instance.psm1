@@ -117,6 +117,7 @@ function Test-FontInstalled {
 #       "IconTextColor":  "#FFFFFF",
 #       "Docker":  "yes",
 #       "Dockerfile":  "D:\\wsl-stack\\src\\distro\\build\\Dockerfile",
+#       "DockerImage":  "D:\\wsl-stack\\assets\\dockerimages\\x-1a2b3c4d\\x.tar",
 #       "FirstBoot":  "D:\\wsl-stack\\src\\distro\\build\\first_boot.sh"
 #   }
 #
@@ -124,11 +125,12 @@ function Test-FontInstalled {
 # other letters, same colours. An image of your own has no recipe, so they are
 # absent.
 #
-# Dockerfile and FirstBoot are the build's recipe - what the instance was made
-# with. They ride with the file: kept when a change (font, colours, icon)
-# rewrites it without naming them, carried into an archive, a copy or a
-# restore. Absent when unknown, and the repository's own files are then the
-# defaults a new build uses.
+# Dockerfile, DockerImage and FirstBoot are the build's recipe - what the
+# instance was made with, the first two being whichever road the build took.
+# They ride with the file: kept when a change (font, colours, icon) rewrites
+# it without naming them, carried into an archive, a copy or a restore.
+# Absent when unknown, and the repository's own files are then the defaults a
+# new build uses.
 
 # Every font Windows has that a terminal can use, by the name a profile takes,
 # with what it can draw - asked of GDI+ rather than read off the registry
@@ -346,15 +348,17 @@ function New-InstanceLook {
         # files it used. Absent, whatever the instance's own file already
         # carries is kept: a font or colour change must not erase it.
         [string]$Dockerfile,
+        [string]$Image,
         [string]$FirstBoot
     )
 
     if (-not $Theme) { $Theme = Get-InstanceAppearance -Name $Name }
     if (-not $Docker) { $Docker = Get-DockerState -Name $Name }
-    if (-not $Dockerfile -or -not $FirstBoot) {
+    if (-not $Dockerfile -or -not $Image -or -not $FirstBoot) {
         $Existing = Get-InstanceLook -Name $Name
         if ($Existing) {
             if (-not $Dockerfile -and $Existing.Dockerfile) { $Dockerfile = $Existing.Dockerfile }
+            if (-not $Image -and $Existing.DockerImage) { $Image = $Existing.DockerImage }
             if (-not $FirstBoot -and $Existing.FirstBoot) { $FirstBoot = $Existing.FirstBoot }
         }
     }
@@ -373,6 +377,7 @@ function New-InstanceLook {
     }
     if ($Docker) { $Look.Docker = $Docker }
     if ($Dockerfile) { $Look.Dockerfile = $Dockerfile }
+    if ($Image) { $Look.DockerImage = $Image }
     if ($FirstBoot) { $Look.FirstBoot = $FirstBoot }
     return [PSCustomObject]$Look
 }
@@ -556,14 +561,14 @@ function Set-InstanceState {
     # The instance keeps its own copy of the file - the same shape, under its own
     # name, the icon pointing at its own folder. The recipe comes with it, or a
     # later change of letters or colours would start again from the name - and
-    # so does the build's recipe (the Dockerfile and first_boot the archive
-    # names), when it carried one.
+    # so does the build's recipe (the Dockerfile, the image and the
+    # first_boot the archive names), when it carried one.
     $Theme = ConvertTo-WslTheme $Appearance
     $Theme.IconPath = $IconPath
 
     Set-InstanceLook -InstallPath $InstallPath -Look (New-InstanceLook -Name $Name `
         -Theme $Theme -Docker $Appearance.Docker -Icon (Get-IconRecipe -Look $Appearance) `
-        -Dockerfile $Appearance.Dockerfile -FirstBoot $Appearance.FirstBoot)
+        -Dockerfile $Appearance.Dockerfile -Image $Appearance.DockerImage -FirstBoot $Appearance.FirstBoot)
 
     Set-InstanceFragment -Name $Name -Guid $Guid -Theme $Theme
     Write-Host "  * Look             : font '$($Appearance.Font)', colours '$($Appearance.ColorScheme)', icon re-applied" -ForegroundColor (Get-MessageColour success)

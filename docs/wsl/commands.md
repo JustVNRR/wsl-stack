@@ -139,13 +139,16 @@ gate of the same manners as the instance's - what is lost, spelled out, and
 the exact name typed back - and the folder goes for good, tar and look
 together. The header carries its icons beside the title: **+**, a new
 instance - name, user, the build's recipe and packs in one form: the
-**Dockerfile** and the **first_boot** are two lists, each opening on the
-repository's own file, an upload button beside it putting yours under
-`assets\dockerfiles\` or `assets\firstboots\` (same file uploaded again, same
-slot - the fonts' own convention; each uploaded row carries the date it
-arrived, so two versions of one name are told apart; a Dockerfile brings its
-`.dockerignore` along), and a trash beside each list removing the selected
-uploaded file - the repository's own rows have none to press - a name that
+**Build from** is a toggle - **Dockerfile** or **Docker image**, one road or
+the other, and only its row shows. The **Dockerfile** and the **first_boot**
+rows open on the repository's own file; the **Docker image** row lists what
+was uploaded under `assets\dockerimages\` (the repository ships none). Each
+row carries an upload button and a trash beside it, putting yours under
+`assets\dockerfiles\`, `assets\firstboots\` or `assets\dockerimages\` (same
+file uploaded again, same slot - the fonts' own convention; each uploaded row
+carries the date it arrived, so two versions of one name are told apart; a
+Dockerfile brings its `.dockerignore` along); the trash removes the selected
+uploaded file, and the repository's own rows have none to press - a name that
 already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
@@ -208,12 +211,14 @@ included; the build's console closes with the run.
 
 It asks for the name, for the folder, for the user the instance will open as,
 and — when this checkout carries packs — which of them the instance should
-start with. Two options name the **recipe**, and without them the
-repository's own files are used (the window's form, `gui`, offers the same
-two as lists):
+start with. Options name the **recipe** — a Dockerfile, *or* an uploaded
+Docker image, plus the first_boot — and without them the repository's own
+files are used (the window's form, `gui`, offers the same as lists behind a
+toggle):
 
 ```powershell
 .\wsl.ps1 build -Dockerfile <path> -FirstBoot <path>
+.\wsl.ps1 build -Image <path-to.tar> -FirstBoot <path>
 ```
 
 The **Dockerfile** is what the image is built from: `docker build -f` with
@@ -223,15 +228,28 @@ and brings its own ignore file beside it (`Dockerfile.dockerignore`) or none —
 without one, the whole checkout is sent to the Docker daemon: slower, not
 broken.
 
-The **first_boot** is the onboarding script. It is placed in the instance
-*after* the import — `/root/first_boot.sh`, executable, armed in root's
-`.bashrc` — and then run as step 6 below. The image carries none: changing the
-first_boot never rebuilds the image. A path that names no file stops the build
-before anything is asked or destroyed.
+The **Docker image** is the other road, for an image saved to a file
+(`docker save` → a `.tar`): the build loads it (`docker load`) and, when the
+tar does not already carry the run's tag, tags it for the run. Nothing is
+rebuilt, and no Keep question is asked on this road — Docker did not create
+the image, and loading it again costs seconds. The tag this run added is
+taken back at the end, and the image itself, under its own name, stays where
+Docker put it.
 
-Both paths are recorded on the instance (`instance.json`, the file an archive
-carries): a copy, an archive and a restore keep them, so what an instance was
-built with is never guessed.
+The **first_boot** is the onboarding script, common to both roads. It is
+placed in the instance *after* the import — `/root/first_boot.sh`,
+executable, armed in root's `.bashrc` — and then run as step 6 below. The
+image carries none: changing the first_boot never rebuilds the image. A path
+that names no file stops the build before anything is asked or destroyed.
+
+What was used is recorded on the instance (`instance.json`, the file an
+archive carries): a copy, an archive and a restore keep it, so what an
+instance was built with is never guessed.
+
+In console, when at least one image has been uploaded, the build asks
+**Build from** before anything else: the repository's Dockerfile, or one of
+the images — the window answers that question with its toggle and is asked
+nothing twice.
 
 ```text
 ==> Creating a new instance

@@ -513,3 +513,87 @@ function Resolve-DefaultUser {
     }
     return $UserName
 }
+
+# The files a build may start from: the repository's own Dockerfile and
+# first_boot - the defaults - then whatever was uploaded under the assets:
+# Dockerfiles in assets\dockerfiles\<name>-<hash>\Dockerfile, first boots in
+# assets\firstboots\<name>-<hash>\first_boot.sh, images in
+# assets\dockerimages\<name>-<hash>\ under the name they arrived with. One
+# row per file: Name (what a list shows), Path (what the build takes),
+# Uploaded (what the form's trash reads - the repository's own rows are not
+# its to take away). The images carry no default row: the repository ships
+# none.
+function Get-BuildRecipes {
+    param([string]$AssetsDir)
+
+    $repo = Split-Path -Path $AssetsDir -Parent
+    $dockerfiles = [System.Collections.Generic.List[object]]::new()
+    $firstboots = [System.Collections.Generic.List[object]]::new()
+    $images = [System.Collections.Generic.List[object]]::new()
+
+    $dockerfiles.Add([PSCustomObject]@{
+        Name     = "Dockerfile (default)"
+        Path     = (Join-Path $repo "src\distro\build\Dockerfile")
+        Uploaded = $false
+    })
+    $firstboots.Add([PSCustomObject]@{
+        Name     = "first_boot.sh (default)"
+        Path     = (Join-Path $repo "src\distro\build\first_boot.sh")
+        Uploaded = $false
+    })
+
+    # A slot counts only when its file is there - a folder half-copied is not
+    # a recipe, and neither is one whose file was deleted since.
+    $dockerRoot = Join-Path $AssetsDir "dockerfiles"
+    if (Test-Path $dockerRoot) {
+        foreach ($slot in @(Get-ChildItem $dockerRoot -Directory | Sort-Object Name)) {
+            $file = Join-Path $slot.FullName "Dockerfile"
+            if (Test-Path $file) {
+                $dockerfiles.Add([PSCustomObject]@{
+                    Name     = Format-BuildRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
+                    Path     = $file
+                    Uploaded = $true
+                })
+            }
+        }
+    }
+    $bootRoot = Join-Path $AssetsDir "firstboots"
+    if (Test-Path $bootRoot) {
+        foreach ($slot in @(Get-ChildItem $bootRoot -Directory | Sort-Object Name)) {
+            $file = Join-Path $slot.FullName "first_boot.sh"
+            if (Test-Path $file) {
+                $firstboots.Add([PSCustomObject]@{
+                    Name     = Format-BuildRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
+                    Path     = $file
+                    Uploaded = $true
+                })
+            }
+        }
+    }
+    # An image slot holds the one file it was uploaded with, whatever its
+    # name.
+    $imageRoot = Join-Path $AssetsDir "dockerimages"
+    if (Test-Path $imageRoot) {
+        foreach ($slot in @(Get-ChildItem $imageRoot -Directory | Sort-Object Name)) {
+            $file = @(Get-ChildItem -LiteralPath $slot.FullName -File | Select-Object -First 1)
+            if ($file.Count -gt 0) {
+                $images.Add([PSCustomObject]@{
+                    Name     = Format-BuildRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($file[0].Name)) -Path $file[0].FullName
+                    Path     = $file[0].FullName
+                    Uploaded = $true
+                })
+            }
+        }
+    }
+    return [PSCustomObject]@{ Dockerfiles = $dockerfiles; FirstBoots = $firstboots; Images = $images }
+}
+
+# What an uploaded file's row shows: its plain name and the day and minute
+# it arrived. Two versions of one name - an iterated Dockerfile - are told
+# apart by their dates, and the one just uploaded carries today's. The
+# repository's own rows carry their "(default)" name instead.
+function Format-BuildRecipeName {
+    param([string]$BaseName, [string]$Path)
+
+    return "$BaseName ($((Get-Item -LiteralPath $Path).LastWriteTime.ToString("dd'/'MM HH:mm")))"
+}

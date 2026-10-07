@@ -82,7 +82,7 @@ $pins = @(
     @{ File = "JobRunner.ps1";   Pattern = 'Archive\(\$inst, \$ArchiveFirst, "tar\.gz"\)';        What = "Archive(inst, name, tar.gz)" },
     @{ File = "JobRunner.ps1";   Pattern = 'Duplicate\(\$inst, \$ArchiveFirst\)';                 What = "Duplicate(inst, name)" },
     @{ File = "EditRunner.ps1";  Pattern = 'ManagePacks\(\$inst, \$toAdd, \$toRemove, ""\)';      What = 'ManagePacks(inst, add, remove, "")' },
-    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Manager \$mgr'; What = "build.ps1 with its named arguments" }
+    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Image \$Image -Manager \$mgr'; What = "build.ps1 with its named arguments" }
 )
 foreach ($pin in $pins) {
     $runnerPath = Join-Path $GuiRoot "Runners\$($pin.File)"
@@ -97,7 +97,7 @@ Write-Host "$($runners.Count) runner(s) read, $($pins.Count) call(s) pinned."
 # into BuildRunner's param line, and a drift between the two is silent - every
 # answer landing one slot off. Both ends are pinned: the param line whole
 # (order included) and the form fields' order in the argument list.
-$paramLine = 'param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Module, [string]$BuildScript)'
+$paramLine = 'param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Image, [string]$Module, [string]$BuildScript)'
 $buildRunnerPath = Join-Path $GuiRoot "Runners\BuildRunner.ps1"
 if ([IO.File]::ReadAllText($buildRunnerPath) -notmatch [regex]::Escape($paramLine)) {
     Write-Host "::error file=$buildRunnerPath::the param line (order included) is not the one gui.ps1 feeds"
@@ -107,7 +107,7 @@ $guiPath = Join-Path $PSScriptRoot "..\src\windows\WslCommands\gui.ps1"
 $guiSrc = [IO.File]::ReadAllText($guiPath)
 $at = 0
 $ordered = $true
-foreach ($field in @('$($form.Name)', '$($form.User)', '$($form.Packs', '$($form.Dockerfile)', '$($form.FirstBoot)')) {
+foreach ($field in @('$($form.Name)', '$($form.User)', '$($form.Packs', '$($form.Dockerfile)', '$($form.FirstBoot)', '$($form.Image)')) {
     $i = $guiSrc.IndexOf($field, $at, [StringComparison]::Ordinal)
     if ($i -lt 0) { $ordered = $false; break }
     $at = $i

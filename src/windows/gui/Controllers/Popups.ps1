@@ -418,78 +418,20 @@ function Show-PackEditor {
 # -----------------------------------------------------------------------------
 # THE BUILD'S RECIPE - THE FORM'S LISTS AND UPLOADS, WINDOW-SIDE
 # -----------------------------------------------------------------------------
-# What an uploaded file's row shows: its plain name and the day and minute
-# it arrived. Two versions of one name - a Dockerfile iterated on - are told
-# apart by their dates, and the one just uploaded carries today's. The
-# repository's own rows carry "(default)" instead.
-function Format-GuiRecipeName {
-    param([string]$BaseName, [string]$Path)
-
-    return "$BaseName ($((Get-Item -LiteralPath $Path).LastWriteTime.ToString("dd'/'MM HH:mm")))"
-}
-
-# The files a build may start from: the repository's own first - the default,
-# what a build without a choice has always used - then whatever was uploaded.
-# An upload lands in a slot of its own under the assets, named <file>-<sha1-8>
-# and holding the file under its plain name (Dockerfile, first_boot.sh): the
-# fonts' own convention (the upload button in Show-GuiSettings) - the same
-# file uploaded again lands in the same slot, and a changed file takes a path
-# no reader has seen.
-function Get-GuiBuildRecipes {
-    param([string]$AssetsDir)
-
-    $repo = Split-Path -Path $AssetsDir -Parent
-    $dockerfiles = [System.Collections.Generic.List[object]]::new()
-    $firstboots = [System.Collections.Generic.List[object]]::new()
-
-    $dockerfiles.Add([PSCustomObject]@{
-        Name     = "Dockerfile (default)"
-        Path     = (Join-Path $repo "src\distro\build\Dockerfile")
-        Uploaded = $false
-    })
-    $firstboots.Add([PSCustomObject]@{
-        Name     = "first_boot.sh (default)"
-        Path     = (Join-Path $repo "src\distro\build\first_boot.sh")
-        Uploaded = $false
-    })
-
-    # A slot counts only when its file is there - a folder half-copied is not
-    # a recipe, and neither is one whose file was deleted since. Uploaded is
-    # what the trash beside the list reads: the repository's own rows are not
-    # deletable, a slot is.
-    $dockerRoot = Join-Path $AssetsDir "dockerfiles"
-    if (Test-Path $dockerRoot) {
-        foreach ($slot in @(Get-ChildItem $dockerRoot -Directory | Sort-Object Name)) {
-            $file = Join-Path $slot.FullName "Dockerfile"
-            if (Test-Path $file) {
-                $dockerfiles.Add([PSCustomObject]@{
-                    Name     = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
-                    Path     = $file
-                    Uploaded = $true
-                })
-            }
-        }
-    }
-    $bootRoot = Join-Path $AssetsDir "firstboots"
-    if (Test-Path $bootRoot) {
-        foreach ($slot in @(Get-ChildItem $bootRoot -Directory | Sort-Object Name)) {
-            $file = Join-Path $slot.FullName "first_boot.sh"
-            if (Test-Path $file) {
-                $firstboots.Add([PSCustomObject]@{
-                    Name     = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
-                    Path     = $file
-                    Uploaded = $true
-                })
-            }
-        }
-    }
-    return [PSCustomObject]@{ Dockerfiles = $dockerfiles; FirstBoots = $firstboots }
-}
+# The lists themselves - what the repository offers and what was uploaded -
+# come from the module's Get-BuildRecipes: the build's console road offers
+# the same ones, one scan for both. An upload lands in a slot of its own
+# under the assets, named <file>-<sha1-8> and holding the file under its
+# plain name (Dockerfile, first_boot.sh) - or under the name it arrived
+# with, for an image - the fonts' own convention (the upload button in
+# Show-GuiSettings): the same file uploaded again lands in the same slot,
+# and a changed file takes a path no reader has seen.
 
 # One uploaded file's slot, folder and all, gone: the trash beside each list
 # deletes the row it stands on. The guard is the row's own mark - the
 # repository's own files are never slots of their own. The dropdown goes
-# back to the default row, which is what a press leaves behind.
+# back to the first row - the default one, for the lists that have one - and
+# an empty image list leaves it with nothing selected.
 function Remove-GuiBuildRecipe {
     param($Row, $Choices, $Combo)
 
@@ -532,10 +474,12 @@ function Copy-GuiBuildRecipe {
 # build's first questions, answered in one window: the name - a name that
 # exists is refused here, this road offers no destruction - the user name, the
 # Windows account's cleaned form prefilled, both checked live (the red line
-# under the box saying what is wrong), the build's recipe (the Dockerfile and
-# the first_boot: a list each, opening on the repository's own files, an
-# upload button beside it) and the packs, the same checklist as the editor's.
-# Returns { Name; User; Dockerfile; FirstBoot; Packs }, or $null when
+# under the box saying what is wrong), the build's recipe - a toggle between a
+# Dockerfile and an uploaded Docker image, the first_boot beside them, each a
+# list opening on the repository's own files, an upload button and a trash
+# apiece - and the packs, the same checklist as the editor's. Returns
+# { Name; User; Dockerfile; FirstBoot; Image; Packs }, with whichever of
+# Dockerfile and Image the toggle did not choose left empty - or $null when
 # cancelled; the run itself then gets a console window of its own, because it
 # is long, it is loud, and it still has questions only it can ask.
 function Show-AddInstance {
@@ -548,12 +492,18 @@ function Show-AddInstance {
     # The trash glyphs are Font Awesome, handed to the form the way the main
     # window hands them over; without the resource they would be empty boxes.
     if ($GuiFonts.IconFont) { $form.Resources["IconFace"] = $GuiFonts.IconFont }
+    # The window may use the screen: the markup's 760 was a guess, and a big
+    # window font makes the form taller than it (measured at 19pt). At this
+    # cap the content scrolls, whatever the font, and the buttons below stay
+    # put - the same rule as the main window's own height.
+    $form.MaxHeight = [Math]::Max(360, [System.Windows.SystemParameters]::WorkArea.Height - 40)
 
     Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $txtName = $form.FindName("TxtName")
     $txtNameError = $form.FindName("TxtNameError")
     $txtUser = $form.FindName("TxtUser")
     $txtUserError = $form.FindName("TxtUserError")
+    $txtImageError = $form.FindName("TxtImageError")
     $txtUser.Text = $ProposedUser
 
     $form.Add_ContentRendered({ $null = $txtName.Focus() })
@@ -598,15 +548,20 @@ function Show-AddInstance {
     & $CheckName
     & $CheckUser
 
-    # The build's recipe: two lists - each opening on the repository's own
-    # file - and an upload button beside each. Lists, not arrays, for the
-    # reason the font picker's is one: the handlers below append by method,
-    # and a scriptblock's `+=` would assign a local copy (measured there).
-    $recipes = Get-GuiBuildRecipes -AssetsDir $AssetsDir
+    # The build's recipe: three lists - the Dockerfile's and the first_boot's,
+    # each opening on the repository's own file, and the images' (none of the
+    # repository's: it ships none) - an upload button and a trash beside
+    # each, and a toggle above choosing the road: a Dockerfile, or an image.
+    # Lists, not arrays, for the reason the font picker's is one: the
+    # handlers below append by method, and a scriptblock's `+=` would assign
+    # a local copy (measured there).
+    $recipes = Get-BuildRecipes -AssetsDir $AssetsDir
     $dockerChoices = [System.Collections.Generic.List[object]]::new()
     $bootChoices = [System.Collections.Generic.List[object]]::new()
+    $imageChoices = [System.Collections.Generic.List[object]]::new()
     $cmbDockerfile = $form.FindName("CmbDockerfile")
     $cmbFirstBoot = $form.FindName("CmbFirstBoot")
+    $cmbDockerImage = $form.FindName("CmbDockerImage")
     foreach ($choice in $recipes.Dockerfiles) {
         $dockerChoices.Add($choice)
         $null = $cmbDockerfile.Items.Add("$($choice.Name)")
@@ -615,21 +570,45 @@ function Show-AddInstance {
         $bootChoices.Add($choice)
         $null = $cmbFirstBoot.Items.Add("$($choice.Name)")
     }
+    foreach ($choice in $recipes.Images) {
+        $imageChoices.Add($choice)
+        $null = $cmbDockerImage.Items.Add("$($choice.Name)")
+    }
     $cmbDockerfile.SelectedIndex = 0
     $cmbFirstBoot.SelectedIndex = 0
+    if ($cmbDockerImage.Items.Count -gt 0) { $cmbDockerImage.SelectedIndex = 0 }
+
+    # The toggle: one road or the other, and only its row shows - the checked
+    # event covers both directions, since a radio leaving fires the arriving
+    # one's.
+    $rbDockerfile = $form.FindName("RbFromDockerfile")
+    $rbImage = $form.FindName("RbFromImage")
+    $boxDockerfile = $form.FindName("BoxDockerfile")
+    $boxImage = $form.FindName("BoxDockerImage")
+    $ShowRecipeBox = {
+        $fromImage = [bool]$rbImage.IsChecked
+        $boxDockerfile.Visibility = if ($fromImage) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+        $boxImage.Visibility = if ($fromImage) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+    }
+    $rbDockerfile.Add_Checked({ & $ShowRecipeBox })
+    $rbImage.Add_Checked({ & $ShowRecipeBox })
 
     # The trash beside each list: it deletes the SELECTED uploaded file -
     # greyed on the repository's own rows, which are not the form's to take
-    # away. (A trash inside the dropdown itself would be a WPF item template;
-    # beside the list it is the same gesture with less rope.)
+    # away, and with no image chosen there is nothing to press either. (A
+    # trash inside the dropdown itself would be a WPF item template; beside
+    # the list it is the same gesture with less rope.)
     $btnDockerfileDelete = $form.FindName("BtnDockerfileDelete")
     $btnFirstBootDelete = $form.FindName("BtnFirstBootDelete")
+    $btnDockerImageDelete = $form.FindName("BtnDockerImageDelete")
     $UpdateTrash = {
         $btnDockerfileDelete.IsEnabled = [bool]$dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Uploaded
         $btnFirstBootDelete.IsEnabled = [bool]$bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Uploaded
+        $btnDockerImageDelete.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) -and [bool]$imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)].Uploaded
     }
     $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash })
     $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash })
+    $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash })
     & $UpdateTrash
 
     $form.FindName("BtnDockerfileDelete").Add_Click({
@@ -639,6 +618,10 @@ function Show-AddInstance {
     $form.FindName("BtnFirstBootDelete").Add_Click({
         $row = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)]
         if ($row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $bootChoices -Combo $cmbFirstBoot }
+    })
+    $form.FindName("BtnDockerImageDelete").Add_Click({
+        $row = $imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)]
+        if ($row -and $row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $imageChoices -Combo $cmbDockerImage }
     })
 
     # The file dialog's Enter lands on the owner once it closes, and the
@@ -669,7 +652,7 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "dockerfiles" -Source $dialog.FileName -FileName "Dockerfile"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name     = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
+            Name     = Format-BuildRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
             Path     = $target
             Uploaded = $true
         }
@@ -688,7 +671,7 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "firstboots" -Source $dialog.FileName -FileName "first_boot.sh"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name     = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
+            Name     = Format-BuildRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
             Path     = $target
             Uploaded = $true
         }
@@ -696,19 +679,43 @@ function Show-AddInstance {
         $null = $cmbFirstBoot.Items.Add("$($row.Name)")
         $cmbFirstBoot.SelectedIndex = $cmbFirstBoot.Items.Count - 1
     })
+    $form.FindName("BtnDockerImageUpload").Add_Click({
+        $dialog = New-Object Microsoft.Win32.OpenFileDialog
+        $dialog.Title = "A Docker image for the build"
+        $dialog.Filter = "Docker images (*.tar)|*.tar|All files (*.*)|*.*"
+        $picked = $dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -ne $true) { return }
+        try {
+            $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "dockerimages" -Source $dialog.FileName -FileName ([IO.Path]::GetFileName($dialog.FileName))
+        } catch { return }
+        $row = [PSCustomObject]@{
+            Name     = Format-BuildRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
+            Path     = $target
+            Uploaded = $true
+        }
+        $imageChoices.Add($row)
+        $null = $cmbDockerImage.Items.Add("$($row.Name)")
+        $cmbDockerImage.SelectedIndex = $cmbDockerImage.Items.Count - 1
+    })
 
     $script:AddResult = $null
     $form.FindName("BtnAddCancel").Add_Click({ $script:AddResult = $null; $form.Close() })
     $form.FindName("BtnAddCreate").Add_Click({
-        # The red lines are the refusal: say them and stay open.
+        # The red lines are the refusal: say them and stay open. The image
+        # road needs an image - the one refusal that is not a field.
         & $CheckName
         & $CheckUser
-        if ($script:AddNameOk -and $script:AddUserOk) {
+        $fromImage = [bool]$rbImage.IsChecked
+        $txtImageError.Text = if ($fromImage -and $cmbDockerImage.SelectedIndex -lt 0) { "Upload a Docker image first." } else { "" }
+        $txtImageError.Visibility = if ($txtImageError.Text) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        if ($script:AddNameOk -and $script:AddUserOk -and -not $txtImageError.Text) {
             $script:AddResult = [PSCustomObject]@{
                 Name       = $txtName.Text.Trim()
                 User       = $txtUser.Text.Trim()
-                Dockerfile = $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path
+                Dockerfile = if ($fromImage) { "" } else { $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
                 FirstBoot  = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path
+                Image      = if ($fromImage) { $imageChoices[$cmbDockerImage.SelectedIndex].Path } else { "" }
                 Packs      = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
             }
             $form.Close()
