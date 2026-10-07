@@ -15,8 +15,8 @@
 #     case ('Root'), and the leading underscore adduser would not take
 #   - an empty answer takes the proposed Windows name, cleaned into one the
 #     rule accepts
-#   - an empty checklist, applied or cancelled, means no pack, says so, and is
-#     asked no confirmation
+#   - the checklist opens with the shell pack ticked: applied as-is it chooses
+#     it; cancelling means no pack, says so, and is asked no confirmation
 #   - a pack chosen is installed later, so the failure report names it
 #   - nothing is left behind: no instance, no tar, no folder, exit code 1
 #
@@ -79,11 +79,11 @@ check "and says the deployment failed"   "$(contains 'WSL import failed.')" "yes
 check "exit code 1"                      "$Code" "1"
 
 echo ""
-echo "--- empty checklist, applied (answer v)"
-run_build 'pack-qtest-2\n\nv\nqtestuser\n'
-check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
-check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
-check "exit code 1"                      "$Code" "1"
+echo "--- the pre-ticked shell, applied as-is (answer v, then the confirmation)"
+run_build 'pack-qtest-2\n\nv\n\nqtestuser\n'
+check "does not say no pack was selected" "$(contains '[OK] No pack selected.')" "no"
+check "and names the pack that was"       "$(contains 'The packs chosen earlier')" "yes"
+check "exit code 1"                       "$Code" "1"
 
 echo ""
 echo "--- one pack chosen (2 = the second in the list) and confirmed"
