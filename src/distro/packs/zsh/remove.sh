@@ -72,6 +72,20 @@ for package in $packages; do
     fi
 done
 
+# The account's login shell, when zsh really left: an account pointing at a
+# missing shell cannot even open a session - WSL runs every command through
+# it - so it comes back on bash, where bash is what remains. zsh still
+# installed (a neighbour claims it, apt refused it) is left as the shell.
+# This script runs as root with HOME set to the user's home, so the account
+# is found by that home - id -un would name root - and chsh asks nothing.
+if ! command -v zsh >/dev/null 2>&1; then
+    login_user=$(getent passwd | awk -F: -v home="$HOME" '$6 == home { print $1; exit }')
+    if [ -n "$login_user" ] && [ "$(getent passwd "$login_user" | cut -d: -f7)" = /usr/bin/zsh ]; then
+        chsh -s /bin/bash "$login_user"
+        echo "The login shell is back on bash (zsh is gone)."
+    fi
+fi
+
 # The shell's files, out of ~/.config/zsh. The gmake folder keeps your .env
 # files - only its Makefile and modules, which are the pack's, leave; the
 # shell's history and cache live under ~/.local and are never touched.

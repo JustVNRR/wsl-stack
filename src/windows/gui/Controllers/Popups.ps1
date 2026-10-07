@@ -418,6 +418,16 @@ function Show-PackEditor {
 # -----------------------------------------------------------------------------
 # THE BUILD'S RECIPE - THE FORM'S LISTS AND UPLOADS, WINDOW-SIDE
 # -----------------------------------------------------------------------------
+# What an uploaded file's row shows: its plain name and the day and minute
+# it arrived. Two versions of one name - a Dockerfile iterated on - are told
+# apart by their dates, and the one just uploaded carries today's. The
+# repository's own rows carry "(default)" instead.
+function Format-GuiRecipeName {
+    param([string]$BaseName, [string]$Path)
+
+    return "$BaseName ($((Get-Item -LiteralPath $Path).LastWriteTime.ToString("dd'/'MM HH:mm")))"
+}
+
 # The files a build may start from: the repository's own first - the default,
 # what a build without a choice has always used - then whatever was uploaded.
 # An upload lands in a slot of its own under the assets, named <file>-<sha1-8>
@@ -449,7 +459,7 @@ function Get-GuiBuildRecipes {
             $file = Join-Path $slot.FullName "Dockerfile"
             if (Test-Path $file) {
                 $dockerfiles.Add([PSCustomObject]@{
-                    Name = "$($slot.Name -replace '-[0-9a-f]{8}$', '') (uploaded)"
+                    Name = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
                     Path = $file
                 })
             }
@@ -461,7 +471,7 @@ function Get-GuiBuildRecipes {
             $file = Join-Path $slot.FullName "first_boot.sh"
             if (Test-Path $file) {
                 $firstboots.Add([PSCustomObject]@{
-                    Name = "$($slot.Name -replace '-[0-9a-f]{8}$', '') (uploaded)"
+                    Name = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
                     Path = $file
                 })
             }
@@ -609,7 +619,7 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "dockerfiles" -Source $dialog.FileName -FileName "Dockerfile"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name = "$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) (uploaded)"
+            Name = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
             Path = $target
         }
         $dockerChoices.Add($row)
@@ -627,7 +637,7 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "firstboots" -Source $dialog.FileName -FileName "first_boot.sh"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name = "$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) (uploaded)"
+            Name = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
             Path = $target
         }
         $bootChoices.Add($row)

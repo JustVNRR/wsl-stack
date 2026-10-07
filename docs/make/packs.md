@@ -19,9 +19,9 @@ name, and the description from its own `pack.conf`:
 ```text
 Packs currently installed:
 
-  gcp       The Google Cloud CLI (about 409 MB installed)
-  python    Python 3, uv, ruff and the compilation tools (about 530 MB installed)
-  vision    ffmpeg, ImageMagick and Tesseract OCR (about 500 MB installed)
+  gcp       The Google Cloud CLI
+  python    Python 3, uv, ruff and the compilation tools
+  vision    ffmpeg, ImageMagick and Tesseract OCR
 
 Packs are managed from Windows (.\wsl.ps1)
 ```

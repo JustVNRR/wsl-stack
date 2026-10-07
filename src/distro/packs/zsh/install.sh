@@ -110,4 +110,21 @@ if [ -s "$HOME/.zsh_history" ]; then
 fi
 rm -f "$HOME/.zsh_history"
 
+# The account's login shell: whoever installs the shell pack wants to open
+# the shell, so the shell the account opens as follows zsh in. The root half
+# has just put zsh there; a machine that already opens on zsh - every
+# instance this repository builds - is left alone. Behind the same door as
+# the install: this account may carry no password at all, and chsh would
+# otherwise ask for one. A door that is not there (a hand run) leaves the
+# shell as it was, and says what to type.
+login_shell=$(getent passwd "$(id -un)" | cut -d: -f7)
+if command -v zsh >/dev/null 2>&1 && [ "$login_shell" != /usr/bin/zsh ]; then
+    if sudo chsh -s /usr/bin/zsh "$(id -un)" >/dev/null 2>&1; then
+        success "The login shell is now zsh."
+    else
+        echo "NOTE: the login shell could not be changed; one command does it:"
+        echo "      sudo chsh -s /usr/bin/zsh $(id -un)"
+    fi
+fi
+
 success "The shell is installed. Open a new shell, or run:  exec zsh"

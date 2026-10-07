@@ -142,8 +142,9 @@ instance - name, user, the build's recipe and packs in one form: the
 **Dockerfile** and the **first_boot** are two lists, each opening on the
 repository's own file, an upload button beside it putting yours under
 `assets\dockerfiles\` or `assets\firstboots\` (same file uploaded again, same
-slot - the fonts' own convention, and a Dockerfile brings its `.dockerignore`
-along) - a name that already exists
+slot - the fonts' own convention; each uploaded row carries the date it
+arrived, so two versions of one name are told apart; a Dockerfile brings its
+`.dockerignore` along) - a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
@@ -260,9 +261,9 @@ The packs are asked before anything is created:
 
 ```text
 Packs for 'ubuntu-ml-dev'
-  > [ ] gcp          The Google Cloud CLI (about 409 MB installed)
-    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR (about 500 MB)
-    [x] zsh          The shell: zsh, oh-my-zsh, Starship and the daily CLI tools (about 200 MB installed)
+  > [ ] gcp          The Google Cloud CLI
+    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR
+    [x] zsh          The shell: zsh, oh-my-zsh, Starship and the daily CLI tools
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
@@ -408,7 +409,7 @@ Which one? (0 to cancel) 2
 
        Already in 'ubuntu-template': python
 Packs available for 'ubuntu-template':
-   1.  gcp          The Google Cloud CLI (about 409 MB installed)
+   1.  gcp          The Google Cloud CLI
    0.  Cancel
 Which one? (0 to cancel) 1
 
@@ -553,8 +554,8 @@ the missing ones installed, the unchecked ones taken out.
 
 ```text
 Packs for 'new_distro2'
-  > [x] gcp          The Google Cloud CLI (about 409 MB installed)
-    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR (about 500 MB)
+  > [x] gcp          The Google Cloud CLI
+    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
