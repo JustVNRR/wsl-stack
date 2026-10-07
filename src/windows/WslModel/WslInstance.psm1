@@ -137,13 +137,10 @@ class WslInstance {
     # there is no profile to ask for. Nothing is waited on either way - the
     # window outlives this call.
     #
-    # -Invite: lines shown INSIDE the instance before its first prompt - a
-    # build's welcome note, which belongs in the window the user lands in,
-    # not in the console the build ran from. A bash prints them and hands
-    # over to the shell (`exec`), so no bash stays behind; the lines travel
-    # as separate arguments, one per line, where nothing re-splits them.
-    # Without it, the profile opens exactly as before.
-    [void] OpenShell([string[]]$Invite = @()) {
+    # No command line is offered with the profile: Windows Terminal re-splits
+    # whatever follows `-p`, and a note passed there came out as a program
+    # name (measured: 0x80070002). The profile opens bare.
+    [void] OpenShell() {
         # The fragment WSL wrote for the instance, on disk: without it
         # `wt -p` resolves to nothing and Terminal opens its DEFAULT profile
         # instead - a Windows PowerShell, measured. The scan is quick and has
@@ -161,11 +158,6 @@ class WslInstance {
             }
         }
 
-        # The hand-over script: print the lines, then become the shell. The
-        # single quotes are the point - the shell that receives this line must
-        # see them, so `$@` stays intact and the phrases keep their spaces.
-        $HandOver = 'printf ''%s\n'' "$@"; exec zsh'
-
         if ($HasProfile) {
             # The running Terminal re-reads its profiles when its settings are
             # touched - the touch this repository already uses to show a new
@@ -175,11 +167,7 @@ class WslInstance {
             try {
                 Update-TerminalSettings
                 Start-Sleep -Milliseconds 400
-                $Arguments = @(('-p "{0}"' -f $this.Name))
-                if ($Invite.Count -gt 0) {
-                    $Arguments += @('wsl.exe', '-d', $this.Name, '--cd', '~', 'bash', '-c', $HandOver, 'bash') + $Invite
-                }
-                $null = Start-Process wt.exe -ArgumentList $Arguments -PassThru
+                $null = Start-Process wt.exe -ArgumentList ('-p "{0}"' -f $this.Name) -PassThru
                 return
             } catch { }
         }
@@ -187,11 +175,6 @@ class WslInstance {
         # Same line as Shell(): the name goes in unquoted - wsl.exe parses
         # its own line and does not strip quotes - and the `~` rides inside
         # the string, where nothing expands it.
-        if ($Invite.Count -gt 0) {
-            $Arguments = @('-d', $this.Name, '--cd', '~', 'bash', '-c', $HandOver, 'bash') + $Invite
-            $null = Start-Process wsl.exe -ArgumentList $Arguments -PassThru
-            return
-        }
         $null = Start-Process wsl.exe -ArgumentList ('-d {0} --cd ~' -f $this.Name) -PassThru
     }
 

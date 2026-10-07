@@ -579,30 +579,18 @@ if ($Deployment.Succeeded) {
     # window's open button opens it. A shell borrowed in THIS console would
     # carry none of that, and this console closes with the run.
     #
-    # The welcome travels INTO that window: "you are now logged in" is true
-    # there and not here, so the shell the user lands in shows the note - the
-    # same lines this console used to print, at the place they describe.
+    # The welcome note used to print here, and it lied - "you are now logged
+    # in" is true in the instance's window, not in this one. Handing the note
+    # to that window's command line was tried and dropped: Windows Terminal
+    # re-splits the line it is given, and the phrases come out as a program
+    # name (measured: 0x80070002). The report below is this console's own,
+    # and the packs' first-gesture lines went with the note.
     Clear-Host
-    $Invite = @(
-        "Welcome, $UserName."
-        "You are now logged in to $DistroName."
-    )
-    if ($null -ne $PackSelection) {
-        foreach ($Pack in $PackSelection.ToAdd) {
-            if ($Pack.Welcome) { $Invite += $Pack.Welcome }
-        }
-    }
-    if ($PackResult.Report) {
-        $Invite += "Packs: $($PackResult.Report[0])"
-        foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
-            $Invite += "       $Line"
-        }
-    }
     if ($DockerReport) {
         foreach ($Line in $DockerReport) { Write-Host $Line -ForegroundColor $DockerReportColour }
     }
     Write-Host ""
-    $Instance.OpenShell($Invite)
+    $Instance.OpenShell()
 
     # This console goes with the run. It pauses for one keystroke only when
     # something above wants reading - a failed pack, a Docker that needs
