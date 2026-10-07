@@ -236,9 +236,11 @@ function Configure-DockerDesktopIntegration {
     }
 }
 
-# The repository root, one level above this script: it holds the Dockerfile,
-# and that is the context the build below must run in - not this folder.
-$RepoRoot = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
+# The repository root, three levels above this script - src\windows\
+# WslCommands\ - : it holds the Dockerfile, and that is the context the build
+# below must run in, not this folder. The local build is the only caller that
+# feels this; the CI builds from the checkout's own root.
+$RepoRoot = Split-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -Parent
 Set-Location -Path $RepoRoot
 
 $ImageTag = "wsl-stack:latest"
