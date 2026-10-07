@@ -76,6 +76,24 @@ try {
             }
             Write-Stamp ("RESULT OK " + $ArchiveFirst + ": duplicated from '" + $Name + "'")
         } elseif ($Verb -eq "compact") {
+            # The gate may have asked for the archive first: the copy is
+            # written before the disk is touched, under the instance's own
+            # name - the removal's convention - with the archive road's
+            # stop/start around the export.
+            if ([bool]::Parse($ArchiveFirst)) {
+                Write-Stamp "archiving first"
+                $wasRunning = ("$($inst.State)" -eq "Running")
+                if ($wasRunning) {
+                    $inst.Stop()
+                    Write-Stamp "stopped for a consistent export"
+                }
+                $a = $mgr.Archive($inst, $Name, "tar.gz")
+                if ($wasRunning) {
+                    $inst.Start()
+                    Write-Stamp "started again"
+                }
+                Write-Stamp ("RESULT OK " + $Name + ": archived as '" + $Name + "' (" + [math]::Round($a.Archive.Length / 1MB, 1) + " MB)")
+            }
             Write-Stamp "compacting"
             $r = $mgr.Shrink($inst)
             Write-Stamp ("RESULT OK " + $Name + ": compacted - reclaimed " + [math]::Round($r.Freed / 1MB, 1) + " MB")

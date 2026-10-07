@@ -87,6 +87,41 @@ function Show-RemoveGate {
 }
 
 # -----------------------------------------------------------------------------
+# A DISK MADE LEAN - THE COMPACT GATE, WINDOW-SIDE
+# -----------------------------------------------------------------------------
+# The row's Compact asks first, on the removal gate's model: an idle instance
+# is the condition, and the archive it offers is the same checkbox the trash
+# wears - the copy, under the instance's own name, before the disk is
+# rewritten. The compaction itself is the engine's.
+function Show-ShrinkGate {
+    param($Instance)
+
+    [xml]$gateXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\ShrinkGate.xaml"))
+
+    $gate = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($gateXaml))
+    $gate.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+
+    Set-WindowPhosphorFrame -Win $gate -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $gate.FindName("TxtLead").Text = "Compacting '$($Instance.Name)'."
+
+    # The keyboard lands on the archive box once the window is up: Enter is
+    # COMPACT, Escape is Cancel, wherever the walk stands.
+    $chkArchive = $gate.FindName("ChkArchive")
+    $gate.Add_ContentRendered({ $null = $chkArchive.Focus() })
+
+    $script:GateResult = $null
+    $gate.FindName("BtnGateCancel").Add_Click({ $script:GateResult = $null; $gate.Close() })
+    $gate.FindName("BtnGateCompact").Add_Click({
+        $script:GateResult = @{ ArchiveFirst = [bool]$chkArchive.IsChecked }
+        $gate.Close()
+    })
+
+    Set-WindowFitToContent -Win $gate
+    Show-PopupExclusive $window { $null = $gate.ShowDialog() }
+    return $script:GateResult
+}
+
+# -----------------------------------------------------------------------------
 # AN ARCHIVE, ONE ROW AT A TIME - THE RESTORE PROMPT, WINDOW-SIDE
 # -----------------------------------------------------------------------------
 # The console's one question for a restore: the name the new instance takes -
@@ -991,7 +1026,7 @@ function Show-GuiSettings {
         $form.Close()
     })
 
-    Set-WindowFitToContent -Win $form
+    Set-WindowFitToContent -Win $form -Shrink
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:GuiSettingsResult
 }

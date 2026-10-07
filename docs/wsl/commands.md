@@ -124,8 +124,9 @@ refuses a taken name, the room for twice the disk is checked, and a running
 source is stopped for the read and started again after), **archive** (the same backup
 `archive` writes: it asks the name, the instance's own prefilled, and stops
 a running instance for the export, starting it again once the tar is done),
-**Compact** (the same compact `shrink` runs, and the row shows a small
-scrolling band while it works), and the trash, which opens the same gate
+**Compact** (the same compact `shrink` runs, behind a gate - the instance
+must be idle, and the removal's archive-first box is offered - and the row
+shows a small scrolling band while it works), and the trash, which opens the same gate
 `unregister` puts up - what is lost, spelled out, and the exact
 name typed back - then removes it through the same engine. The archives sit
 in the same list, one alphabetical walk with the instances - a same-named

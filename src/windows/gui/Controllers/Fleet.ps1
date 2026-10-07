@@ -362,9 +362,13 @@ $RowAction = [System.Windows.RoutedEventHandler]{
         return
     }
     if ($button.Name -eq "BtnRowCompact") {
+        # The gate first - an idle instance, and the archive offered - and
+        # only then the row goes quiet.
+        $confirm = Show-ShrinkGate $inst
+        if ($null -eq $confirm) { return }
         & $MarkRow $button
         & $SetBusyState $true "Compacting '$($inst.Name)'..."
-        & $LaunchJob "compact" $inst.Name "False"
+        & $LaunchJob "compact" $inst.Name "$([bool]$confirm.ArchiveFirst)"
         return
     }
 

@@ -275,11 +275,14 @@ function Test-GuiThemeHasLight {
 
 # Widen a window to what its content asks - measured at the face it wears -
 # without ever narrowing it under its own width, and never past the cap (the
-# screen keeps a breath, and 1100 stays the hard one). The measurement is the
-# device width: a zoom riding inside the content comes into its parent's
-# desire, so a wide face neither clips nor folds its long lines.
+# screen keeps a breath, and 1100 stays the hard one). With -Shrink the
+# window fits the content EXACTLY (clamped): for the windows whose declared
+# width is a guess rather than a need - a wrapping form's is a need, since
+# its text measures unwrapped under an infinite constraint. The measurement
+# is the device width: a zoom riding inside the content comes into its
+# parent's desire, so a wide face neither clips nor folds its long lines.
 function Set-WindowFitToContent {
-    param($Win, [double]$Cap = 1100)
+    param($Win, [double]$Cap = 1100, [switch]$Shrink)
 
     $content = $Win.Content
     if (-not $content) { return }
@@ -289,7 +292,12 @@ function Set-WindowFitToContent {
     $content.Measure([System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity))
     $needed = [Math]::Ceiling($content.DesiredSize.Width) + 2
     $cap = [Math]::Min($Cap, [System.Windows.SystemParameters]::WorkArea.Width - 80)
-    $Win.Width = [Math]::Max($Win.Width, [Math]::Min($needed, $cap))
+    $fitted = [Math]::Min($needed, $cap)
+    if ($Shrink) {
+        $Win.Width = [Math]::Max($Win.MinWidth, $fitted)
+    } else {
+        $Win.Width = [Math]::Max($Win.Width, $fitted)
+    }
 }
 
 # A family whose file is gone still EXISTS: the font cache keeps serving the
