@@ -198,13 +198,15 @@ class WslInstanceManager {
         return "$(Get-InstanceHome -DistroName $Instance.Name)/.config/packs"
     }
 
-    # The packs a question may offer: this checkout carries them and the
-    # instance lacks them. -Offered only - an invisible pack arrives with the
-    # pack that requires it, never offered.
+    # The packs a question may offer: this checkout carries them, the
+    # instance's family fits them, and the instance lacks them. -Offered only
+    # - an invisible pack arrives with the pack that requires it, never
+    # offered.
     [WslPack[]] CandidatePacks([WslInstance]$Instance, [WslPackCatalog]$Catalog) {
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
         $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
-        return @($Catalog.AvailablePacks | Where-Object { $_.Offered -and $Installed -notcontains $_.Name })
+        $Family = Get-InstanceFamily -DistroName $Instance.Name
+        return @($Catalog.OfferedFor($Family) | Where-Object { $Installed -notcontains $_.Name })
     }
 
     # The packs this instance carries that a user may take out by hand: the

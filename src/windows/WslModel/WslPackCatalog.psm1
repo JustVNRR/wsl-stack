@@ -32,6 +32,14 @@ class WslPackCatalog {
         return ($this.AvailablePacks | Where-Object { $_.Name -eq $name } | Select-Object -First 1)
     }
 
+    # The packs a question may show on a machine of that family: the offered
+    # ones whose own family fits. An empty family filters nothing - a machine
+    # that could not say what it is gets the whole list, not a wrong half.
+    [WslPack[]] OfferedFor([string]$family) {
+        if (-not $family) { return @($this.AvailablePacks | Where-Object { $_.Offered }) }
+        return @($this.AvailablePacks | Where-Object { $_.Offered -and $_.Family -eq $family })
+    }
+
     # The list to install, in order: a pack is installed on top of what it
     # requires, so requirements come first - and one already installed is not
     # placed twice. A requirement this checkout does not carry is skipped here;

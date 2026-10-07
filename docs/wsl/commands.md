@@ -505,8 +505,9 @@ blind.
 
 ## `manage_packs`
 
-Several packs at once. The list shows every pack this repository carries, the
-ones the instance already has arrive checked, and what comes back is applied:
+Several packs at once. The list shows every pack this repository carries for
+the machine's distribution family — every built instance is Debian — the ones
+the instance already has arrive checked, and what comes back is applied:
 the missing ones installed, the unchecked ones taken out.
 
 ```powershell

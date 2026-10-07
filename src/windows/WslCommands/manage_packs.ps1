@@ -44,7 +44,7 @@ if ($null -eq $Installed) {
 }
 
 # 3. The checklist, and what it says to do
-$Selection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $Catalog -Installed @($Installed)
+$Selection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $Catalog -Installed @($Installed) -Family (Get-InstanceFamily -DistroName $DistroName)
 
 if ($null -eq $Selection) { Stop-Cancelled }
 if ($Selection.ToAdd.Count -eq 0 -and $Selection.ToRemove.Count -eq 0) {

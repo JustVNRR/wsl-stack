@@ -240,7 +240,7 @@ $RowAction = [System.Windows.RoutedEventHandler]{
             return
         }
 
-        $selection = Show-PackEditor $inst.Name @($installed) $catalog
+        $selection = Show-PackEditor $inst.Name @($installed) $catalog (Get-InstanceFamily -DistroName $inst.Name)
         if ($null -eq $selection) { return }
         if ($selection.ToAdd.Count -eq 0 -and $selection.ToRemove.Count -eq 0) {
             & $SetStatus "Nothing to do: '$($inst.Name)' already has exactly that."

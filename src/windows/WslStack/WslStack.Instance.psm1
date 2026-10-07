@@ -880,3 +880,29 @@ function Get-InstanceHome {
     param([string]$DistroName)
     return (Get-InInstanceOutput -DistroName $DistroName -Command @("printenv", "HOME") | Select-Object -First 1)
 }
+
+# The family the distribution belongs to, read from its own /etc/os-release:
+# the ID, folded onto the family it is like when it is a derivative - Ubuntu
+# and Linux Mint answer "debian", and the apt under them is the family's. A
+# machine that cannot say (no file, no ID) answers empty, and empty filters
+# nothing.
+function Get-InstanceFamily {
+    param([string]$DistroName)
+
+    $Release = @(Get-InInstanceOutput -DistroName $DistroName -Command @("cat", "/etc/os-release"))
+    if ($Release.Count -eq 0) { return "" }
+
+    $Fields = @{}
+    foreach ($Line in $Release) {
+        if ($Line -match '^(ID|ID_LIKE)=(.*)$') {
+            $Fields[$Matches[1]] = $Matches[2].Trim('"').ToLower()
+        }
+    }
+    if (-not $Fields.ContainsKey("ID")) { return "" }
+
+    $Id = $Fields["ID"]
+    if ($Id -ne "debian" -and $Fields.ContainsKey("ID_LIKE") -and ($Fields["ID_LIKE"] -split '\s+') -contains "debian") {
+        return "debian"
+    }
+    return $Id
+}

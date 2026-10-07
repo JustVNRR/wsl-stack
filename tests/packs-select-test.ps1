@@ -33,6 +33,8 @@
 #                   because it has no box and nothing else was ticked
 #   3, v            a visible pack unticked under a standing claimant - refused
 #   1, 3, v, (empty) both unticked -> the same answer goes through
+#   1, v, (empty)   the debian family: only the debian-family pack is shown
+#   1, v, (empty)   the fedora family: only the fedora-family pack is shown
 #
 #   powershell -File tests\packs-select-test.ps1 < tests\packs-select-test.answers
 #
@@ -218,6 +220,50 @@ Check "both unticked -> the run goes through" `
     ((($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") + " / " + ($Selection.ToRemove -join ",")) " / zsh,python"
 
 Write-Output ""
+Write-Output "--- The family: a pack is only offered where its apt lives ---"
+
+# A third catalog, of two packs of two families: the filter reads
+# PACK_FAMILY (absent means debian), and the machine's own family - read from
+# its /etc/os-release - decides which one a question shows.
+$PacksRoot3 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-family-" + [Guid]::NewGuid().ToString("N"))
+$Declarations3 = @(
+    @{ Name = "alpha"; Description = "A Debian-family pack" },
+    @{ Name = "beta";  Description = "A Fedora-family pack"; Family = "fedora" }
+)
+foreach ($Declaration in $Declarations3) {
+    $Folder = Join-Path $PacksRoot3 $Declaration.Name
+    New-Item -ItemType Directory -Path $Folder -Force | Out-Null
+    $Conf = @("PACK_DESCRIPTION := $($Declaration.Description)")
+    if ($Declaration.Family) { $Conf += "PACK_FAMILY := $($Declaration.Family)" }
+    Set-Content -Path (Join-Path $Folder "pack.conf") -Value $Conf
+}
+$Familied = Get-PackCatalog -Root $PacksRoot3
+
+Check "a pack without PACK_FAMILY reads as debian" ($Familied.GetPack("alpha").Family) "debian"
+Check "a declared family is read" ($Familied.GetPack("beta").Family) "fedora"
+Check "the debian surface shows only the debian pack" `
+    (($Familied.OfferedFor("debian").Name) -join ",") "alpha"
+Check "  ... and the fedora one the other" `
+    (($Familied.OfferedFor("fedora").Name) -join ",") "beta"
+Check "a machine that cannot say filters nothing" `
+    (($Familied.OfferedFor("").Name) -join ",") "alpha,beta"
+
+# What the checklist means on each family: the same boxes question, one pack
+# fewer - and a foreign-family pack, installed here or not, is in neither
+# list.
+$R = Resolve-PackSelection -Catalog $Familied -Installed @("beta") -Kept @() -Family "debian"
+Check "a foreign-family pack is not on the debian checklist" `
+    ("$($R.ToRemove -join ',')/$($R.ToAdd.Count)") "/0"
+
+$Selection = Select-Packs -Title "T" -Catalog $Familied -Installed @() -Family "debian"
+Check "the debian checklist offers the debian pack" `
+    (($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") "alpha"
+
+$Selection = Select-Packs -Title "T" -Catalog $Familied -Installed @() -Family "fedora"
+Check "the fedora checklist offers the fedora pack" `
+    (($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") "beta"
+
+Write-Output ""
 Write-Output "--- Invoke-PackApply: the order, and where a failure stops ---"
 
 # The stand-in speaks on purpose: a returned value must not carry the output of
@@ -363,7 +409,7 @@ Check "a failed copy takes the earlier placed folder back out" `
     "rm -rf $Directory/fake-b | rm -rf $Directory/fake-a"
 Check "  ... and the run names the pack that stopped it" "$($Result.Pack)/$($Result.ExitCode)" "fake-b/1"
 
-Remove-Item -Recurse -Force $PacksRoot, $PacksRoot2 -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force $PacksRoot, $PacksRoot2, $PacksRoot3 -ErrorAction SilentlyContinue
 
 Write-Output ""
 Write-Output ("failures: " + $Failures)

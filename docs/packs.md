@@ -49,6 +49,7 @@ src/distro/packs/<name>/
 | `PACK_DESCRIPTION` | the line `add_pack` shows in its list of packs |
 | `PACK_REQUIRES` | the packs it is installed on top of |
 | `PACK_VISIBLE` | `no` keeps it out of every list: nobody chooses it |
+| `PACK_FAMILY` | the distribution family the pack's packages come from — a pack is only offered on a machine of the same one (default: `debian`) |
 | `PACK_PACKAGES` | the system packages it installs — named once, read by both scripts, and by a neighbour's removal |
 | `PACK_OUTSIDE_APT` | the tools it installs outside apt (a binary in `~/.local`) — named for the same reason, and read the same way |
 | `PACK_IDENTIFYING_VARS` | the variables refused in a shared `.env.global` |
@@ -58,6 +59,11 @@ Only the first is always there. `PACK_IDENTIFYING_VARS` is read with `sed`, not
 by including the file: the socle needs it while it is still loading
 `.env.global`, before a pack may define anything. `PACK_DESCRIPTION` is read by
 `add_pack`, from Windows.
+
+The packs a question shows are the machine's family's: the instance answers
+from its own `/etc/os-release`, Ubuntu and Linux Mint fold onto `debian` —
+what their apt is — and a pack of another family is as absent from the lists
+as one this checkout does not carry.
 
 ## Installed, or not
 

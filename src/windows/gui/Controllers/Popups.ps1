@@ -260,7 +260,8 @@ function New-PackChecklist {
         $TxtNotes,
         $TxtWarn,
         $ApplyButton,
-        [string]$NothingText
+        [string]$NothingText,
+        [string]$Family = "debian"
     )
 
     $script:ChecklistInstalled = $Installed
@@ -271,12 +272,13 @@ function New-PackChecklist {
     $script:ChecklistTxtWarn = $TxtWarn
     $script:ChecklistApplyButton = $ApplyButton
     $script:ChecklistNothingText = $NothingText
+    $script:ChecklistFamily = $Family
     $script:ChecklistSelection = $null
 
-    # One box per offered pack - the same surface the console's checklist
-    # shows, so the two ask the same question.
+    # One box per offered pack, the machine's family's - the same surface the
+    # console's checklist shows, so the two ask the same question.
     $script:ChecklistEntries = @()
-    foreach ($pack in @($Catalog.AvailablePacks | Where-Object { $_.Offered })) {
+    foreach ($pack in @($Catalog.OfferedFor($Family))) {
         $check = New-Object System.Windows.Controls.CheckBox
         # The label folds instead of running off the window: a plain string
         # refuses to wrap, and a wide face at a big zoom runs long
@@ -293,7 +295,7 @@ function New-PackChecklist {
 
     $RefreshAnswer = {
         $kept = @($script:ChecklistEntries | Where-Object { $_.Check.IsChecked } | ForEach-Object { $_.Pack.Name })
-        $selection = Resolve-PackSelection -Catalog $script:ChecklistCatalog -Installed $script:ChecklistInstalled -Kept $kept
+        $selection = Resolve-PackSelection -Catalog $script:ChecklistCatalog -Installed $script:ChecklistInstalled -Kept $kept -Family $script:ChecklistFamily
         $script:ChecklistSelection = $selection
 
         if ($selection.ToAdd.Count -gt 0) {
@@ -374,7 +376,7 @@ function New-PackChecklist {
 # two cannot drift. Returns the two lists to apply, or $null when cancelled;
 # both empty is a real answer (nothing to do).
 function Show-PackEditor {
-    param([string]$InstanceName, [string[]]$Installed, $Catalog)
+    param([string]$InstanceName, [string[]]$Installed, $Catalog, [string]$Family = "debian")
 
     [xml]$editorXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\PackEditor.xaml"))
 
@@ -388,7 +390,8 @@ function Show-PackEditor {
         -TxtAdd $editor.FindName("TxtAdd") -TxtDel $editor.FindName("TxtDel") -TxtNotes $editor.FindName("TxtNotes") `
         -TxtWarn $editor.FindName("TxtWarn") `
         -ApplyButton $editor.FindName("BtnEditApply") `
-        -NothingText "Nothing to do: '$InstanceName' already has exactly that."
+        -NothingText "Nothing to do: '$InstanceName' already has exactly that." `
+        -Family $Family
 
     $script:PackEditResult = $null
     $editor.FindName("BtnEditCancel").Add_Click({ $script:PackEditResult = $null; $editor.Close() })

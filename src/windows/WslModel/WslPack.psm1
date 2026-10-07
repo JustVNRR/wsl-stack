@@ -17,6 +17,11 @@ class WslPack {
     # gone when nothing requires it any more.
     [bool]$Offered = $true
 
+    # The distribution family the pack's packages come from - its apt. A pack
+    # is only ever offered on a machine of the same family; absent means
+    # debian, the family this repository's packs are written for.
+    [string]$Family = "debian"
+
     # The line shown once it is installed.
     [string]$Welcome
 
@@ -36,6 +41,7 @@ class WslPack {
             if ($line -match '^\s*PACK_DESCRIPTION\s*:=\s*(.+?)\s*$') { $this.Description = $Matches[1] }
             elseif ($line -match '^\s*PACK_REQUIRES\s*:=\s*(.*)$') { $this.Requires = @($Matches[1] -split '\s+' | Where-Object { $_ }) }
             elseif ($line -match '^\s*PACK_VISIBLE\s*:=\s*(\S+)') { $this.Offered = ($Matches[1] -notmatch '^(?i)no$') }
+            elseif ($line -match '^\s*PACK_FAMILY\s*:=\s*(\S+)') { $this.Family = $Matches[1].ToLower() }
             elseif ($line -match '^\s*PACK_WELCOME\s*:=\s*(.+?)\s*$') { $this.Welcome = $Matches[1] }
         }
     }

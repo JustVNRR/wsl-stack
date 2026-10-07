@@ -296,13 +296,16 @@ function Resolve-PackSelection {
     param(
         [WslPackCatalog]$Catalog,
         [string[]]$Installed = @(),
-        [string[]]$Kept = @()
+        [string[]]$Kept = @(),
+        [string]$Family = "debian"
     )
 
     # The checklist's own surface: what a question shows is what can be taken
     # back - and only that. A folder this checkout does not carry was never
-    # shown, so nobody can have unchecked it; it is named in grey instead.
-    $OfferedNames = @($Catalog.AvailablePacks | Where-Object { $_.Offered } | ForEach-Object { $_.Name })
+    # shown, so nobody can have unchecked it; it is named in grey instead. The
+    # family narrows the surface further: a pack from another apt is no more
+    # shown than one that is not carried.
+    $OfferedNames = @($Catalog.OfferedFor($Family) | ForEach-Object { $_.Name })
     $Carried = @($Catalog.AvailablePacks | ForEach-Object { $_.Name })
 
     # Each list is read from a different side: kept and not installed goes in,
@@ -354,15 +357,18 @@ function Select-Packs {
         [string]$Title,
         [WslPackCatalog]$Catalog,
         [string[]]$Installed = @(),
-        [string[]]$Checked = $null
+        [string[]]$Checked = $null,
+        [string]$Family = "debian"
     )
 
     if ($null -eq $Checked) { $Checked = $Installed }
 
-    # What the checklist shows: the packs a user chooses. An invisible one is
-    # installed by a visible pack that requires it and leaves with the last one,
-    # so it is in neither list and is never named here.
-    $Offered = @($Catalog.AvailablePacks | Where-Object { $_.Offered })
+    # What the checklist shows: the packs a user chooses, on this machine's
+    # family - build passes nothing and the image's own family stands, debian.
+    # An invisible one is installed by a visible pack that requires it and
+    # leaves with the last one, so it is in neither list and is never named
+    # here.
+    $Offered = @($Catalog.OfferedFor($Family))
 
     $CheckedIndexes = @()
     for ($Index = 0; $Index -lt $Offered.Count; $Index++) {
@@ -382,7 +388,7 @@ function Select-Packs {
     $Chosen = @($Chosen)
     $Kept = @($Chosen | ForEach-Object { $_.Name })
 
-    $Resolved = Resolve-PackSelection -Catalog $Catalog -Installed $Installed -Kept $Kept
+    $Resolved = Resolve-PackSelection -Catalog $Catalog -Installed $Installed -Kept $Kept -Family $Family
     $ToAdd = @($Resolved.ToAdd)
     $ToRemove = @($Resolved.ToRemove)
     $Unticked = @($Resolved.Unticked)
