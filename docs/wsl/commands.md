@@ -141,8 +141,9 @@ together. The header carries its icons beside the title: **+**, a new
 instance - name, user and packs in one form, a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
-(Docker's questions and the first shell included, since only it can ask
-them); the refresh, which rereads the fleet; and the gear, the window's own
+(Docker's questions included, since only it can ask them), ending by
+opening the fresh instance in its own window; the refresh, which rereads
+the fleet; and the gear, the window's own
 face - the font, its size and its colour theme, dark and light versions
 shipped (assets\colours) - with the sun and the moon beside it, switching
 the current theme's version on the spot.
@@ -189,7 +190,8 @@ Folders left behind by an instance that is gone:
 Builds a new instance from the rootfs image, asks for the user the instance
 will open as, walks you through the first-boot onboarding (password or
 passwordless sudo — the timezone comes from Windows), applies the Windows
-Terminal profile, and opens a shell in it.
+Terminal profile, and opens the fresh instance in a window of its own — look
+included; the build's console closes once you press Enter.
 
 ```powershell
 .\wsl.ps1 build

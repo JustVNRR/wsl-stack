@@ -574,9 +574,10 @@ if ($Deployment.Succeeded) {
         $DockerReportColour = $Docker.Colour
     }
 
-    # The shell the user came for, in the fresh instance - the instance's own
-    # gesture, the same one the shell command uses. Two lines first, so it
-    # opens on "who am I, where, and what now" instead of an anonymous prompt.
+    # The window the user came for: the fresh instance in its own Terminal
+    # window, its look riding along - icon, name, colours, font - the way the
+    # window's open button opens it. A shell borrowed in THIS console would
+    # carry none of that, and this console closes with the run.
     Clear-Host
     Write-Host "Welcome, $UserName." -ForegroundColor (Get-MessageColour success)
     Write-Host "You are now logged in to $DistroName." -ForegroundColor (Get-MessageColour success)
@@ -595,7 +596,13 @@ if ($Deployment.Succeeded) {
         foreach ($Line in $DockerReport) { Write-Host $Line -ForegroundColor $DockerReportColour }
     }
     Write-Host ""
-    $null = $Instance.Shell()
+    $Instance.OpenShell()
+
+    # This console goes with the run, and it waits for one keystroke first:
+    # the report above is read, not glimpsed before the screen is gone.
+    Write-Host ""
+    Write-Host "Press Enter to close this window." -ForegroundColor (Get-MessageColour muted)
+    $null = Read-Host
 }
 
 # A failed deployment must not look like a success to whatever called this
