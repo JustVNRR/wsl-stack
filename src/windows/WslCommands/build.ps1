@@ -18,6 +18,13 @@ param (
     [string]$User,
     [string]$Packs,
 
+    # The build's recipe, when one was chosen - the window's lists, or the
+    # command line. Absent, the repository's own files under
+    # src\distro\build\ are used: the Dockerfile the image is built from,
+    # and the first_boot the onboarding runs.
+    [string]$Dockerfile,
+    [string]$FirstBoot,
+
     # Must remain the VERY LAST parameter to allow valid PowerShell parsing
     [Parameter(ValueFromRemainingArguments = $true)]
     [object[]]$Ignored
@@ -86,10 +93,12 @@ function Assert-DestructionStillMatches {
 # wrapper, so a program that fails stops the run instead of writing a line the
 # script walks past.
 function Invoke-DockerBuild {
-    param([string]$Tag)
-    # The recipe lives under distro\build\, the context stays the repository
-    # root - the Dockerfile's COPY paths are written against it.
-    Invoke-NativeCommand { docker build -t $Tag -f src/distro/build/Dockerfile . } "Docker build failed."
+    param([string]$Tag, [string]$Dockerfile)
+    # The recipe, chosen or defaulted, decides what the image is built from;
+    # the context stays the repository root - a Dockerfile's COPY paths are
+    # written against it, and one of your own brings its own ignore file
+    # beside it (Dockerfile.dockerignore) or none.
+    Invoke-NativeCommand { docker build -t $Tag -f $Dockerfile . } "Docker build failed."
 }
 
 function New-DockerContainer {
@@ -110,6 +119,32 @@ function Stop-WslDistro {
 function Invoke-WslFirstBoot {
     param([string]$DistroName, [string]$User)
     Invoke-NativeCommand { wsl.exe -d $DistroName -u root /root/first_boot.sh $User } "The first_boot.sh configuration script failed."
+}
+
+# The onboarding script, placed in the instance right after the import: the
+# image carries none any more, so changing the first_boot costs no image
+# rebuild. The file travels in from the mounted drives - a fresh import has
+# them, WSL mounts them itself - and is armed in root's .bashrc the way the
+# image used to arm it: the .bashrc line is the fallback for a build that
+# stops between here and step 6, where the first root shell runs it.
+function Install-FirstBootScript {
+    param([string]$DistroName, [string]$Source)
+
+    # D:\...\first_boot.sh -> /mnt/d/.../first_boot.sh: the packs' own road.
+    $ThroughTheDrives = "/mnt/" + $Source.Substring(0, 1).ToLower() + ($Source.Substring(2) -replace "\\", "/")
+    $ExitCode = 0
+
+    # One shell, three moves, in this order: the copy, the executable bit, the
+    # .bashrc line last - a root shell opening in between must not run an
+    # onboarding that is not all there yet. Single-quoted inside the sh -c,
+    # the pack copy's rule: wsl.exe re-splits what it is handed.
+    Invoke-InInstance -DistroName $DistroName -RunAs "root" -ExitCode ([ref]$ExitCode) -Quiet -Command @(
+        "sh", "-c",
+        "cp -f '$ThroughTheDrives' /root/first_boot.sh && chmod 755 /root/first_boot.sh && echo /root/first_boot.sh >> /root/.bashrc"
+    )
+    if ($ExitCode -ne 0) {
+        throw "'$Source' could not be placed in '$DistroName' as /root/first_boot.sh - are the Windows drives mounted in it?"
+    }
 }
 
 # Best effort, and nothing here may raise: the finally block calls this after a
@@ -242,6 +277,25 @@ function Configure-DockerDesktopIntegration {
 # feels this; the CI builds from the checkout's own root.
 $RepoRoot = Split-Path -Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) -Parent
 Set-Location -Path $RepoRoot
+
+# The recipe: the chosen files, or the repository's own. Resolved here so a
+# path typed on the command line may be relative to the repository, and
+# checked before anything is asked or destroyed - a path that names no file
+# stops the run with nothing confirmed and nothing touched. Only its presence
+# is checked: whether a Dockerfile builds is docker build's to say.
+if (-not $Dockerfile) { $Dockerfile = Join-Path $RepoRoot "src/distro/build/Dockerfile" }
+if (-not $FirstBoot) { $FirstBoot = Join-Path $RepoRoot "src/distro/build/first_boot.sh" }
+foreach ($Named in @(@{ What = "Dockerfile"; Path = $Dockerfile },
+                     @{ What = "first_boot"; Path = $FirstBoot })) {
+    if (-not (Test-Path -Path $Named.Path -PathType Leaf)) {
+        Write-Host ""
+        Write-Host "[ABORT] The $($Named.What) is not a file: $($Named.Path)" -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
+    }
+}
+$Dockerfile = [System.IO.Path]::GetFullPath($Dockerfile)
+$FirstBoot = [System.IO.Path]::GetFullPath($FirstBoot)
 
 $ImageTag = "wsl-stack:latest"
 $ContainerName = "wsl-temp-export-$([guid]::NewGuid().ToString().Substring(0, 8))"
@@ -400,7 +454,7 @@ $Deployment = [ordered]@{
 
 try {
     Write-Host "==> 1. Building Docker rootfs image..." -ForegroundColor (Get-MessageColour info)
-    Invoke-DockerBuild -Tag $ImageTag
+    Invoke-DockerBuild -Tag $ImageTag -Dockerfile $Dockerfile
 
     Write-Host "==> 2. Creating temporary export container..." -ForegroundColor (Get-MessageColour info)
     New-DockerContainer -Name $ContainerName -Image $ImageTag
@@ -452,6 +506,16 @@ try {
     # name still passes the guard.
     $Instance = $Manager.CreateNew($DistroName, $TarPath, $UserName, [WslTheme]::Default($DistroName), $WasRegistered)
     $Deployment.DistroRegistered = $true
+
+    # The recipe rides with the instance from its birth: the look file the
+    # profile step writes (step 7) carries it, and an archive or a copy keeps
+    # it from there.
+    $Instance.Dockerfile = $Dockerfile
+    $Instance.FirstBoot = $FirstBoot
+
+    # The recipe's other half, in place before step 6 runs it: the image
+    # carries no first_boot any more, so a different one costs no rebuild.
+    Install-FirstBootScript -DistroName $DistroName -Source $FirstBoot
 
     Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
     Invoke-WslFirstBoot -DistroName $DistroName -User $UserName

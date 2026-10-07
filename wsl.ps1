@@ -65,8 +65,32 @@ Import-Module $StackModule -Force
 # is thrown away, which is what blinded a build's whiptail (measured).
 $Gesture = {
     param($Command, $Run)
-    $Extra = @($Run.Args)
-    & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Extra -Manager $Run.Manager
+    # The tokens after the command, in words: `-Name` starts a parameter and
+    # the tokens up to the next one are its values - the command's own
+    # parameters then bind by name, the way they read on the command line.
+    # Handed over positionally instead, the token '-Format' was taken for the
+    # VALUE of the next parameter (measured: archive -Format tar.xz died on
+    # the value '-Format'). A parameter with no value is a switch ($true), and
+    # a name the command does not know still lands in its $Ignored, which
+    # refuses it. Anything before the first `-Name` rides positionally, as it
+    # came.
+    $Named = @{}
+    $Loose = @()
+    $Key = $null
+    foreach ($Token in @($Run.Args)) {
+        $Word = "$Token"
+        if ($Word.StartsWith("-") -and $Word.Length -gt 1) {
+            $Key = $Word.Substring(1)
+            $Named[$Key] = @()
+            continue
+        }
+        if ($Key) { $Named[$Key] += ,$Token } else { $Loose += $Token }
+    }
+    foreach ($Name in @($Named.Keys)) {
+        $Values = @($Named[$Name])
+        $Named[$Name] = if ($Values.Count -eq 0) { $true } elseif ($Values.Count -eq 1) { $Values[0] } else { $Values }
+    }
+    & (Join-Path $Run.Scripts "$($Command.Key).ps1") @Named @Loose -Manager $Run.Manager
 }
 
 # The words, one chain: one WslMenuItem per command - the word, the line, the
@@ -135,9 +159,11 @@ if (-not (Test-Path $Script)) {
 # or wsl.exe.
 $Manager = New-InstanceManager
 
-# Whatever followed the command is handed over as it came: a command that has
-# options keeps them, the others ignore them. With the commands' folder and the
-# manager above, that is the run context the gesture takes its parameters from.
+# Whatever followed the command travels in this run context: the gesture
+# rebuilds it into named parameters and loose values (see above), so a command
+# that has options binds them by name, and one handed a name it does not know
+# refuses it. With the commands' folder and the manager above, that is
+# everything the gesture takes its parameters from.
 $Run = @{
     Scripts = $CommandFiles
     Args    = $RemainingArgs

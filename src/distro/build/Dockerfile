@@ -158,12 +158,12 @@ RUN printf '%s\n%s\n' \
     && rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
     && mkdir -p /etc/skel/.ssh \
     && mkdir -p /etc/skel/projects \
-    && chmod 700 /etc/skel/.ssh
-
-# 6. Deploy first-boot onboarding script and trigger it via root bashrc
-COPY src/distro/build/first_boot.sh /root/first_boot.sh
-RUN chmod +x /root/first_boot.sh \
-    && echo '/root/first_boot.sh' >> /root/.bashrc \
+    && chmod 700 /etc/skel/.ssh \
     && chown -R root:root /etc/skel
+
+# No first_boot in the image: the build places the chosen one in the instance
+# right after the import - /root/first_boot.sh, executable, armed in root's
+# .bashrc - and then step 6 runs it. That is what this Dockerfile used to bake
+# in, moved out so a different onboarding costs no image rebuild.
 
 CMD ["/bin/bash"]

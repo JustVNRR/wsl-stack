@@ -158,6 +158,8 @@ Set-Content -Path (Join-Path $FakeFolder "terminal-icon.png") -Value "fake-icon"
     IconTop       = "#010203"
     IconBottom    = "#040506"
     IconTextColor = "#070809"
+    Dockerfile    = "D:\recipes\my-Dockerfile"
+    FirstBoot     = "D:\recipes\my-first_boot.sh"
 } | ConvertTo-Json | Set-Content -Path (Join-Path $FakeFolder "instance.json") -Encoding Utf8
 
 # The WSL fragments a real import would leave behind: the guid Windows
@@ -218,6 +220,7 @@ try {
     $Saved = if ($Raw) { $Raw | ConvertFrom-Json } else { $null }
     Check "the archive carries the icon recipe" "$($Saved.IconText)/$($Saved.IconTop)/$($Saved.IconBottom)/$($Saved.IconTextColor)" "TR/#010203/#040506/#070809"
     Check "and names the archive after the instance" "$($Saved.Name)" $FakeName
+    Check "and the build recipe rides in too" "$($Saved.Dockerfile)/$($Saved.FirstBoot)" "D:\recipes\my-Dockerfile/D:\recipes\my-first_boot.sh"
     Check "and the icon itself waits beside the tar" (Test-Path (Join-Path $ArchiveDir "terminal-icon.png")) $true
 
     # The same on a running instance: asked about, stopped only on the answer,
@@ -259,6 +262,7 @@ try {
     $Raw = Get-FileText (Join-Path $Install "instance.json")
     $Restored = if ($Raw) { $Raw | ConvertFrom-Json } else { $null }
     Check "and the recipe comes back" "$($Restored.IconText)/$($Restored.IconTop)/$($Restored.IconBottom)/$($Restored.IconTextColor)" "TR/#010203/#040506/#070809"
+    Check "and the build recipe with it" "$($Restored.Dockerfile)/$($Restored.FirstBoot)" "D:\recipes\my-Dockerfile/D:\recipes\my-first_boot.sh"
     Check "and the icon is copied into the instance" (Test-Path (Join-Path $Install "terminal-icon.png")) $true
     Check "and the file points at the instance's own icon" "$($Restored.IconFrom)" (Join-Path $Install "terminal-icon.png")
     Check "and the look is reported re-applied" (@($Out | Where-Object { "$_".Contains("icon re-applied") }).Count -gt 0) $true
@@ -302,6 +306,7 @@ try {
     $Raw = Get-FileText (Join-Path $CopyDir "instance.json")
     $Copy = if ($Raw) { $Raw | ConvertFrom-Json } else { $null }
     Check "and the recipe travels to the copy" "$($Copy.IconText)/$($Copy.IconTop)/$($Copy.IconBottom)/$($Copy.IconTextColor)" "TR/#010203/#040506/#070809"
+    Check "and the build recipe with it" "$($Copy.Dockerfile)/$($Copy.FirstBoot)" "D:\recipes\my-Dockerfile/D:\recipes\my-first_boot.sh"
     Check "and the copy's icon points at its own folder" "$($Copy.IconFrom)" (Join-Path $CopyDir "terminal-icon.png")
     Check "and the copy gets its own Terminal fragment" ("$(Get-FileText (Join-Path $Fragments "copied-one.json"))".Contains("{66666666-7777-8888-9999-000000000000}")) $true
 

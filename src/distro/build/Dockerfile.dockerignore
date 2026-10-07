@@ -1,7 +1,8 @@
-# What never enters the build context. The image needs
-# src/distro/build/first_boot.sh and the Dockerfile beside it - the COPY lines
-# are the whole of what the build reads; everything else is either noise sent
-# to the Docker daemon or a file that must not be baked into the image.
+# What never enters the build context. The image needs nothing from this
+# repository's tree - no COPY line reads it, and the first_boot travels into
+# the instance on its own, after the import - so everything here is either
+# noise sent to the Docker daemon or a file that must not be baked into the
+# image.
 #
 # This file sits BESIDE the Dockerfile under the name Dockerfile.dockerignore
 # - the only name a builder reads next to a `-f` Dockerfile (BuildKit) - but

@@ -18,6 +18,8 @@
 #   - the checklist opens with the shell pack ticked: applied as-is it chooses
 #     it; cancelling means no pack, says so, and is asked no confirmation
 #   - a pack chosen is installed later, so the failure report names it
+#   - a recipe path that is not a file stops the run before anything is asked
+#   - an option the build knows binds by name, one it does not is refused
 #   - nothing is left behind: no instance, no tar, no folder, exit code 1
 #
 # Usage: bash tests/build-question-test.sh
@@ -41,8 +43,10 @@ Out=$(mktemp)
 # what says so - whether the tree is clean or carries work in progress.
 Before=$(git -C "$RepoTemplate" status --short)
 
+# Whatever follows the answers is handed to the build as it came: the recipe
+# options ride through the entry the way -Format does for archive.
 run_build() {
-    printf '%b' "$1" | $PS -NoProfile -ExecutionPolicy Bypass -File "$Run" build > "$Out" 2>&1
+    printf '%b' "$1" | $PS -NoProfile -ExecutionPolicy Bypass -File "$Run" build "${@:2}" > "$Out" 2>&1
     Code=$?
 }
 
@@ -114,6 +118,35 @@ check "says the path is unusable" "$(contains "'x<y' is not a usable path.")" "y
 check "and cancels on the empty answer" "$(contains '[ABORT] Operation cancelled by user.')" "yes"
 check "nothing is built"                "$(contains '==> 1. Building Docker')" "no"
 check "exit code 0"                     "$Code" "0"
+
+echo ""
+echo "--- the recipe: a path that is not a file, then one that is"
+# The recipe is checked before anything is asked or destroyed: a missing file
+# stops the run with nothing confirmed and nothing touched.
+run_build 'recipe-qtest-1\n' -Dockerfile "$RepoTemplate/nowhere/Dockerfile"
+check "refuses a Dockerfile that is not a file" "$(contains '[ABORT] The Dockerfile is not a file:')" "yes"
+check "and says nothing was modified"           "$(contains 'Nothing was modified.')" "yes"
+check "and asks nothing"                        "$(contains 'Name of the instance')" "no"
+check "and builds nothing"                      "$(contains '==> 1. Building Docker')" "no"
+check "exit code 1"                             "$Code" "1"
+
+run_build 'recipe-qtest-2\n' -FirstBoot "$RepoTemplate/nowhere/first_boot.sh"
+check "and a first_boot that is not a file too" "$(contains '[ABORT] The first_boot is not a file:')" "yes"
+check "exit code 1"                             "$Code" "1"
+
+# A path that is a file: the option is accepted and the questions start -
+# the run goes all the way to the build, where the stand-in docker stops it
+# like every other run here.
+run_build 'pack-qtest-4\n\n0\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
+check "a real Dockerfile is accepted" "$(contains '==> 1. Building Docker')" "yes"
+check "no recipe abort"               "$(contains '[ABORT] The Dockerfile')" "no"
+check "exit code 1"                   "$Code" "1"
+
+# An option the build does not know still lands in its unknown-options
+# refusal: the entry rebuilds the tokens, it does not swallow them.
+run_build 'x\n' -Whatever
+check "an unknown option is refused" "$(contains '[ABORT] Unknown options after the command.')" "yes"
+check "exit code 1"                  "$Code" "1"
 
 echo ""
 echo "--- a build started while another holds the lock"

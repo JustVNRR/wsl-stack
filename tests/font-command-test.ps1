@@ -114,8 +114,14 @@ try {
 
     # The recipe a drawing left behind: a font change must keep it - one change
     # keeps the others, and the icon command starts from these letters later.
-    Set-InstanceLook -InstallPath $FakeFolder -Look (New-InstanceLook -Name $FakeName -Icon @{
-        Text = "FT"; Top = "#111111"; Bottom = "#222222"; TextColor = "#FFFFFF" })
+    # The build's recipe (Dockerfile, first_boot) is written with it and must
+    # survive the same changes.
+    Set-InstanceLook -InstallPath $FakeFolder -Look (New-InstanceLook -Name $FakeName `
+        -Icon @{ Text = "FT"; Top = "#111111"; Bottom = "#222222"; TextColor = "#FFFFFF" } `
+        -Dockerfile "D:\wsl-stack\src\distro\build\Dockerfile" `
+        -FirstBoot "D:\wsl-stack\src\distro\build\first_boot.sh")
+    $Reciped = Get-Content $Recipe -Raw | ConvertFrom-Json
+    Check "the build recipe is written with the look" "$($Reciped.Dockerfile)/$($Reciped.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\first_boot.sh"
 
     $All = @(Get-Distros | Where-Object { Test-TemplateInstance -Folder $_.Path } | Sort-Object Name)
     $Pick = [array]::IndexOf(@($All.Name), $FakeName) + 1
@@ -159,6 +165,7 @@ try {
     Check "which is still the instance's" $Saved.Name $FakeName
     Check "and the icon's recipe survives the change" $Saved.IconText "FT"
     Check "  ... colours and all" "$($Saved.IconTop) $($Saved.IconBottom) $($Saved.IconTextColor)" "#111111 #222222 #FFFFFF"
+    Check "and so does the build recipe" "$($Saved.Dockerfile)/$($Saved.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\first_boot.sh"
 
     # 3. The way in: the menu asks which instance, hands over, and is drawn
     # again when done. Answers: the instance, "font", Escape on the list, Escape

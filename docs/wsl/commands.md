@@ -92,7 +92,7 @@ D:\WSL\
 └── archives\                 an archive is a folder too
     └── ubuntu-template\
         ├── ubuntu-template.tar.gz   the instance's file system
-        ├── instance.json            its look, the same file the instance keeps
+        ├── instance.json            its look and build recipe, the instance's own file
         └── terminal-icon.png        its icon
 ```
 
@@ -198,9 +198,31 @@ included; the build's console closes with the run.
 .\wsl.ps1 build
 ```
 
-It takes no options: it asks for the name, for the folder, for the user the
-instance will open as, and — when this checkout carries packs — which of them
-the instance should start with.
+It asks for the name, for the folder, for the user the instance will open as,
+and — when this checkout carries packs — which of them the instance should
+start with. Two options name the **recipe**, and without them the
+repository's own files are used:
+
+```powershell
+.\wsl.ps1 build -Dockerfile <path> -FirstBoot <path>
+```
+
+The **Dockerfile** is what the image is built from: `docker build -f` with
+that file, the repository root as the context — a Dockerfile of your own may
+`COPY` from the tree or from nowhere at all. It may sit anywhere in the tree,
+and brings its own ignore file beside it (`Dockerfile.dockerignore`) or none —
+without one, the whole checkout is sent to the Docker daemon: slower, not
+broken.
+
+The **first_boot** is the onboarding script. It is placed in the instance
+*after* the import — `/root/first_boot.sh`, executable, armed in root's
+`.bashrc` — and then run as step 6 below. The image carries none: changing the
+first_boot never rebuilds the image. A path that names no file stops the build
+before anything is asked or destroyed.
+
+Both paths are recorded on the instance (`instance.json`, the file an archive
+carries): a copy, an archive and a restore keep them, so what an instance was
+built with is never guessed.
 
 ```text
 ==> Creating a new instance
