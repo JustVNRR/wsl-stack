@@ -11,7 +11,7 @@ Both are `define`d, never run: they cost nothing until a recipe calls them, so
 the module can be loaded before or after the targets that use it.
 
 The third macro, `merge_env_samples`, sits in `make/env.mk` beside the targets
-that call it and is the socle's for the same reason: it assembles the `.env`
+that call it and is the shell's for the same reason: it assembles the `.env`
 files, and the `.env.global` it builds is loaded by this Makefile before it
 reads a single pack. See [Environment files](env.md).
 

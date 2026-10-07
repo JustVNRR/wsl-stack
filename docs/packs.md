@@ -5,7 +5,7 @@
 A pack is optional tooling — a CLI the image does not ship, the gmake targets
 that drive it, the shell commands, the variables it reads — and the two scripts
 that install and remove it, all of it living in one folder under `src/distro/packs/`. The
-socle knows nothing about any particular pack: it finds the folders and loads
+shell knows nothing about any particular pack: it finds the folders and loads
 what they carry. Adding a pack touches no file outside that folder.
 
 A pack needs no tool: what it brings is what its folder carries, and that may be
@@ -22,7 +22,7 @@ on a foreign Debian the same pack carries the tools too. Its page is
 
 ```text
 src/distro/packs/<name>/
-├── pack.conf              # what the socle and the installer read
+├── pack.conf              # what the shell and the installer read
 ├── install.sh             # what `.\wsl.ps1 add_pack` runs inside the instance
 ├── install_root.sh        # what needs root, run by the engine as WSL's root, before install.sh
 ├── remove.sh              # what `.\wsl.ps1 remove_pack` runs before the folder goes
@@ -33,7 +33,7 @@ src/distro/packs/<name>/
 ├── env.project.sample     # its share of a project's variables
 ├── cheatsheets/*.sh       # its fcheat sheets, each with a `# requires:` header
 ├── docs/*.md              # its pages: one per module, and whatever else it needs
-└── config/                # the zsh pack's own: the socle's files, copied into ~/.config/zsh
+└── config/                # the zsh pack's own: the shell's files, copied into ~/.config/zsh
 ```
 
 | Code | What it says | What happens |
@@ -56,7 +56,7 @@ src/distro/packs/<name>/
 | `PACK_WELCOME` | the line `build` prints on a fresh instance, when this pack is among the chosen ones |
 
 Only the first is always there. `PACK_IDENTIFYING_VARS` is read with `sed`, not
-by including the file: the socle needs it while it is still loading
+by including the file: the shell needs it while it is still loading
 `.env.global`, before a pack may define anything. `PACK_DESCRIPTION` is read by
 `add_pack`, from Windows.
 
@@ -67,7 +67,7 @@ as one this checkout does not carry.
 
 ## Installed, or not
 
-The folder **is** the state. The socle loads `packs/*/make/*.mk` and asks
+The folder **is** the state. The shell loads `packs/*/make/*.mk` and asks
 nothing else: a pack is installed exactly when its folder is in
 `~/.config/packs`, which is where `.\wsl.ps1 add_pack` puts it — the files and
 the tool together. Nothing is recorded anywhere, so nothing can disagree with
@@ -114,14 +114,14 @@ They are all documented in
 
 ## The shell
 
-A pack may bring shell files (`zsh/*.zsh`), and the socle reads them **where
+A pack may bring shell files (`zsh/*.zsh`), and the shell reads them **where
 they live** — `~/.config/packs/*/zsh/*.zsh`, from the `.zshrc` that loads
 everything else. Nothing is copied into `~/.config/zsh`: a pack that leaves
 takes its commands out of the shell exactly as it takes its targets out of the
 menu, and an instance carrying no pack reads nothing there at all. The
 `scaffold` pack's `fnew` and the catalogs it reads travel together that way — the
 picker resolves them from its own file's location, not from a path that only
-exists in the socle.
+exists in the shell.
 
 ## Two packs, one choice
 
@@ -147,14 +147,14 @@ invisible ones that follow their last claimant.
 `devops` and `scaffold` are the two: the project targets `python` and `gcp`
 both need, and the act of creating a project.
 
-Every visible pack also requires the `zsh` pack — the shell socle — so
+Every visible pack also requires the `zsh` pack — the shell — so
 choosing one brings the shell with it, and the shell only leaves when the
 last pack standing on it does.
 
 They are required for what they bring, not for a macro: `devops` ships the
 sample that carries `PACKAGE_NAME` and `DOCKER_BASE_IMAGE`; `scaffold` is what
 runs once a template has been copied (`SCAFFOLD_AFTER_python`). What a target
-*calls* — `check_vars`, `confirm_action` — is the socle's, loaded with every
+*calls* — `check_vars`, `confirm_action` — is the shell's, loaded with every
 module.
 
 ## Two packs, one package
@@ -217,7 +217,7 @@ behind and a sheet whose commands would not run: the header hides it.
 ## The variables
 
 A pack ships samples, never the real files. `gmake env_global_enable` and
-`gmake env_project_enable` read the socle's samples and every installed pack's,
+`gmake env_project_enable` read the shell's samples and every installed pack's,
 and append only what the file does not already define — so a value you filled
 in survives, and a pack installed later is covered by the next run. See
 [Environment files](make/env.md).

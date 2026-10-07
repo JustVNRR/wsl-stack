@@ -1,7 +1,7 @@
 # ==========================================
 # MAKEFILE CHEATSHEET (the gmake targets)
 # ==========================================
-# The socle's gmake targets: the ones that need no pack. A pack brings its
+# The shell's gmake targets: the ones that need no pack. A pack brings its
 # targets and its sheet together, in its own folder.
 
 # --- 1. PACKS ---

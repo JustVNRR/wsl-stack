@@ -70,7 +70,7 @@ else
     echo "Fill it with your tokens."
 fi
 
-# The socle builds .env.global from the samples; this runs that target once so
+# The shell builds .env.global from the samples; this runs that target once so
 # the first `gmake claude_profile` finds it. Only when it is not there; a
 # failure here is said, not fatal - the program is installed, which is what the
 # pack came for.

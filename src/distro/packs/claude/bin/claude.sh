@@ -151,7 +151,7 @@ profile_var() {
     env_var CLAUDE_PROFILE
 }
 
-# One line of the socle's .env.global, and nothing else: replaced where it is,
+# One line of the shell's .env.global, and nothing else: replaced where it is,
 # appended when the variable is not there yet. The value is an id (valid_id):
 # no escaping needed.
 write_env() {

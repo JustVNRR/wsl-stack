@@ -20,7 +20,7 @@
 
 ## What the two `_enable` commands do
 
-Each reads the socle's sample and those of every pack installed, and writes the
+Each reads the shell's sample and those of every pack installed, and writes the
 real file. **It only ever appends**: a variable the file already defines is left
 alone. So
 
@@ -29,7 +29,7 @@ alone. So
 - a pack's variables arrive the next time you run it after adding that pack.
 
 On a file that does not exist yet, the samples are copied whole — comments
-included — so the file arrives already documented. The socle's sample comes
+included — so the file arrives already documented. The shell's sample comes
 first, and it carries the header: the rule, and what belongs in the file.
 
 On a file that is already there, only the variables travel. The sample's
@@ -43,7 +43,7 @@ empty `.env` would look like an answer.
 ## Where the commands live
 
 In `src/distro/packs/zsh/config/gmake/make/env.mk`, beside the Makefile that reads `.env.global` — the
-same argument as the two macros: a file the socle loads cannot be a pack's to
+same argument as the two macros: a file the shell loads cannot be a pack's to
 build. The `env_global_*` targets write, then open, a machine-wide file and run
 from anywhere; the `env_project_*` ones run from the root of a project, like
 every other target that reads one.

@@ -461,7 +461,7 @@ Remove python, devops? [Y/n]
 
 And a pack a still-installed pack requires is refused outright: the choice
 comes back with the claimant named, because the removal would leave that pack
-standing on nothing — every visible pack stands on `zsh`, the shell socle:
+standing on nothing — every visible pack stands on `zsh`, the shell:
 
 ```text
 [ABORT] 'zsh' cannot be removed: required by python.

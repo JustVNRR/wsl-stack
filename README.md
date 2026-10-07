@@ -89,7 +89,7 @@ The shell experience is documented per topic under [`docs/zsh/`](docs/zsh/):
   - Use `make <target>` from `~/projects/<your-project-folder>` to run project relative tasks from the local `Makefile` in your current project folder.
 
 The gmake Makefile is one module per domain, each documented beside it: the
-socle's under `gmake/make/`, with their pages in [`docs/make/`](docs/make/); a
+shell's under `gmake/make/`, with their pages in [`docs/make/`](docs/make/); a
 pack carries its modules *and* its pages in its own folder, so it can be lifted
 out whole. Indexed along a project's lifecycle:
 
@@ -102,7 +102,7 @@ out whole. Indexed along a project's lifecycle:
 | Any | [The instance's own settings](docs/make/wsl.md) | `wsl_config`, `dns_resolve`, `fstab_config`, `wsl_status`, `systemd_*`, `automount_*`, `interop_*`, `windows_path_*`, `fstab_up`, `fstab_down` |
 
 Everything else a project needs — its image, its pull requests — is a pack's.
-The socle stops at what an instance with no project can still do: carry packs,
+The shell stops at what an instance with no project can still do: carry packs,
 write the `.env` files, report what it runs on, open `/etc/wsl.conf` and
 `/etc/resolv.conf`, and turn WSL's features on and off.
 
@@ -270,7 +270,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │       ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │       ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │       ├── docs/    # the pack's page
-│   │   │       └── config/  # The socle's files, copied into ~/.config/zsh
+│   │   │       └── config/  # The shell's files, copied into ~/.config/zsh
 │   │   │           ├── .zshrc       # Main orchestrator (loads OMZ, modules, prompts)
 │   │   │           ├── aliases.zsh  # Custom shortcuts and interactive falias picker
 │   │   │           ├── bindings.zsh # ZLE widgets and keybindings
@@ -280,7 +280,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │           ├── completion.zsh # gmake's targets on Tab, read from the Makefile itself
 │   │   │           ├── gmake/       # Makefile ecosystem (the gmake command)
 │   │   │           │   ├── Makefile # Entrypoint: loads the modules, builds the menu, gates where targets run
-│   │   │           │   └── make/    # The socle's modules (pages in docs/make/)
+│   │   │           │   └── make/    # The shell's modules (pages in docs/make/)
 │   │   │           │       ├── colours.mk # the colours a recipe asks for, written once
 │   │   │           │       ├── env.mk # the .env files, and the commands that build them
 │   │   │           │       ├── macros.mk # what a target calls before it runs (check_vars, confirm_action)
@@ -337,7 +337,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │           ├── fa-solid-900.ttf
 │           └── fa-LICENSE.txt
 ├── docs/
-│   ├── make/                # Documentation of the socle's gmake modules
+│   ├── make/                # Documentation of the shell's gmake modules
 │   ├── wsl/                 # Instance administration: the commands, their options, examples
 │   └── zsh/                 # Shell environment documentation (plugins, keys, aliases, tools)
 ├── tests/                   # The suites that RUN the code: the arrow menu with a
@@ -378,7 +378,7 @@ deleting the distro deletes all of it.
 │   ├── env.global.sample    # The header every .env.global opens on
 │   ├── env.project.sample   # The header a project's .env opens on
 │   ├── Makefile
-│   └── make/*.mk            # the socle's modules
+│   └── make/*.mk            # the shell's modules
 └── .zshrc, modules, lib/, prompts/, cheatsheets/
 
 ~/.config/packs/             # A pack lands here, its files and its tool together:

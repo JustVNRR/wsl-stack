@@ -15,7 +15,7 @@ param (
 #
 # Then the pack's folder is copied into the instance, its root half runs first
 # as WSL's own root - the door below cannot open before sudo exists, and the
-# socle pack carries sudo itself - and its install script runs there, in front
+# shell pack carries sudo itself - and its install script runs there, in front
 # of you. The engine opens WSL's own passwordless root door to sudo for the
 # length of the installs: the run never stops to ask, and nothing of it
 # remains after. The copies and the runs are the engine's; the questions and

@@ -1,7 +1,7 @@
 # ============================================================
 # PROJECT SCAFFOLDING (FNEW)
 # ============================================================
-# The socle reads it where it lives; nothing is copied. `%x` is this file - the
+# The shell reads it where it lives; nothing is copied. `%x` is this file - the
 # catalogs are resolved from here, and it is also the right answer from inside
 # a function (there, `$0` is the function's name).
 

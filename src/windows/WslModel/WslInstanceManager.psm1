@@ -364,7 +364,7 @@ class WslInstanceManager {
         }
 
         # 2. The root halves, before the door - the removals' gesture, and for
-        # the same reason: the door is a sudoers rule, and the socle pack
+        # the same reason: the door is a sudoers rule, and the shell pack
         # carries sudo itself, so on a bare Debian there is no door to open
         # yet. The scripts' content is unchanged; only who runs them, and when.
         foreach ($Entry in $ToInstall) {

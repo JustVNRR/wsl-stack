@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# The socle's colours, read from the skeleton the image carries them in - the
+# The shell's colours, read from the skeleton the image carries them in - the
 # instance has no account yet. A missing library leaves the questions plain
 # rather than stopping the onboarding.
 C_RESET=''

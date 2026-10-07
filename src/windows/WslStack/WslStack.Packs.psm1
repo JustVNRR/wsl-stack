@@ -307,7 +307,7 @@ function Invoke-PackApply {
     }
 
     # 3a. The root halves first, one by one, as WSL's own root - before the
-    # door opens. The door is a sudoers rule, and the socle pack carries sudo
+    # door opens. The door is a sudoers rule, and the shell pack carries sudo
     # itself: on a bare Debian its install_root.sh must run where no door can
     # open yet. The gesture is the removals' (wsl -u root, the user's home in
     # HOME), the scripts' content is unchanged - only who runs them, and when.

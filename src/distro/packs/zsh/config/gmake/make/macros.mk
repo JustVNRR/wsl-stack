@@ -6,7 +6,7 @@
 # to touch and waits for a yes. A pack that writes a target uses them and
 # declares nothing.
 #
-# A PACK MUST NEVER DEFINE EITHER. The socle's modules are read first, so a
+# A PACK MUST NEVER DEFINE EITHER. The shell's modules are read first, so a
 # pack's own `define check_vars` would win in silence and every target that
 # calls it - its neighbours' included - would lose its check. The CI greps for
 # it on every push; a comment cannot notice.

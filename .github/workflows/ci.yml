@@ -6,7 +6,7 @@
 # every push.
 #
 #   - shellcheck on real shell scripts (cheatsheets/*.sh are fcheat data files,
-#     not executable shell - excluded, the socle's and the packs' alike)
+#     not executable shell - excluded, the shell's and the packs' alike)
 #   - zsh -n on all zsh config files (syntax only, nothing is executed)
 #   - the colour codes stay in their files: a `\033[` anywhere else is a call
 #     site that went back to writing the codes itself
@@ -53,7 +53,7 @@ jobs:
 
       - name: Zsh syntax (zsh -n, no execution)
         run: |
-          # One root: the socle lives in the zsh pack's config/ now, and the
+          # One root: the shell lives in the zsh pack's config/ now, and the
           # other packs ship zsh files of their own - all of it under packs/.
           find src/distro/packs -type f \( -name '*.zsh' -o -name '.zshrc' \) -print0 |
             xargs -0 -r -n1 zsh -n
@@ -82,7 +82,7 @@ jobs:
 
       - name: Makefile parse + help menu
         run: |
-          # The menu is what the repository carries: the socle's targets and
+          # The menu is what the repository carries: the shell's targets and
           # every pack's, since packs/ is right there. The steps below compare
           # the cheatsheets against it.
           make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR="$PWD/src/distro/packs" help |
@@ -129,7 +129,7 @@ jobs:
           fi
           # The devops targets build and push ONE project, and an instance
           # whose folders are empty has none. The .env targets are not on this
-          # list: they went back to the socle, and the loop below keeps them
+          # list: they went back to the shell, and the loop below keeps them
           # there.
           if grep -qE '^  (docker_build_local|docker_run_local|gh_pr_create|gh_pr_toreview|gh_pr_wip|gh_pr_ls)[[:space:]]' help-bare.txt; then
             echo "::error::a devops pack target is in the menu without the pack's folder"
@@ -141,27 +141,27 @@ jobs:
             echo "::error::a claude pack target is in the menu without the pack's folder"
             bad=1
           fi
-          # And the socle loses nothing to an empty packs folder
+          # And the shell loses nothing to an empty packs folder
           for target in help packs_list env_global_enable env_global_manage env_project_enable env_project_manage \
                          wsl_config dns_resolve fstab_config wsl_status \
                          systemd_up systemd_down automount_up automount_down interop_up interop_down \
                          windows_path_up windows_path_down fstab_up fstab_down; do
             grep -q "^  ${target}[[:space:]]" help-bare.txt || {
-              echo "::error::socle target '${target}' missing from the menu with no pack"
+              echo "::error::shell target '${target}' missing from the menu with no pack"
               bad=1
             }
           done
           exit $bad
 
-      - name: No pack redefines a socle macro
+      - name: No pack redefines a shell macro
         run: |
-          # The socle's modules are read first and the packs' after, so a
+          # The shell's modules are read first and the packs' after, so a
           # pack's own `define check_vars` would win in silence and every
           # caller - its neighbours' included - would lose its check.
           bad=0
           for macro in check_vars confirm_action merge_env_samples; do
             if grep -rln "^define $macro$" src/distro/packs/*/make/*.mk 2>/dev/null | grep -q .; then
-              echo "::error::a pack defines $macro - the socle defines it in src/distro/packs/zsh/config/gmake/make/"
+              echo "::error::a pack defines $macro - the shell defines it in src/distro/packs/zsh/config/gmake/make/"
               bad=1
             fi
           done

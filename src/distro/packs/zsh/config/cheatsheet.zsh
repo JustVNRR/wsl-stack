@@ -4,7 +4,7 @@
 
 # The sheets the picker offers, minus those whose `# requires:` header is not
 # met (negated with `!`). Nothing is recorded: the question is asked again at
-# every opening. Two folders, one rule: the socle's sheets, then the packs'.
+# every opening. Two folders, one rule: the shell's sheets, then the packs'.
 _fcheat_files() {
     local file requires binary
 

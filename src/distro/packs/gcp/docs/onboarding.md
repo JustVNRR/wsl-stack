@@ -58,7 +58,7 @@ gmake env_project_enable
 ```
 
 then fill `GCP_PROJECT` at minimum; add each module's variables as you need
-them. Both commands read the samples — the GCP pack's and the socle's — and
+them. Both commands read the samples — the GCP pack's and the shell's — and
 only append what the file does not define yet: existing values are never
 touched. Run them again after adding a pack.
 

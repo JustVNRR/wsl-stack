@@ -76,6 +76,6 @@ rows:
 | `~/.claude/projects/` | one folder per project this instance has worked in — what `claude_project` lists |
 | `~/.claude/settings.json` | the settings the CLI reads at every start |
 
-`~/.local/bin` is already on the PATH — the socle exports it — and the installer
+`~/.local/bin` is already on the PATH — the shell exports it — and the installer
 runs with it there, so its leave-me-in-your-PATH note never appears.
 

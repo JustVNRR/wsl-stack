@@ -4,7 +4,7 @@
 
 # Where this file lives, and the packs - for the instance: `gmake/` under
 # ~/.config/zsh, and `~/.config/packs` two levels up. In the repository the
-# socle sits one level deeper, in the zsh pack (`packs/zsh/config/gmake/`),
+# gmake/ sits one level deeper, in the zsh pack (`packs/zsh/config/gmake/`),
 # so a make run against the checkout passes PACKS_DIR=src/distro/packs
 # explicitly - the same variable the packs-less runs already pass.
 THIS_DIR := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
@@ -30,7 +30,7 @@ PROJECT_ENV := $(wildcard .env)
 # 2. Every variable reaches the recipes' subshells.
 export
 
-# 3. THE MODULES: the socle's own in make/*.mk, every installed pack's in
+# 3. THE MODULES: the shell's own in make/*.mk, every installed pack's in
 # packs/*/make/*.mk. Adding one is creating a file - nothing to edit here.
 # `gmake help` and Tab read the modules' TEXT: a module that is not loaded
 # carries no line, so the menu follows the machine by itself.

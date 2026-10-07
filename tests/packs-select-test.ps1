@@ -345,7 +345,7 @@ Check "nothing to remove -> no removal, and no cleanup" `
     ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | test -f $Directory/fake-a/install_root.sh | env HOME=/home/u bash install_root.sh | $DoorOpen | bash install.sh | $DoorClose"
 
 # The root half runs BEFORE the door, as WSL's own root: the door is a
-# sudoers rule, and the socle pack carries sudo itself - on a bare Debian its
+# sudoers rule, and the shell pack carries sudo itself - on a bare Debian its
 # root half must run where no door can open yet.
 Check "  ... and it ran before the door opened" `
     ($script:Calls.IndexOf("$Directory/fake-a :: env HOME=/home/u bash install_root.sh") -lt

@@ -28,7 +28,7 @@ PDF_TEMPLATE ?= template.tex
 # neighbours inside the pack folder, and the pack moves as one folder.
 #
 # A script variable must never carry the name of something a person sets: a
-# variable called FONT once held this path, and the socle's bare `export`
+# variable called FONT once held this path, and the shell's bare `export`
 # handed it to the script as the family name to copy.
 DOCUMENT := $(dir $(lastword $(MAKEFILE_LIST)))../bin/document.sh
 CSL_FROM_CATALOG := $(dir $(lastword $(MAKEFILE_LIST)))../bin/csl.sh

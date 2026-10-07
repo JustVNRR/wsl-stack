@@ -3,23 +3,23 @@
 # ==============================================================================
 # Two files decide what a gmake target sees: ~/.config/zsh/gmake/.env.global
 # for the values every project shares, the project's own .env for what
-# identifies it. Both are assembled from samples — the socle's, in the folder
+# identifies it. Both are assembled from samples — the shell's, in the folder
 # above, and the ones the packs ship beside their modules.
 #
 # The commands never rewrite a line that is already there: a value you set, and
 # a pack added later, survive the next run. With no readable sample at all they
 # stop rather than leave an empty file behind.
 #
-# They are the socle's because the file they write is: this Makefile loads
+# They are the shell's because the file they write is: this Makefile loads
 # .env.global before it reads a single pack.
 #
 # The two env_global targets run from anywhere — machine-wide files, and no
 # question about the directory you stand in: the gate must let them through.
 GATE_EXEMPT_GOALS += env_global_enable env_global_manage
 
-# The samples, in the order they are read: the socle's own first — it carries
+# The samples, in the order they are read: the shell's own first — it carries
 # the header that explains the file and its rule — then every installed pack's.
-# The socle's two sit outside PACKS_DIR, so none can be found twice.
+# The shell's two sit outside PACKS_DIR, so none can be found twice.
 GLOBAL_ENV_SAMPLES := $(THIS_DIR)/env.global.sample $(wildcard $(PACKS_DIR)/*/env.global.sample)
 PROJECT_ENV_SAMPLES := $(THIS_DIR)/env.project.sample $(wildcard $(PACKS_DIR)/*/env.project.sample)
 
@@ -48,7 +48,7 @@ define merge_env_samples
 	readable=; \
 	for s in $(2); do [ -f "$$s" ] && readable="$$readable $$s"; done; \
 	if [ -z "$$readable" ]; then \
-		echo "No sample to read: neither the socle nor an installed pack ships one for this file."; \
+		echo "No sample to read: neither the shell nor an installed pack ships one for this file."; \
 		echo "Nothing was written - $$target is unchanged."; \
 		exit 1; \
 	fi; \

@@ -1,7 +1,7 @@
 # ============================================================
 # PYTHON RUNTIME: UV
 # ============================================================
-# The socle reads it where it lives; nothing is copied.
+# The shell reads it where it lives; nothing is copied.
 
 # uv's tools (copier, cruft...) live here.
 export PATH="$HOME/.local/bin:$PATH"

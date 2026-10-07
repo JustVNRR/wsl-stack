@@ -86,7 +86,7 @@ else
     fi
 fi
 
-# The pack's variables, merged into the file the socle loads. Best-effort: the
+# The pack's variables, merged into the file the shell loads. Best-effort: the
 # merge loads every installed pack's module, and a broken neighbour must not
 # fail an install that worked.
 if ! make -f "$HOME/.config/zsh/gmake/Makefile" env_global_enable; then
