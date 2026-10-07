@@ -578,31 +578,40 @@ if ($Deployment.Succeeded) {
     # window, its look riding along - icon, name, colours, font - the way the
     # window's open button opens it. A shell borrowed in THIS console would
     # carry none of that, and this console closes with the run.
+    #
+    # The welcome travels INTO that window: "you are now logged in" is true
+    # there and not here, so the shell the user lands in shows the note - the
+    # same lines this console used to print, at the place they describe.
     Clear-Host
-    Write-Host "Welcome, $UserName." -ForegroundColor (Get-MessageColour success)
-    Write-Host "You are now logged in to $DistroName." -ForegroundColor (Get-MessageColour success)
+    $Invite = @(
+        "Welcome, $UserName."
+        "You are now logged in to $DistroName."
+    )
     if ($null -ne $PackSelection) {
         foreach ($Pack in $PackSelection.ToAdd) {
-            if ($Pack.Welcome) { Write-Host $Pack.Welcome -ForegroundColor (Get-MessageColour hint) }
+            if ($Pack.Welcome) { $Invite += $Pack.Welcome }
         }
     }
     if ($PackResult.Report) {
-        Write-Host "Packs: $($PackResult.Report[0])" -ForegroundColor $PackResult.Colour
+        $Invite += "Packs: $($PackResult.Report[0])"
         foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
-            Write-Host "       $Line" -ForegroundColor $PackResult.Colour
+            $Invite += "       $Line"
         }
     }
     if ($DockerReport) {
         foreach ($Line in $DockerReport) { Write-Host $Line -ForegroundColor $DockerReportColour }
     }
     Write-Host ""
-    $Instance.OpenShell()
+    $Instance.OpenShell($Invite)
 
-    # This console goes with the run, and it waits for one keystroke first:
-    # the report above is read, not glimpsed before the screen is gone.
-    Write-Host ""
-    Write-Host "Press Enter to close this window." -ForegroundColor (Get-MessageColour muted)
-    $null = Read-Host
+    # This console goes with the run. It pauses for one keystroke only when
+    # something above wants reading - a failed pack, a Docker that needs
+    # attention - and closes straight away when there is nothing to say.
+    if ($PackResult.Colour -eq "Red" -or ($DockerReport -and $DockerReportColour -ne "Green")) {
+        Write-Host ""
+        Write-Host "Press Enter to close this window." -ForegroundColor (Get-MessageColour muted)
+        $null = Read-Host
+    }
 }
 
 # A failed deployment must not look like a success to whatever called this
