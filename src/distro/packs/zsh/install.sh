@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# THE ZSH PACK - WHAT IT INSTALLS
+# ==============================================================================
+# `wsl.ps1 add_pack` copies this pack's folder into ~/.config/packs/zsh, then
+# runs this script from inside it, as the instance's own user.
+#
+# The socle in one pack: on the built image everything here is already in
+# place and every step answers "already there" - the same run that dresses a
+# foreign Debian. Nothing is ever re-downloaded: the clones are asked about
+# before they start, and a binary on the PATH is left where it is.
+
+set -euo pipefail
+
+# The messages: the shared library replaces this fallback when the image
+# carries it; an instance built before it prints a plain sentence.
+success() { printf '%s\n' "$*"; }
+if [ -r "$HOME/.config/zsh/lib/message.sh" ]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.config/zsh/lib/message.sh" || true
+fi
+
+# The PATH is built here, not inherited: the shell this script runs from
+# carries WSL's Windows directories, and a name resolved through them can be a
+# Windows program. The same clean_path the other packs keep.
+clean_path=$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH=$clean_path
+
+here=$(cd "$(dirname "$0")" && pwd)
+
+# sudo's own prompt has no trailing newline, and the line-based capture
+# behind wsl.exe only showed whole lines: the question stayed invisible and
+# the call waited forever. This prompt ends its line, so it shows.
+sudo_prompt=$(printf '[sudo] password:\n')
+
+sudo -p "$sudo_prompt" bash "$here/install_root.sh"
+
+# Oh-My-Zsh and its two plugins, each asked about on its own: a run that
+# stopped between two clones picks up where it stopped.
+ohmyzsh="$HOME/.local/share/oh-my-zsh"
+if [ ! -d "$ohmyzsh" ]; then
+    echo "Cloning oh-my-zsh..."
+    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$ohmyzsh"
+fi
+for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
+    if [ ! -d "$ohmyzsh/custom/plugins/$plugin" ]; then
+        echo "Cloning $plugin..."
+        git clone --depth=1 "https://github.com/zsh-users/$plugin.git" "$ohmyzsh/custom/plugins/$plugin"
+    fi
+done
+
+# Starship and tealdeer, the two binaries apt never sees: a name already on
+# the PATH - the image's /usr/local/bin, or another pack's - is left where it
+# is, and only a missing one is fetched, into ~/.local/bin (the socle's own
+# PATH, from exports.zsh).
+case "$(dpkg --print-architecture)" in
+    amd64) release_arch="x86_64" ;;
+    *)     release_arch="aarch64" ;;
+esac
+if ! command -v starship >/dev/null 2>&1; then
+    echo "Installing Starship..."
+    mkdir -p "$HOME/.local/bin"
+    curl -fsSL "https://github.com/starship/starship/releases/latest/download/starship-${release_arch}-unknown-linux-gnu.tar.gz" |
+        tar -xz -C "$HOME/.local/bin" starship
+    chmod +x "$HOME/.local/bin/starship"
+fi
+if ! command -v tldr >/dev/null 2>&1; then
+    echo "Installing tealdeer (tldr)..."
+    mkdir -p "$HOME/.local/bin"
+    curl -fsSL "https://github.com/tealdeer-rs/tealdeer/releases/latest/download/tealdeer-linux-${release_arch}-musl" -o "$HOME/.local/bin/tldr"
+    chmod +x "$HOME/.local/bin/tldr"
+fi
+
+# The socle's own files, over the home: on the built image the same content
+# is already there, and writing it again changes nothing - the .env files the
+# gmake keeps your variables in are not in this folder and never overwritten.
+echo "Installing the shell configuration..."
+mkdir -p "$HOME/.config/zsh" "$HOME/.local/state/zsh" "$HOME/.cache/zsh"
+cp -r "$here/config/." "$HOME/.config/zsh/"
+
+# The one line that points zsh at the socle. A ~/.zshenv of your own is never
+# touched: either it already does this, or it is told what to add.
+if [ ! -e "$HOME/.zshenv" ]; then
+    printf '%s\n%s\n' 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' 'skip_global_compinit=1' > "$HOME/.zshenv"
+elif ! grep -q 'ZDOTDIR' "$HOME/.zshenv"; then
+    echo "NOTE: ~/.zshenv exists and does not set ZDOTDIR - the socle will not"
+    echo "      load until it does. Yours is yours, so nothing was added; put"
+    echo "      this line in it:"
+    echo "        export ZDOTDIR=\"\${XDG_CONFIG_HOME:-\$HOME/.config}/zsh\""
+fi
+
+success "The shell socle is installed. Open a new shell, or run:  exec zsh"

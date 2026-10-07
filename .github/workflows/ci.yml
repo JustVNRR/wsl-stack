@@ -47,28 +47,29 @@ jobs:
       - name: Shellcheck (real shell scripts)
         run: |
           find . -type f -name '*.sh' \
-            -not -path './src/distro/zsh/cheatsheets/*' \
+            -not -path './src/distro/packs/zsh/config/cheatsheets/*' \
             -not -path './src/distro/packs/*/cheatsheets/*' -print0 |
             xargs -0 -r shellcheck
 
       - name: Zsh syntax (zsh -n, no execution)
         run: |
-          # packs/ too: a pack may ship zsh files of its own, and nothing else
-          # would read them.
-          find src/distro/zsh src/distro/packs -type f \( -name '*.zsh' -o -name '.zshrc' \) -print0 |
+          # One root: the socle lives in the zsh pack's config/ now, and the
+          # other packs ship zsh files of their own - all of it under packs/.
+          find src/distro/packs -type f \( -name '*.zsh' -o -name '.zshrc' \) -print0 |
             xargs -0 -r -n1 zsh -n
 
       - name: The colour codes stay in their files
         run: |
           # A message names a kind, and a code is written once per world:
-          # src/distro/zsh/lib/colours.sh for the shell, src/distro/zsh/gmake/make/colours.mk for
+          # src/distro/packs/zsh/config/lib/colours.sh for the shell,
+          # src/distro/packs/zsh/config/gmake/make/colours.mk for
           # make. The claude status line is the exception - shared byte for
           # byte with the Windows copy. Anywhere else, a call site went back to
           # writing the code itself, and a comment cannot notice that.
           bad=0
           while IFS= read -r hit; do
             case "$hit" in
-              ./src/distro/zsh/lib/colours.sh:* | ./src/distro/zsh/gmake/make/colours.mk:* | ./src/distro/packs/claude/bin/statusline.sh:*) ;;
+              ./src/distro/packs/zsh/config/lib/colours.sh:* | ./src/distro/packs/zsh/config/gmake/make/colours.mk:* | ./src/distro/packs/claude/bin/statusline.sh:*) ;;
               *)
                 echo "::error::a colour code outside the colour files: $hit"
                 bad=1
@@ -84,7 +85,7 @@ jobs:
           # The menu is what the repository carries: the socle's targets and
           # every pack's, since packs/ is right there. The steps below compare
           # the cheatsheets against it.
-          make -f src/distro/zsh/gmake/Makefile help |
+          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR="$PWD/src/distro/packs" help |
             sed 's/\x1b\[[0-9;]*m//g' > help.txt
           missing=0
           for target in test test-fast test-functional test-gcp \
@@ -105,7 +106,7 @@ jobs:
           # whole switch, so PACKS_DIR at an empty one is the same thing - no
           # gate to force, nothing to keep in step by hand.
           mkdir -p /tmp/no-packs
-          make -f src/distro/zsh/gmake/Makefile PACKS_DIR=/tmp/no-packs help |
+          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/no-packs help |
             sed 's/\x1b\[[0-9;]*m//g' > help-bare.txt
           bad=0
           if grep -qE '^  (gcp_auth_cli|cloudrun_deploy|vm_create|bigquery_show|gcs_list_buckets)[[:space:]]' help-bare.txt; then
@@ -160,7 +161,7 @@ jobs:
           bad=0
           for macro in check_vars confirm_action merge_env_samples; do
             if grep -rln "^define $macro$" src/distro/packs/*/make/*.mk 2>/dev/null | grep -q .; then
-              echo "::error::a pack defines $macro - the socle defines it in src/distro/zsh/gmake/make/"
+              echo "::error::a pack defines $macro - the socle defines it in src/distro/packs/zsh/config/gmake/make/"
               bad=1
             fi
           done
@@ -175,14 +176,14 @@ jobs:
           mkdir -p /tmp/packs-list/asked /tmp/packs-list/hidden
           printf 'PACK_DESCRIPTION := The one the user chose\n' > /tmp/packs-list/asked/pack.conf
           printf 'PACK_DESCRIPTION := The one nobody chooses\nPACK_VISIBLE := no\n' > /tmp/packs-list/hidden/pack.conf
-          make -f src/distro/zsh/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list.txt
+          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list.txt
           bad=0
           grep -q "asked" list.txt || { echo "::error::packs_list dropped a pack the user chose"; bad=1; }
           grep -q "hidden" list.txt && { echo "::error::packs_list listed a pack marked PACK_VISIBLE := no"; bad=1; }
           # And the other state, when a removal stopped half way: a dependency
           # left alone. It says so rather than print the header over nothing.
           rm -rf /tmp/packs-list/asked
-          make -f src/distro/zsh/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list-only.txt
+          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list-only.txt
           grep -q "These packs are dependencies" list-only.txt || {
             echo "::error::packs_list does not say what is left when only a dependency is installed"
             bad=1
@@ -194,7 +195,7 @@ jobs:
           # Comment lines are skipped, as the picker itself does: prose can
           # name a target without offering it - `# requires: gcloud`, or a
           # sentence about the menu.
-          grep -hvE '^[[:space:]]*#' src/distro/zsh/cheatsheets/*_commands.sh \
+          grep -hvE '^[[:space:]]*#' src/distro/packs/zsh/config/cheatsheets/*_commands.sh \
                                        src/distro/packs/*/cheatsheets/*_commands.sh |
             grep -oE 'gmake [a-zA-Z_-]+' |
             awk '{print $2}' | sort -u > documented.txt
@@ -212,7 +213,7 @@ jobs:
           missing=0
           # A module is fully documented when: its doc page exists, the README
           # index links it, and the README tree lists the .mk file
-          for mk in src/distro/zsh/gmake/make/*.mk; do
+          for mk in src/distro/packs/zsh/config/gmake/make/*.mk; do
             name=$(basename "$mk" .mk)
             [ -f "docs/make/${name}.md" ] || {
               echo "::error::module '${name}' has no doc page (docs/make/${name}.md)"
@@ -230,7 +231,7 @@ jobs:
           # No orphan doc pages either
           for doc in docs/make/*.md; do
             name=$(basename "$doc" .md)
-            [ -f "src/distro/zsh/gmake/make/${name}.mk" ] || {
+            [ -f "src/distro/packs/zsh/config/gmake/make/${name}.mk" ] || {
               echo "::error::orphan doc page: ${doc} has no matching module"
               missing=1
             }
@@ -274,7 +275,7 @@ jobs:
           awk '/^  /{print $1}' help.txt | grep -vx -e help -e make > help_targets.txt
           # Same cut as the drift check: what the picker offers is what has to
           # document the menu, comments excluded.
-          grep -hvE '^[[:space:]]*#' src/distro/zsh/cheatsheets/*_commands.sh \
+          grep -hvE '^[[:space:]]*#' src/distro/packs/zsh/config/cheatsheets/*_commands.sh \
                                        src/distro/packs/*/cheatsheets/*_commands.sh > sheet_lines.txt
           while read -r target; do
             grep -q "gmake ${target}\b" sheet_lines.txt || {

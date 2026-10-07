@@ -136,13 +136,16 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.local/
     && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git \
        /etc/skel/.local/share/oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 
-# Copy modular Zsh configuration to the user skeleton directory
-COPY src/distro/zsh /etc/skel/.config/zsh
+# Copy modular Zsh configuration to the user skeleton directory. The socle is
+# the zsh pack's config/ folder - one copy in the repository, deployed here by
+# the image and onto a foreign Debian by the pack's own install.sh.
+COPY src/distro/packs/zsh/config /etc/skel/.config/zsh
 
-# Nothing of the packs: the image carries the socle. A pack arrives afterwards,
-# on a living instance, with `.\wsl.ps1 add_pack`, which copies its folder into
-# ~/.config/packs and runs its install script there - files and tool together.
-# A machine that never wants one never pays for it.
+# Nothing else of the packs: the image carries the socle, and the zsh pack IS
+# the socle. The other packs arrive afterwards, on a living instance, with
+# `.\wsl.ps1 add_pack`, which copies their folder into ~/.config/packs and runs
+# their install script there - files and tool together. A machine that never
+# wants one never pays for it.
 
 # Bootstrap ZDOTDIR and create the skeleton directories. The base image leaves
 # a bash dotfile set (.bashrc, .bash_logout, .profile) in /etc/skel, inherited

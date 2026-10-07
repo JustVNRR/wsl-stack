@@ -1,16 +1,19 @@
-# What never enters the build context. The image only needs distro/zsh/ and
-# distro/build/first_boot.sh (see the COPY lines in the Dockerfile);
+# What never enters the build context. The image needs
+# src/distro/packs/zsh/config (the socle - the zsh pack's own folder) and
+# src/distro/build/first_boot.sh (see the COPY lines in the Dockerfile);
 # everything else is either noise sent to the Docker daemon or user
 # configuration that must not be baked into /etc/skel.
 #
 # This file sits BESIDE the Dockerfile under the name Dockerfile.dockerignore
 # - the only name a builder reads next to a `-f` Dockerfile (BuildKit) - but
 # its patterns are written against the CONTEXT ROOT, the repository: they
-# match ./scripts, ./distro/packs and so on, never this folder.
+# match ./src/windows and so on, never this folder.
 #
-# distro/packs/ is in this list because the image no longer carries any of it:
-# a pack arrives on the instance, from Windows. No COPY line reads that
-# folder, so sending it would be so much noise on every build.
+# distro/packs/ is in this list because the image carries no pack: a pack
+# arrives on the instance, from Windows. The one exception is the zsh pack's
+# config/ - the socle the COPY line reads. A child cannot be re-included once
+# its folder itself is excluded, so the folder is not: its children are, one
+# level down, with the socle's path put back.
 .git
 .gitattributes
 .gitignore
@@ -18,7 +21,10 @@
 .claude
 assets
 docs
-src/distro/packs
+src/distro/packs/*
+!src/distro/packs/zsh
+src/distro/packs/zsh/*
+!src/distro/packs/zsh/config
 LICENSE
 README.md
 src/windows
@@ -28,11 +34,12 @@ wsl.ps1
 *.tar
 *.vhdx
 
-# A local .env.global is one machine's configuration. COPY distro/zsh would
+# A local .env.global is one machine's configuration. The socle's COPY would
 # bake it into /etc/skel, so every distro, for every user, would inherit it.
 # `**/` earns its place: a pattern without a slash only matches at the root of
-# the context, while the file this protects - distro/zsh/gmake/.env.global -
-# sits in a subdirectory. The two *.sample files are the committed contracts
-# and they stay: `**/.env*` would have taken them along.
+# the context, while the file this protects -
+# src/distro/packs/zsh/config/gmake/.env.global - sits in a subdirectory. The
+# two *.sample files are the committed contracts and they stay: `**/.env*`
+# would have taken them along.
 **/.env
 **/.env.global

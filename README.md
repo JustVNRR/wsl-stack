@@ -152,6 +152,7 @@ leaves with `remove_pack`.
 | Python | [Python](src/distro/packs/python/docs/python.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
 | Vision & OCR | [Vision & OCR](src/distro/packs/vision/docs/vision.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
 | Firefox & VPN | [Web browser and tunnel](src/distro/packs/web/docs/web.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Shell socle | [The shell socle](src/distro/packs/zsh/docs/zsh.md) — in the image; [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) dresses a foreign base with it |
 
 ### Python & Data Science
 
@@ -168,10 +169,11 @@ takes each tool from uv's cache the day it is first used.
 Two distinct trees: the **repository** you clone and version, and the **distro**
 the build produces. The `src/` folder holds both sides: the instance
 administration (`src/windows/` — the entry, the module, the commands), and the
-distro's recipe and baggage — the build recipe (`src/distro/build/`), the shell
-environment copied into the image (`src/distro/zsh/` — never read from the
-repository at runtime) and the packs (`src/distro/packs/` — read at runtime, by
-the console, one at a time).
+distro's recipe and baggage — the build recipe (`src/distro/build/`) and the
+packs (`src/distro/packs/` — copied into the image by the one COPY line, read
+at runtime by the console otherwise, one at a time). The shell socle is the
+`zsh` pack: the image bakes its `config/` folder into `/etc/skel`, and the
+pack's own `install.sh` dresses a foreign Debian with the same files.
 
 ### The repository
 
@@ -180,35 +182,10 @@ the console, one at a time).
 │                            #   baggage (distro/), the instance administration
 │                            #   (windows/)
 │   ├── distro/              # The repository's half of the two trees: what the
-│   │                        #   build bakes (build/) and deploys (zsh/, packs/)
-│   │   ├── zsh/             # Shell environment, deployed into the distro at build time
-│   │   │   ├── .zshrc       # Main orchestrator (loads OMZ, modules, prompts)
-│   │   │   ├── aliases.zsh  # Custom shortcuts and interactive falias picker
-│   │   │   ├── bindings.zsh # ZLE widgets and keybindings
-│   │   │   ├── cheatsheet.zsh # Interactive cheatsheet selector (fcheat)
-│   │   │   ├── cheatsheets/ # Auto-scanned data files: CTRL+H command lists (fcheat)
-│   │   │   │   └── *_commands.sh # The commands an instance always has: bash, git, the gmake menu
-│   │   │   ├── completion.zsh # gmake's targets on Tab, read from the Makefile itself
-│   │   │   ├── gmake/       # Makefile ecosystem (the gmake command)
-│   │   │   │   ├── Makefile # Entrypoint: loads the modules, builds the menu, gates where targets run
-│   │   │   │   └── make/    # The socle's modules (pages in docs/make/)
-│   │   │   │       ├── colours.mk # the colours a recipe asks for, written once
-│   │   │   │       ├── env.mk # the .env files, and the commands that build them
-│   │   │   │       ├── macros.mk # what a target calls before it runs (check_vars, confirm_action)
-│   │   │   │       ├── packs.mk # what this instance carries (gmake packs_list)
-│   │   │   │       └── wsl.mk # the instance itself: its files, its state, its switches
-│   │   │   ├── exports.zsh  # Environment variables and dynamic PATH exports
-│   │   │   ├── fzf.zsh      # Fuzzy finder engines, layout, and preview templates
-│   │   │   ├── history.zsh  # History file sizing, persistence, and what is kept out of it
-│   │   │   ├── lib/         # The colours, and the messages built on them
-│   │   │   │   ├── colours.sh #   the only shell file writing a colour code
-│   │   │   │   └── message.sh #   a line says its kind (hint, error...); the colour follows
-│   │   │   ├── navigation.zsh # Advanced directory hopping (cdv, cda, fv, fa)
-│   │   │   ├── prompts/
-│   │   │   │   ├── starship.toml # Starship visual configuration
-│   │   │   │   └── starship.zsh # Starship initialization hook
-│   │   │   └── unzip.zsh    # Interactive archive extraction handler
-│   │   ├── packs/           # Optional tooling, one folder per pack
+│   │                        #   build bakes (build/) and deploys (packs/ - the
+│   │                        #   socle is the zsh pack's config/ folder)
+│   │   ├── packs/           # Optional tooling, one folder per pack - and the
+│   │   │                    #   socle, which is the zsh pack's own
 │   │   │   ├── cleanup_orphans.sh # The one thing a removal runs inside an instance
 │   │   │   ├── claude/      # Claude Code, the agentic CLI, under ~/.local
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
@@ -273,20 +250,54 @@ the console, one at a time).
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── cheatsheets/ # their commands, in the fcheat picker
 │   │   │   │   └── docs/    # the pack's page
-│   │   │   └── web/         # Firefox (Mozilla's repository) and the WireGuard tunnel
+│   │   │   ├── web/         # Firefox (Mozilla's repository) and the WireGuard tunnel
+│   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
+│   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
+│   │   │   │   ├── install_root.sh # the root half of the install, run by install.sh
+│   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
+│   │   │   │   ├── fox-privacy-*.js # the two privacy profiles (light, strict) the launchers choose
+│   │   │   │   ├── privacy-check.html # the live check page pfox opens
+│   │   │   │   ├── vpn.servers.sample # the servers, in JSON, waiting for your keys
+│   │   │   │   ├── env.global.sample # VPN_PROFILE and VPN_KILL_SWITCH, for .env.global
+│   │   │   │   ├── bin/     # the two scripts: the tunnel's, the browser's - and the boot hook's
+│   │   │   │   ├── make/    # its gmake modules: the vpn_* and the fox_tweak_* targets
+│   │   │   │   ├── zsh/     # its shell files: the `fox` and `pfox` functions
+│   │   │   │   ├── cheatsheets/ # its fcheat sheets: the browser and the tunnel
+│   │   │   │   └── docs/    # the pack's pages, one per module
+│   │   │   └── zsh/         # The shell socle as a pack: what the image bakes, and
+│   │   │       │            #   what dresses a foreign Debian the same way
 │   │   │       ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │       ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │       ├── install_root.sh # the root half of the install, run by install.sh
 │   │   │       ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
-│   │   │       ├── fox-privacy-*.js # the two privacy profiles (light, strict) the launchers choose
-│   │   │       ├── privacy-check.html # the live check page pfox opens
-│   │   │       ├── vpn.servers.sample # the servers, in JSON, waiting for your keys
-│   │   │       ├── env.global.sample # VPN_PROFILE and VPN_KILL_SWITCH, for .env.global
-│   │   │       ├── bin/     # the two scripts: the tunnel's, the browser's - and the boot hook's
-│   │   │       ├── make/    # its gmake modules: the vpn_* and the fox_tweak_* targets
-│   │   │       ├── zsh/     # its shell files: the `fox` and `pfox` functions
-│   │   │       ├── cheatsheets/ # its fcheat sheets: the browser and the tunnel
-│   │   │       └── docs/    # the pack's pages, one per module
+│   │   │       ├── docs/    # the pack's page
+│   │   │       └── config/  # The socle's files, copied into ~/.config/zsh
+│   │   │           ├── .zshrc       # Main orchestrator (loads OMZ, modules, prompts)
+│   │   │           ├── aliases.zsh  # Custom shortcuts and interactive falias picker
+│   │   │           ├── bindings.zsh # ZLE widgets and keybindings
+│   │   │           ├── cheatsheet.zsh # Interactive cheatsheet selector (fcheat)
+│   │   │           ├── cheatsheets/ # Auto-scanned data files: CTRL+H command lists (fcheat)
+│   │   │           │   └── *_commands.sh # The commands an instance always has: bash, git, the gmake menu
+│   │   │           ├── completion.zsh # gmake's targets on Tab, read from the Makefile itself
+│   │   │           ├── gmake/       # Makefile ecosystem (the gmake command)
+│   │   │           │   ├── Makefile # Entrypoint: loads the modules, builds the menu, gates where targets run
+│   │   │           │   └── make/    # The socle's modules (pages in docs/make/)
+│   │   │           │       ├── colours.mk # the colours a recipe asks for, written once
+│   │   │           │       ├── env.mk # the .env files, and the commands that build them
+│   │   │           │       ├── macros.mk # what a target calls before it runs (check_vars, confirm_action)
+│   │   │           │       ├── packs.mk # what this instance carries (gmake packs_list)
+│   │   │           │       └── wsl.mk # the instance itself: its files, its state, its switches
+│   │   │           ├── exports.zsh  # Environment variables and dynamic PATH exports
+│   │   │           ├── fzf.zsh      # Fuzzy finder engines, layout, and preview templates
+│   │   │           ├── history.zsh  # History file sizing, persistence, and what is kept out of it
+│   │   │           ├── lib/         # The colours, and the messages built on them
+│   │   │           │   ├── colours.sh #   the only shell file writing a colour code
+│   │   │           │   └── message.sh #   a line says its kind (hint, error...); the colour follows
+│   │   │           ├── navigation.zsh # Advanced directory hopping (cdv, cda, fv, fa)
+│   │   │           ├── prompts/
+│   │   │           │   ├── starship.toml # Starship visual configuration
+│   │   │           │   └── starship.zsh # Starship initialization hook
+│   │   │           └── unzip.zsh    # Interactive archive extraction handler
 │   │   └── build/
 │   │       ├── Dockerfile   # Rootfs build recipe: Ubuntu 24.04 and the socle's tools
 │   │       ├── Dockerfile.dockerignore # Keeps the context lean, keeps .env.global out of the image
@@ -362,7 +373,7 @@ Written by the build or by `gmake` targets. None of it is versioned, and
 deleting the distro deletes all of it.
 
 ```text
-~/.config/zsh/               # = src/distro/zsh/ from the repository
+~/.config/zsh/               # = the zsh pack's config/ folder, from the repository
 ├── gmake/
 │   ├── .env.global          # Shared defaults (gmake env_global_enable)
 │   ├── env.global.sample    # The header every .env.global opens on
@@ -381,7 +392,7 @@ deleting the distro deletes all of it.
 ├── .envrc                   # direnv hook (the template's, or written by the scaffolding)
 └── .venv/
 
-~/.local/share/oh-my-zsh/    # Cloned at build time
+~/.local/share/oh-my-zsh/    # Cloned at build time, or by the zsh pack's install
 ~/.local/bin/                # the packs that install outside apt: uv and its
                              # tools (python), the claude launcher (claude)
 ~/.local/share/uv/           # the Python builds it downloaded, and their environments

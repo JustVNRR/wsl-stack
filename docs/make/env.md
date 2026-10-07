@@ -42,7 +42,7 @@ empty `.env` would look like an answer.
 
 ## Where the commands live
 
-In `src/distro/zsh/gmake/make/env.mk`, beside the Makefile that reads `.env.global` — the
+In `src/distro/packs/zsh/config/gmake/make/env.mk`, beside the Makefile that reads `.env.global` — the
 same argument as the two macros: a file the socle loads cannot be a pack's to
 build. The `env_global_*` targets write, then open, a machine-wide file and run
 from anywhere; the `env_project_*` ones run from the root of a project, like

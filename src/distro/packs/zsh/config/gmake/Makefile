@@ -2,8 +2,11 @@
 # THE GMAKE MAKEFILE - THE ENVIRONMENT, THE MODULES, THE MENU, THE GATE
 # ==============================================================================
 
-# Where this file lives, and the packs: `packs/` next to `zsh/` in the
-# repository is `~/.config/packs` next to `~/.config/zsh` in the instance.
+# Where this file lives, and the packs - for the instance: `gmake/` under
+# ~/.config/zsh, and `~/.config/packs` two levels up. In the repository the
+# socle sits one level deeper, in the zsh pack (`packs/zsh/config/gmake/`),
+# so a make run against the checkout passes PACKS_DIR=src/distro/packs
+# explicitly - the same variable the packs-less runs already pass.
 THIS_DIR := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 PACKS_DIR := $(abspath $(THIS_DIR)/../../packs)
 
