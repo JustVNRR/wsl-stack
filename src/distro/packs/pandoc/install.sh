@@ -18,8 +18,6 @@ if [ -r "$HOME/.config/zsh/lib/message.sh" ]; then
     . "$HOME/.config/zsh/lib/message.sh" || true
 fi
 
-here=$(cd "$(dirname "$0")" && pwd)
-
 # The root half ran before this script - the engine's call, as WSL's own
 # root, ahead of the passwordless door. What is left here is the user's own
 # part.

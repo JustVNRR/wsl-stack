@@ -26,8 +26,6 @@ fi
 clean_path=$HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export PATH=$clean_path
 
-here=$(cd "$(dirname "$0")" && pwd)
-
 # The root half ran before this script - the engine's call, as WSL's own
 # root, ahead of the passwordless door. What is left here is the user's own
 # part.
