@@ -167,6 +167,19 @@ $btnTheme.Add_Click({
     & $SetStatus "The window wears '$($GuiSettings.ColourSet)', $worn version."
 })
 
+# The build's own watcher, beside the row jobs': the form's run opens a
+# console of its own - no trail to read, the console IS the log - and this
+# only asks when it has ended, then rereads the fleet so the new instance
+# shows up without the refresh button. Script level, for the reason the job
+# watcher is: the tick reads the scope the click handler writes.
+$WatchBuild = {
+    if ($null -eq $script:BuildChild -or -not $script:BuildChild.HasExited) { return }
+    $script:BuildWatch.Stop()
+    $script:BuildChild = $null
+    & $LoadFleet
+    & $SetStatus "The build ended - the fleet was reread."
+}
+
 # Add: the form first, then the run in a console window of its own - the real
 # entry, not a copy of it, so the console's build and this one cannot drift
 # apart. It stays interactive there: the account the image already carries,
@@ -182,10 +195,14 @@ $btnAdd.Add_Click({
     $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
     $BuildScript = Join-Path $PSScriptRoot "build.ps1"
     $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\BuildRunner.ps1"
-    $null = Start-Process pwsh -ArgumentList @(
+    $script:BuildChild = Start-Process pwsh -PassThru -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
         "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"", "`"$ModulePath`"", "`"$BuildScript`""
     )
+    $script:BuildWatch = New-Object System.Windows.Threading.DispatcherTimer
+    $script:BuildWatch.Interval = [TimeSpan]::FromMilliseconds(1000)
+    $script:BuildWatch.Add_Tick($WatchBuild)
+    $script:BuildWatch.Start()
     & $SetStatus "Creating '$($form.Name)' in a window of its own."
 })
 $lstInstances.AddHandler([System.Windows.Controls.Button]::ClickEvent, $RowAction)

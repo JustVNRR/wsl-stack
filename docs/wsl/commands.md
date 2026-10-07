@@ -142,8 +142,9 @@ instance - name, user and packs in one form, a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
-opening the fresh instance in its own window; the refresh, which rereads
-the fleet; and the gear, the window's own
+opening the fresh instance in its own window — the fleet list rereads
+itself the moment the run ends; the refresh, which rereads the fleet by
+hand; and the gear, the window's own
 face - the font, its size and its colour theme, dark and light versions
 shipped (assets\colours) - with the sun and the moon beside it, switching
 the current theme's version on the spot.
