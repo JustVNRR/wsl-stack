@@ -351,7 +351,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │                            # from an archive, removing an instance, the
 │                            # window's own files - the XAML, the theme's
 │                            # keys, the colour sets, the runners' calls -
-│                            # and doc drift
+│                            # the module's surface, and doc drift
 │   ├── fake-docker/         # That stand-in: answers the preflight, fails the import
 │   └── fake-wsl/            # And the suites that drive wsl: logs every call, writes
 │                            # what an export would, creates what an import would
@@ -409,7 +409,7 @@ Two GitHub Actions workflows, in `.github/workflows/`:
 
 | Workflow | Runs on | What it proves |
 | :--- | :--- | :--- |
-| `ci.yml` — Checks | every push, PRs onto `main` | shellcheck, `zsh -n`, the colour codes confined to their files, the makefile parses with a complete help menu, docs and cheatsheets in sync with the `gmake` modules — then fourteen suites on Windows drive the real code under PowerShell 7 |
+| `ci.yml` — Checks | every push, PRs onto `main` | shellcheck, `zsh -n`, the colour codes confined to their files, the makefile parses with a complete help menu, docs and cheatsheets in sync with the `gmake` modules — then fifteen suites on Windows drive the real code under PowerShell 7 |
 | `image.yml` — Rootfs image build | every push, PRs onto `main`, weekly, manual | the Dockerfile still resolves end to end: apt repositories, download URLs, git clones |
 
 They check the **repository** — the files, and the code run against stand-ins,
