@@ -416,15 +416,94 @@ function Show-PackEditor {
 }
 
 # -----------------------------------------------------------------------------
+# THE BUILD'S RECIPE - THE FORM'S LISTS AND UPLOADS, WINDOW-SIDE
+# -----------------------------------------------------------------------------
+# The files a build may start from: the repository's own first - the default,
+# what a build without a choice has always used - then whatever was uploaded.
+# An upload lands in a slot of its own under the assets, named <file>-<sha1-8>
+# and holding the file under its plain name (Dockerfile, first_boot.sh): the
+# fonts' own convention (the upload button in Show-GuiSettings) - the same
+# file uploaded again lands in the same slot, and a changed file takes a path
+# no reader has seen.
+function Get-GuiBuildRecipes {
+    param([string]$AssetsDir)
+
+    $repo = Split-Path -Path $AssetsDir -Parent
+    $dockerfiles = [System.Collections.Generic.List[object]]::new()
+    $firstboots = [System.Collections.Generic.List[object]]::new()
+
+    $dockerfiles.Add([PSCustomObject]@{
+        Name = "Dockerfile (default)"
+        Path = (Join-Path $repo "src\distro\build\Dockerfile")
+    })
+    $firstboots.Add([PSCustomObject]@{
+        Name = "first_boot.sh (default)"
+        Path = (Join-Path $repo "src\distro\build\first_boot.sh")
+    })
+
+    # A slot counts only when its file is there - a folder half-copied is not
+    # a recipe, and neither is one whose file was deleted since.
+    $dockerRoot = Join-Path $AssetsDir "dockerfiles"
+    if (Test-Path $dockerRoot) {
+        foreach ($slot in @(Get-ChildItem $dockerRoot -Directory | Sort-Object Name)) {
+            $file = Join-Path $slot.FullName "Dockerfile"
+            if (Test-Path $file) {
+                $dockerfiles.Add([PSCustomObject]@{
+                    Name = "$($slot.Name -replace '-[0-9a-f]{8}$', '') (uploaded)"
+                    Path = $file
+                })
+            }
+        }
+    }
+    $bootRoot = Join-Path $AssetsDir "firstboots"
+    if (Test-Path $bootRoot) {
+        foreach ($slot in @(Get-ChildItem $bootRoot -Directory | Sort-Object Name)) {
+            $file = Join-Path $slot.FullName "first_boot.sh"
+            if (Test-Path $file) {
+                $firstboots.Add([PSCustomObject]@{
+                    Name = "$($slot.Name -replace '-[0-9a-f]{8}$', '') (uploaded)"
+                    Path = $file
+                })
+            }
+        }
+    }
+    return [PSCustomObject]@{ Dockerfiles = $dockerfiles; FirstBoots = $firstboots }
+}
+
+# One uploaded recipe file into its slot, answering where it landed. A
+# Dockerfile brings its .dockerignore sibling along when there is one, under
+# the very name a builder reads beside a `-f` Dockerfile
+# (Dockerfile.dockerignore) - without one, the whole checkout is sent to the
+# Docker daemon.
+function Copy-GuiBuildRecipe {
+    param([string]$AssetsDir, [string]$Kind, [string]$Source, [string]$FileName)
+
+    $fingerprint = (Get-FileHash -LiteralPath $Source -Algorithm SHA1).Hash.Substring(0, 8).ToLower()
+    $slot = Join-Path (Join-Path $AssetsDir $Kind) ("$([IO.Path]::GetFileNameWithoutExtension($Source))-$fingerprint")
+    $null = New-Item -ItemType Directory -Path $slot -Force
+    $target = Join-Path $slot $FileName
+    Copy-Item -LiteralPath $Source -Destination $target -Force
+    if ($FileName -eq "Dockerfile") {
+        $sibling = Join-Path ([IO.Path]::GetDirectoryName($Source)) ".dockerignore"
+        if (Test-Path $sibling) {
+            Copy-Item -LiteralPath $sibling -Destination (Join-Path $slot "Dockerfile.dockerignore") -Force
+        }
+    }
+    return $target
+}
+
+# -----------------------------------------------------------------------------
 # A NEW INSTANCE - THE ADD FORM, WINDOW-SIDE
 # -----------------------------------------------------------------------------
 # build's first questions, answered in one window: the name - a name that
-# exists is refused here, this road offers no destruction - and the user name,
-# the Windows account's cleaned form prefilled. Both checked live, the red
-# line under the box saying what is wrong. The packs are the same checklist as
-# the editor's. Returns { Name; User; Packs }, or $null when cancelled; the
-# run itself then gets a console window of its own, because it is long, it is
-# loud, and it still has questions only it can ask.
+# exists is refused here, this road offers no destruction - the user name, the
+# Windows account's cleaned form prefilled, both checked live (the red line
+# under the box saying what is wrong), the build's recipe (the Dockerfile and
+# the first_boot: a list each, opening on the repository's own files, an
+# upload button beside it) and the packs, the same checklist as the editor's.
+# Returns { Name; User; Dockerfile; FirstBoot; Packs }, or $null when
+# cancelled; the run itself then gets a console window of its own, because it
+# is long, it is loud, and it still has questions only it can ask.
 function Show-AddInstance {
     param($Catalog, [string]$ProposedUser, [string]$InstancesRoot, $Manager)
 
@@ -482,6 +561,80 @@ function Show-AddInstance {
     & $CheckName
     & $CheckUser
 
+    # The build's recipe: two lists - each opening on the repository's own
+    # file - and an upload button beside each. Lists, not arrays, for the
+    # reason the font picker's is one: the handlers below append by method,
+    # and a scriptblock's `+=` would assign a local copy (measured there).
+    $recipes = Get-GuiBuildRecipes -AssetsDir $AssetsDir
+    $dockerChoices = [System.Collections.Generic.List[object]]::new()
+    $bootChoices = [System.Collections.Generic.List[object]]::new()
+    $cmbDockerfile = $form.FindName("CmbDockerfile")
+    $cmbFirstBoot = $form.FindName("CmbFirstBoot")
+    foreach ($choice in $recipes.Dockerfiles) {
+        $dockerChoices.Add($choice)
+        $null = $cmbDockerfile.Items.Add("$($choice.Name)")
+    }
+    foreach ($choice in $recipes.FirstBoots) {
+        $bootChoices.Add($choice)
+        $null = $cmbFirstBoot.Items.Add("$($choice.Name)")
+    }
+    $cmbDockerfile.SelectedIndex = 0
+    $cmbFirstBoot.SelectedIndex = 0
+
+    # The file dialog's Enter lands on the owner once it closes, and the
+    # default button answers it - the form would create on a keystroke meant
+    # for the dialog (measured in the settings window). After each pick, the
+    # Enter's pair is eaten off the window.
+    $script:EatEnter = $false
+    $form.Add_PreviewKeyDown({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) { $e.Handled = $true }
+    })
+    $form.Add_PreviewKeyUp({
+        param($source, $e)
+        if ($script:EatEnter -and $e.Key -eq [System.Windows.Input.Key]::Enter) {
+            $script:EatEnter = $false
+            $e.Handled = $true
+        }
+    })
+
+    $form.FindName("BtnDockerfileUpload").Add_Click({
+        $dialog = New-Object Microsoft.Win32.OpenFileDialog
+        $dialog.Title = "A Dockerfile for the build"
+        $dialog.Filter = "Dockerfiles (Dockerfile*)|Dockerfile*|All files (*.*)|*.*"
+        $picked = $dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -ne $true) { return }
+        try {
+            $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "dockerfiles" -Source $dialog.FileName -FileName "Dockerfile"
+        } catch { return }
+        $row = [PSCustomObject]@{
+            Name = "$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) (uploaded)"
+            Path = $target
+        }
+        $dockerChoices.Add($row)
+        $null = $cmbDockerfile.Items.Add("$($row.Name)")
+        $cmbDockerfile.SelectedIndex = $cmbDockerfile.Items.Count - 1
+    })
+    $form.FindName("BtnFirstBootUpload").Add_Click({
+        $dialog = New-Object Microsoft.Win32.OpenFileDialog
+        $dialog.Title = "A first_boot script for the build"
+        $dialog.Filter = "Shell scripts (*.sh)|*.sh|All files (*.*)|*.*"
+        $picked = $dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -ne $true) { return }
+        try {
+            $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "firstboots" -Source $dialog.FileName -FileName "first_boot.sh"
+        } catch { return }
+        $row = [PSCustomObject]@{
+            Name = "$([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) (uploaded)"
+            Path = $target
+        }
+        $bootChoices.Add($row)
+        $null = $cmbFirstBoot.Items.Add("$($row.Name)")
+        $cmbFirstBoot.SelectedIndex = $cmbFirstBoot.Items.Count - 1
+    })
+
     $script:AddResult = $null
     $form.FindName("BtnAddCancel").Add_Click({ $script:AddResult = $null; $form.Close() })
     $form.FindName("BtnAddCreate").Add_Click({
@@ -490,9 +643,11 @@ function Show-AddInstance {
         & $CheckUser
         if ($script:AddNameOk -and $script:AddUserOk) {
             $script:AddResult = [PSCustomObject]@{
-                Name  = $txtName.Text.Trim()
-                User  = $txtUser.Text.Trim()
-                Packs = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
+                Name       = $txtName.Text.Trim()
+                User       = $txtUser.Text.Trim()
+                Dockerfile = $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path
+                FirstBoot  = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path
+                Packs      = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
             }
             $form.Close()
         }

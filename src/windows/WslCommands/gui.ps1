@@ -197,7 +197,9 @@ $btnAdd.Add_Click({
     $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\BuildRunner.ps1"
     $script:BuildChild = Start-Process pwsh -PassThru -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
-        "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"", "`"$ModulePath`"", "`"$BuildScript`""
+        "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"",
+        "`"$($form.Dockerfile)`"", "`"$($form.FirstBoot)`"",
+        "`"$ModulePath`"", "`"$BuildScript`""
     )
     $script:BuildWatch = New-Object System.Windows.Threading.DispatcherTimer
     $script:BuildWatch.Interval = [TimeSpan]::FromMilliseconds(1000)

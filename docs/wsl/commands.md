@@ -138,7 +138,12 @@ scrolling its band while it works - the archive is kept; the trash opens a
 gate of the same manners as the instance's - what is lost, spelled out, and
 the exact name typed back - and the folder goes for good, tar and look
 together. The header carries its icons beside the title: **+**, a new
-instance - name, user and packs in one form, a name that already exists
+instance - name, user, the build's recipe and packs in one form: the
+**Dockerfile** and the **first_boot** are two lists, each opening on the
+repository's own file, an upload button beside it putting yours under
+`assets\dockerfiles\` or `assets\firstboots\` (same file uploaded again, same
+slot - the fonts' own convention, and a Dockerfile brings its `.dockerignore`
+along) - a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
@@ -201,7 +206,8 @@ included; the build's console closes with the run.
 It asks for the name, for the folder, for the user the instance will open as,
 and — when this checkout carries packs — which of them the instance should
 start with. Two options name the **recipe**, and without them the
-repository's own files are used:
+repository's own files are used (the window's form, `gui`, offers the same
+two as lists):
 
 ```powershell
 .\wsl.ps1 build -Dockerfile <path> -FirstBoot <path>

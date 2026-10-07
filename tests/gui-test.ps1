@@ -2,9 +2,11 @@
 # be well-formed XML, every resource reference - in the theme and in the
 # windows - must name a key the theme itself defines (or one the code sets),
 # the colour sets under assets\colours must be well-formed and tell only keys
-# the theme knows, and the three runners must parse and keep calling the
-# engine's ways. Before the split this markup lived inside gui.ps1 and rode
-# along in parse-check; on disk, nothing else in the repository reads it.
+# the theme knows, every control a controller looks up by FindName must exist
+# in some window's markup, and the three runners must parse and keep calling
+# the engine's ways - the build form's positional chain pinned at both ends.
+# Before the split this markup lived inside gui.ps1 and rode along in
+# parse-check; on disk, nothing else in the repository reads it.
 #
 # Usage:  pwsh -NoProfile -File tests\gui-test.ps1
 
@@ -80,7 +82,7 @@ $pins = @(
     @{ File = "JobRunner.ps1";   Pattern = 'Archive\(\$inst, \$ArchiveFirst, "tar\.gz"\)';        What = "Archive(inst, name, tar.gz)" },
     @{ File = "JobRunner.ps1";   Pattern = 'Duplicate\(\$inst, \$ArchiveFirst\)';                 What = "Duplicate(inst, name)" },
     @{ File = "EditRunner.ps1";  Pattern = 'ManagePacks\(\$inst, \$toAdd, \$toRemove, ""\)';      What = 'ManagePacks(inst, add, remove, "")' },
-    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Manager \$mgr'; What = "build.ps1 with its named arguments" }
+    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Manager \$mgr'; What = "build.ps1 with its named arguments" }
 )
 foreach ($pin in $pins) {
     $runnerPath = Join-Path $GuiRoot "Runners\$($pin.File)"
@@ -90,6 +92,31 @@ foreach ($pin in $pins) {
     }
 }
 Write-Host "$($runners.Count) runner(s) read, $($pins.Count) call(s) pinned."
+
+# 3b. The build form's answers ride POSITIONALLY from gui.ps1's ArgumentList
+# into BuildRunner's param line, and a drift between the two is silent - every
+# answer landing one slot off. Both ends are pinned: the param line whole
+# (order included) and the form fields' order in the argument list.
+$paramLine = 'param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Module, [string]$BuildScript)'
+$buildRunnerPath = Join-Path $GuiRoot "Runners\BuildRunner.ps1"
+if ([IO.File]::ReadAllText($buildRunnerPath) -notmatch [regex]::Escape($paramLine)) {
+    Write-Host "::error file=$buildRunnerPath::the param line (order included) is not the one gui.ps1 feeds"
+    $bad = 1
+}
+$guiPath = Join-Path $PSScriptRoot "..\src\windows\WslCommands\gui.ps1"
+$guiSrc = [IO.File]::ReadAllText($guiPath)
+$at = 0
+$ordered = $true
+foreach ($field in @('$($form.Name)', '$($form.User)', '$($form.Packs', '$($form.Dockerfile)', '$($form.FirstBoot)')) {
+    $i = $guiSrc.IndexOf($field, $at, [StringComparison]::Ordinal)
+    if ($i -lt 0) { $ordered = $false; break }
+    $at = $i
+}
+if (-not $ordered) {
+    Write-Host "::error file=$guiPath::the build form's ArgumentList lost a field or its order"
+    $bad = 1
+}
+Write-Host "the build form's positional chain: pinned."
 
 # 4. The colour sets: well-formed, and every key they tell - the Dark and
 #    Light block names excepted - exists in the theme. A misspelled one is
@@ -114,6 +141,25 @@ foreach ($f in $setFiles) {
     }
 }
 Write-Host "$($setFiles.Count) colour set(s) read."
+
+# 5. Every control a controller looks up by name must exist in some window's
+#    markup: a typo here is not a red line but a crash at the popup's open,
+#    in the one place no suite can open. The .xaml files are the truth, all
+#    of them together - each FindName must land on a Name= somewhere.
+$allXaml = [string]::Join("`n", @($xamlFiles | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }))
+$names = @()
+foreach ($f in @(Get-ChildItem (Join-Path $PSScriptRoot "..\src\windows") -Recurse -Filter *.ps1)) {
+    foreach ($m in [regex]::Matches([IO.File]::ReadAllText($f.FullName), 'FindName\("([A-Za-z0-9]+)"\)')) {
+        $names += $m.Groups[1].Value
+    }
+}
+$missingNames = @($names | Sort-Object -Unique | Where-Object { $allXaml -notmatch ('Name="' + [regex]::Escape($_) + '"') })
+if ($missingNames.Count -gt 0) {
+    Write-Host "::error file=$GuiRoot::a FindName names a control no window declares"
+    Write-Host "  missing: $($missingNames -join ', ')"
+    $bad = 1
+}
+Write-Host "$($names.Count) FindName call(s) read, $(@($names | Sort-Object -Unique).Count) name(s) found in the markup."
 
 Write-Host "gui: $($xamlFiles.Count + $runners.Count + $setFiles.Count) file(s), $bad failure(s)."
 exit $bad

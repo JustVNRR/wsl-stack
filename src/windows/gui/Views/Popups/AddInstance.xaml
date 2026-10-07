@@ -11,6 +11,24 @@
         <TextBlock Margin="0,12,0,0" Text="User name:"/>
         <TextBox Name="TxtUser" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
         <TextBlock Name="TxtUserError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+        <TextBlock Margin="0,12,0,0" Text="Dockerfile:"/>
+        <Grid Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Name="CmbDockerfile" Grid.Column="0"/>
+            <Button Name="BtnDockerfileUpload" Grid.Column="1" Content="Upload a Dockerfile..." Margin="8,0,0,0"/>
+        </Grid>
+        <TextBlock Margin="0,12,0,0" Text="First boot:"/>
+        <Grid Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
+            <Button Name="BtnFirstBootUpload" Grid.Column="1" Content="Upload a first_boot..." Margin="8,0,0,0"/>
+        </Grid>
         <TextBlock Margin="0,12,0,0" Text="Packs:"/>
         <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
             <StackPanel Name="Boxes"/>
