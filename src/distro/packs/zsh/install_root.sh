@@ -48,7 +48,9 @@ apt-get -qq update
 # gh and eza install from there. Each is registered only when its keyring is
 # missing - on the built image both are already in place.
 if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ] || [ ! -f /etc/apt/keyrings/gierens.gpg ]; then
-    mkdir -p -m 755 /etc/apt/keyrings
+    # install -d, not `mkdir -p -m`: with -p the -m only reaches the deepest
+    # directory, which is exactly the one that must be world-readable.
+    install -d -m 0755 /etc/apt/keyrings
     apt_install ca-certificates curl gnupg
 fi
 if [ ! -f /etc/apt/keyrings/githubcli-archive-keyring.gpg ]; then
@@ -97,6 +99,9 @@ fi
 # only when missing, never rewritten.
 if [ -d /etc/skel ]; then
     if [ ! -e /etc/skel/.zshenv ]; then
+        # The single quotes are the point: this line goes into the file as
+        # written, and the variable must expand in the login shell, not here.
+        # shellcheck disable=SC2016
         printf '%s\n%s\n' 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' 'skip_global_compinit=1' > /etc/skel/.zshenv
     fi
     if [ ! -e /etc/skel/.config/zsh ]; then

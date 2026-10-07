@@ -102,6 +102,9 @@ done
 
 # The .zshenv, only when it is exactly the one the install wrote: a file of
 # your own was never touched on the way in, and is not touched on the way out.
+# The single quotes are the point: the comparison is against the literal line
+# the install writes - the variable expands in the login shell, not here.
+# shellcheck disable=SC2016
 if [ -e "$HOME/.zshenv" ] && [ "$(cat "$HOME/.zshenv")" = "$(printf '%s\n%s' 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' 'skip_global_compinit=1')" ]; then
     rm -f "$HOME/.zshenv"
 fi

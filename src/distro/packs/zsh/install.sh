@@ -78,6 +78,9 @@ cp -r "$here/config/." "$HOME/.config/zsh/"
 # The one line that points zsh at the socle. A ~/.zshenv of your own is never
 # touched: either it already does this, or it is told what to add.
 if [ ! -e "$HOME/.zshenv" ]; then
+    # The single quotes are the point: this line goes into the file as
+    # written, and the variable must expand in the login shell, not here.
+    # shellcheck disable=SC2016
     printf '%s\n%s\n' 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' 'skip_global_compinit=1' > "$HOME/.zshenv"
 elif ! grep -q 'ZDOTDIR' "$HOME/.zshenv"; then
     echo "NOTE: ~/.zshenv exists and does not set ZDOTDIR - the socle will not"
