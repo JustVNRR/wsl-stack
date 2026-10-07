@@ -129,4 +129,4 @@ if ($Report.Archive) {
 
 Write-Host ""
 Write-Host " Restart Windows Terminal to refresh the profile list."
-Write-Host ""
+Write-Host ""

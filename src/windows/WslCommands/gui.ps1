@@ -21,7 +21,7 @@ $GuiRoot = Join-Path $PSScriptRoot "..\gui"
 . (Join-Path $GuiRoot "Controllers\Jobs.ps1")
 . (Join-Path $GuiRoot "Controllers\Popups.ps1")
 . (Join-Path $GuiRoot "Controllers\Fleet.ps1")
-$AssetsDir = Join-Path $PSScriptRoot "..\..\assets"
+$AssetsDir = Join-Path $PSScriptRoot "..\..\..\assets"
 $GuiSettings = Get-GuiSettings
 $GuiFonts = Initialize-GuiFonts -AssetsDir $AssetsDir
 # The saved face, resolved to its object; a name that matches nothing - a
@@ -241,6 +241,11 @@ $frame = [System.Windows.Threading.DispatcherFrame]::new()
 $window.Add_Closed({ $frame.Continue = $false })
 try {
     $window.Show()
+    # The keys need a focus to travel from - a window with no focused
+    # element listens to nothing (measured: Q and Escape were dead until
+    # the list was clicked). The list takes it at launch, so the window
+    # starts in the state a click would give it.
+    $null = $lstInstances.Focus()
     [System.Windows.Threading.Dispatcher]::PushFrame($frame)
 } finally {
     # Whichever way the pump came back - not only the window's own close

@@ -13,7 +13,7 @@
 $bad = 0
 
 $ClassOrder = @("WslState.psm1", "WslTheme.psm1", "WslPack.psm1", "WslInstance.psm1", "WslPackCatalog.psm1", "WslInstanceManager.psm1")
-$ClassesDir = Join-Path $PSScriptRoot "..\scripts\WslModel"
+$ClassesDir = Join-Path $PSScriptRoot "..\src\windows\WslModel"
 $ClassPaths = @()
 foreach ($ClassLib in $ClassOrder) {
     $ClassPath = Join-Path $ClassesDir $ClassLib
@@ -23,7 +23,7 @@ foreach ($ClassLib in $ClassOrder) {
 # The menus file carries classes of its own, and the suites' fake console
 # derives from one of them: read as one text after the classes - the order the
 # runtime uses - and read nowhere else.
-$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\scripts\WslUI.psm1")).FullName)
+$ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "..\src\windows\WslUI.psm1")).FullName)
 $ClassPaths += @((Get-Item (Join-Path $PSScriptRoot "fake-console.ps1")).FullName)
 
 $errors = $null

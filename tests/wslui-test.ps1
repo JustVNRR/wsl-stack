@@ -1,5 +1,5 @@
 # The classes this file names, pulled in by the file itself.
-using module ..\scripts\WslUI.psm1
+using module ..\src\windows\WslUI.psm1
 
 # Drives the way in's menu with a scripted console: the arrow loop and the
 # numbered prompt run with no console in sight, which is the only way to test
@@ -14,7 +14,7 @@ using module ..\scripts\WslUI.psm1
 # Usage:  pwsh -File tests\wslui-test.ps1
 #
 $ErrorActionPreference = "Stop"
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 . (Join-Path $PSScriptRoot "fake-console.ps1")
 
 $Failures = 0

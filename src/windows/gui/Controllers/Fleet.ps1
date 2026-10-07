@@ -269,7 +269,7 @@ $RowAction = [System.Windows.RoutedEventHandler]{
     if ($button.Name -eq "BtnRowAppearance") {
         # Everything the form shows, read from the module and the icon script:
         # the lists the console's theme menu shows, so the two cannot drift.
-        $IconScript = (Resolve-Path (Join-Path $GuiRoot "..\..\assets\make-icon.ps1")).Path
+        $IconScript = (Resolve-Path (Join-Path $GuiRoot "..\make-icon.ps1")).Path
         $appearance = Get-InstanceAppearance -Name $inst.Name
         $recipe = Get-IconRecipe -Name $inst.Name
         $suggested = if ($recipe -and $recipe.Text) {

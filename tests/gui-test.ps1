@@ -9,7 +9,7 @@
 # Usage:  pwsh -NoProfile -File tests\gui-test.ps1
 
 $bad = 0
-$GuiRoot = Join-Path $PSScriptRoot "..\scripts\gui"
+$GuiRoot = Join-Path $PSScriptRoot "..\src\windows\gui"
 
 # 1. The XAML files: well-formed XML, each one.
 $xamlFiles = @(Get-ChildItem $GuiRoot -Recurse -Filter *.xaml)

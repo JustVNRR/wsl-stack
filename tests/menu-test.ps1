@@ -1,5 +1,5 @@
 # The classes this file names, pulled in by the file itself.
-using module ..\scripts\WslUI.psm1
+using module ..\src\windows\WslUI.psm1
 
 # Drives the menu classes with a scripted console: the arrow loop runs with no
 # terminal in sight, which is the only way to test it. The console is a
@@ -15,7 +15,7 @@ using module ..\scripts\WslUI.psm1
 # copy is a copy that drifts, and that is exactly what happened once.
 #
 $ErrorActionPreference = "Stop"
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 . (Join-Path $PSScriptRoot "fake-console.ps1")
 
 $Failures = 0

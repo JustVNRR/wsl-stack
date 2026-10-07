@@ -385,8 +385,8 @@ class WslInstance {
             # -What: the letters and colours read back into the instance's file,
             # so a later change of one keeps the other. -Quiet: nothing said
             # about a drawing that worked. In a method, $PSScriptRoot is this
-            # file's folder - two levels under the repository's root.
-            $IconScript = Join-Path $PSScriptRoot "..\..\assets\make-icon.ps1"
+            # file's folder - under scripts\, where the icon script lives.
+            $IconScript = Join-Path $PSScriptRoot "..\make-icon.ps1"
             $Drawn = & $IconScript -Name $this.Name -Out $IconPath -Quiet -What | ConvertFrom-Json
             $IconDrawn = $true
             $Icon = @{ Text = $Drawn.Text; Top = $Drawn.Top; Bottom = $Drawn.Bottom; TextColor = $Drawn.TextColor }
@@ -481,7 +481,7 @@ class WslInstance {
                 if ("$Key" -ne "Name") { $Draw[$Key] = $Recipe[$Key] }
             }
         }
-        $Drawn = & (Join-Path $PSScriptRoot "..\..\assets\make-icon.ps1") @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
+        $Drawn = & (Join-Path $PSScriptRoot "..\make-icon.ps1") @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
 
         $Icon = @{
             Text      = $Drawn.Text

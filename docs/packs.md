@@ -4,7 +4,7 @@
 
 A pack is optional tooling — a CLI the image does not ship, the gmake targets
 that drive it, the shell commands, the variables it reads — and the two scripts
-that install and remove it, all of it living in one folder under `packs/`. The
+that install and remove it, all of it living in one folder under `src/distro/packs/`. The
 socle knows nothing about any particular pack: it finds the folders and loads
 what they carry. Adding a pack touches no file outside that folder.
 
@@ -14,7 +14,7 @@ targets, a tool, or both — `devops` is targets only, `vision` a tool only.
 ## The folder
 
 ```text
-packs/<name>/
+src/distro/packs/<name>/
 ├── pack.conf              # what the socle and the installer read
 ├── install.sh             # what `.\wsl.ps1 add_pack` runs inside the instance
 ├── install_root.sh        # what needs root, run by install.sh as one sudo
@@ -65,7 +65,7 @@ files make loaded, so a pack whose folder is gone contributes no line at all.
 A pack's targets are ordinary ones, with one thing they can declare: a target
 that only makes sense from `~/projects` (scaffolding) says so in its module —
 `SCAFFOLD_GOALS += copier_project cruft_project ccds_project`, in
-`packs/scaffold/make/project-setup.mk` — and the location gate in the Makefile
+`src/distro/packs/scaffold/make/project-setup.mk` — and the location gate in the Makefile
 reads that declaration. The gate is checked after the modules are loaded,
 precisely so it can: `$(error)` fires when make *reads* the line.
 

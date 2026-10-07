@@ -1,7 +1,7 @@
 # Instance Administration
 
 `wsl.ps1`, at the root of the repository, is the only thing to type. The
-commands themselves live in `scripts\`.
+commands themselves live in `src\windows\`.
 
 ```powershell
 .\wsl.ps1               # which command? - the menu below
@@ -112,8 +112,9 @@ on each row, its verbs: **open** (a new terminal window on the instance's
 own profile - its icon, colours and font ride along - where `shell` would
 borrow the console), **start** or **stop** (whichever the state allows),
 **edit** (the packs: tickboxes with the same rules as `manage_packs` -
-requirements and removals shown live underneath, with their reasons - and
-the run opens in a console window of its own, where the déroulé, the same
+requirements and removals shown live underneath, with their reasons, and its
+APPLY greys while there is nothing to do - the run opens in a console window
+of its own, where the déroulé, the same
 lines `manage_packs` prints, can be watched), **appearance** (the look:
 icon letters and colours, font and colour scheme - the same lists the
 `theme` menu shows, note included - or an image of your own through the
@@ -135,11 +136,15 @@ cancels), then imports through the same engine `restore` uses, the row
 scrolling its band while it works - the archive is kept; the trash opens a
 gate of the same manners as the instance's - what is lost, spelled out, and
 the exact name typed back - and the folder goes for good, tar and look
-together. Two icons sit up in the header beside the title: **+**, a new
+together. The header carries its icons beside the title: **+**, a new
 instance - name, user and packs in one form, a name that already exists
-refused right there - whose run then opens a console window of its own
+refused right there, and a Docker that is not running offered its start
+right over the form - whose run then opens a console window of its own
 (Docker's questions and the first shell included, since only it can ask
-them); and the refresh, which rereads the fleet.
+them); the refresh, which rereads the fleet; and the gear, the window's own
+face - the font, its size and its colour theme, dark and light versions
+shipped (assets\colours) - with the sun and the moon beside it, switching
+the current theme's version on the spot.
 Nothing here exists only in the window: it is a keystroke-free way in, not a
 second engine.
 
@@ -159,7 +164,7 @@ Instances of this template:
    2.  ubuntu-template    stopped       2.4 GB  D:\WSL\ubuntu-template
 
 Archives in D:\WSL\archives (most recent first):
-      ubuntu-template            28.8 MB  2026-09-23 16:50
+      ubuntu-template            29 MB    2026-09-23 16:50
 ```
 
 ### Folders left behind by an unregistered instance
@@ -725,7 +730,7 @@ It then shows the archives already taken and proposes the instance's own name:
 
 ```text
 Archives already in D:\WSL\archives:
-  ubuntu-template                    28.8 MB  2026-09-22 09:12
+  ubuntu-template                    29 MB    2026-09-22 09:12
 
 Name of the archive? [ubuntu-template]
 ```
@@ -762,8 +767,8 @@ It lists the archives, most recent first, and you pick one:
 
 ```text
 Archives in D:\WSL\archives (most recent first):
-   1.  ubuntu-template  -  28.8 MB, 2026-09-23 16:50
-   2.  template-bac     -  31.4 MB, 2026-09-22 09:12
+   1.  ubuntu-template  -  29 MB, 2026-09-23 16:50
+   2.  template-bac     -  31 MB, 2026-09-22 09:12
    0.  Cancel
 ```
 

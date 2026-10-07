@@ -23,14 +23,14 @@
 $ErrorActionPreference = "Stop"
 
 # For Get-Distros and the marker test: the list the command itself builds.
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
-$StartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\start.ps1"
-$RestartScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\restart.ps1"
-$StopScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\stop.ps1"
-$ShellScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\shell.ps1"
-$ShrinkScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\shrink.ps1"
-$ListScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\list.ps1"
+$StartScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\start.ps1"
+$RestartScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\restart.ps1"
+$StopScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\stop.ps1"
+$ShellScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\shell.ps1"
+$ShrinkScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\shrink.ps1"
+$ListScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\list.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

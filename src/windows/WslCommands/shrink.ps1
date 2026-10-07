@@ -91,4 +91,4 @@ if ($Result.WasRunning) {
         Write-Host "Could not start '$DistroName' - start it with: wsl -d $DistroName" -ForegroundColor (Get-MessageColour warning)
     }
     Write-Host ""
-}
+}

@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 # Terminal window (WT_PROFILE_ID set) must answer like one anywhere else, so
 # the theme below is the only one in play.
 Remove-Item Env:\WT_PROFILE_ID -ErrorAction SilentlyContinue
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
 $Failures = 0
 function Check {

@@ -86,4 +86,4 @@ Update-TerminalSettings
 
 # And nothing is said: the change is in the tab, and a line explaining that
 # would be one line too many.
-exit 0
+exit 0

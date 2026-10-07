@@ -17,11 +17,12 @@
 # whoever called in what shape (measured in the questions next door).
 using module ..\WslModel\WslModel.psd1
 
-# Where the packs live, and the cleanup that travels with a removal. Read here,
-# at load time, and not inside the functions: $PSScriptRoot means the file being
-# executed, and a function belongs to whichever script called it.
-$PacksRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "packs"
-$OrphanCleanupScript = Join-Path (Split-Path $PSScriptRoot -Parent) "cleanup_orphans.sh"
+# Where the packs live, and the cleanup that travels with a removal - the
+# script sits IN the packs folder, where it moves with them. Read here, at
+# load time, and not inside the functions: $PSScriptRoot means the file
+# being executed, and a function belongs to whichever script called it.
+$PacksRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "distro\packs"
+$OrphanCleanupScript = Join-Path $PacksRoot "cleanup_orphans.sh"
 
 # The catalog of packs this checkout carries, read by the model: the line a
 # menu shows, the folder to copy from, the declarations both checklists read -
@@ -216,8 +217,12 @@ function Invoke-PackOrphanCleanup {
 
     $RemoteScript = "/tmp/cleanup_orphans.sh"
     $Sent = 0
+    # The copy's working directory is the script's OWN folder, wherever it
+    # lives: the old $PSScriptRoot named this module's folder, where the
+    # file never sat - the copy failed there, silently (measured when the
+    # script came home to the packs).
     Invoke-InInstance -DistroName $DistroName -Command @("cp", "cleanup_orphans.sh", $RemoteScript) `
-        -WorkingDirectory $PSScriptRoot -ExitCode ([ref]$Sent) -Quiet
+        -WorkingDirectory (Split-Path $OrphanCleanupScript -Parent) -ExitCode ([ref]$Sent) -Quiet
     if ($Sent -ne 0) { return $false }
 
     Invoke-PackScript -DistroName $DistroName -Target "/tmp" -Script "cleanup_orphans.sh" -ExitCode $ExitCode -AsRoot

@@ -13,7 +13,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$IconScript = Join-Path $PSScriptRoot "..\assets\make-icon.ps1"
+$IconScript = Join-Path $PSScriptRoot "..\src\windows\make-icon.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

@@ -1,7 +1,7 @@
 # The classes this file names, pulled in by the file itself: the menu is
 # built from [WslMenu] rows below, and the manager below that.
-using module .\scripts\WslModel\WslModel.psd1
-using module .\scripts\WslUI.psm1
+using module .\src\windows\WslModel\WslModel.psd1
+using module .\src\windows\WslUI.psm1
 
 [CmdletBinding()]
 param (
@@ -15,7 +15,7 @@ param (
 )
 
 # ==============================================================================
-# THE WAY IN: one command at the root, the commands themselves in scripts\WslCommands\
+# THE WAY IN: one command at the root, the commands themselves in src\windows\WslCommands\
 # ==============================================================================
 # Bare, it asks which command: the list, walked with the arrows and taken with
 # Enter, Escape to cancel. With a command, it runs it.
@@ -34,12 +34,12 @@ param (
 # visible to every command launched below (they run in this session), and THE
 # manager is made here too - the engine every command calls, handed over.
 #
-# The list is asked through scripts\WslUI.psm1: one WslMenuItem per row of the
+# The list is asked through src\windows\WslUI.psm1: one WslMenuItem per row of the
 # chain below - the word, the line, the gesture - and the trio answers both
 # ways in, the menu and the command line alike.
 # ==============================================================================
 
-$Scripts = Join-Path $PSScriptRoot "scripts"
+$Scripts = Join-Path $PSScriptRoot "src\windows"
 
 # The commands themselves: one file per word, in their own folder - what the
 # menu rows and the command line both end at.
@@ -51,7 +51,7 @@ $CommandFiles = Join-Path $Scripts "WslCommands"
 $StackModule = Join-Path $Scripts "WslStack\WslStack.psd1"
 if (-not (Test-Path $StackModule)) {
     Write-Host ""
-    Write-Host "[ABORT] scripts\WslStack\WslStack.psd1 is missing - the scripts\ folder is incomplete."
+    Write-Host "[ABORT] src\windows\WslStack\WslStack.psd1 is missing - the src\windows\ folder is incomplete."
     exit 1
 }
 Import-Module $StackModule -Force
@@ -126,7 +126,7 @@ if ($Command) {
 $Script = Join-Path $CommandFiles "$($Chosen.Key).ps1"
 if (-not (Test-Path $Script)) {
     Write-Host ""
-    Write-Host "[ABORT] $Script is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+    Write-Host "[ABORT] $Script is missing - the src\windows\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
     exit 1
 }
 

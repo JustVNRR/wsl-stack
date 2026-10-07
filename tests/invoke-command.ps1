@@ -9,7 +9,7 @@
 # command that raises its own exit has it forwarded.
 #
 # Usage:  $Answers | & $Engine -NoProfile -File tests\invoke-command.ps1 -Script <command.ps1>
-using module ..\scripts\WslModel\WslModel.psd1
+using module ..\src\windows\WslModel\WslModel.psd1
 
 [CmdletBinding()]
 param (
@@ -18,7 +18,7 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
 $LASTEXITCODE = 0
 & $Script -Manager ([WslInstanceManager]::new([WslInstanceManager]::Root()))

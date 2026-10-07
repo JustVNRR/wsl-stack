@@ -69,4 +69,4 @@ Write-Host "==> '$DistroName' now carries: $(if ($Now.Count -gt 0) { $Now -join 
 if ($Selection.ToAdd.Count -gt 0) {
     Write-Host "    Open a shell in it to use them:  .\wsl.ps1 shell" -ForegroundColor (Get-MessageColour muted)
 }
-exit 0
+exit 0

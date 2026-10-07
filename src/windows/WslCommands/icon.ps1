@@ -27,10 +27,10 @@ $ErrorActionPreference = "Stop"
 
 # One script draws every icon, whether an instance is built or its icon is
 # redrawn years later: the letters and the colours cannot drift apart.
-$IconScript = Join-Path (Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent) "assets\make-icon.ps1"
+$IconScript = Join-Path (Split-Path -Path $PSScriptRoot -Parent) "make-icon.ps1"
 if (-not (Test-Path $IconScript)) {
     Write-Host ""
-    Write-Host "[ABORT] assets\make-icon.ps1 is missing - the checkout is incomplete." -ForegroundColor (Get-MessageColour error)
+    Write-Host "[ABORT] scripts\make-icon.ps1 is missing - the checkout is incomplete." -ForegroundColor (Get-MessageColour error)
     Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
     exit 1
 }

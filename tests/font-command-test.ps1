@@ -1,5 +1,5 @@
 # The classes this file names, pulled in by the file itself.
-using module ..\scripts\WslModel\WslModel.psd1
+using module ..\src\windows\WslModel\WslModel.psd1
 
 # Drives `font` - the command behind `.\wsl.ps1 theme` - the way a script would:
 # the numbered prompt, answers on standard input, no console anywhere.
@@ -23,9 +23,9 @@ using module ..\scripts\WslModel\WslModel.psd1
 $ErrorActionPreference = "Stop"
 
 # For Get-Distros and the marker test: the list the command itself builds.
-Import-Module (Join-Path $PSScriptRoot "..\scripts\WslStack\WslStack.psd1") -Force
+Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
-$FontScript = Join-Path $PSScriptRoot "..\scripts\WslCommands\font.ps1"
+$FontScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\font.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
@@ -166,7 +166,7 @@ try {
     $Preference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $Themed = @("$Pick", "2", "0", "0") | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\scripts\WslCommands\theme.ps1") 2>&1
+        $Themed = @("$Pick", "2", "0", "0") | & $Engine -NoProfile -File $Invoker -Script (Join-Path $PSScriptRoot "..\src\windows\WslCommands\theme.ps1") 2>&1
     } finally {
         $ErrorActionPreference = $Preference
     }

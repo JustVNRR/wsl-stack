@@ -87,7 +87,9 @@ function Assert-DestructionStillMatches {
 # script walks past.
 function Invoke-DockerBuild {
     param([string]$Tag)
-    Invoke-NativeCommand { docker build -t $Tag . } "Docker build failed."
+    # The recipe lives under distro\build\, the context stays the repository
+    # root - the Dockerfile's COPY paths are written against it.
+    Invoke-NativeCommand { docker build -t $Tag -f src/distro/build/Dockerfile . } "Docker build failed."
 }
 
 function New-DockerContainer {

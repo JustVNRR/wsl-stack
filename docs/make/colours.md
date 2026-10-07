@@ -19,7 +19,7 @@ every call site — they name a role, and the role is what changed.
 
 ## The one thing to know
 
-The shell side has its twin, [`zsh/lib/colours.sh`](../../zsh/lib/colours.sh):
+The shell side has its twin, [`src/distro/zsh/lib/colours.sh`](../../src/distro/zsh/lib/colours.sh):
 make expands text and cannot read a shell file, so the codes are spelled in
 both. **A colour changed in one file is changed in the other**, and those two
 are the only files allowed to spell a code — the Claude status line, whose

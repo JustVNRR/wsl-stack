@@ -54,4 +54,4 @@ Write-Host "  * Disk file        : " -NoNewline; Write-Host "$(Format-Size (Get-
 Write-Host ""
 Write-Host "  Nothing on the disk was touched: closing an instance only ends what" -ForegroundColor (Get-MessageColour muted)
 Write-Host "  was running. Start it again with  .\wsl.ps1 start" -ForegroundColor (Get-MessageColour muted)
-Write-Host ""
+Write-Host ""

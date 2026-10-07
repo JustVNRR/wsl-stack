@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep \
     # The line editor cruft's and ccds' questions lack: cookiecutter reads a
     # plain line, so the bytes an arrow key sends land in the answer.
-    # packs/scaffold/make/project-setup.mk runs it in front of the three tools,
+    # src/distro/packs/scaffold/make/project-setup.mk runs it in front of the three tools,
     # and it has to be there before the first project.
     rlwrap \
     shellcheck \
@@ -137,7 +137,7 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.local/
        /etc/skel/.local/share/oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 
 # Copy modular Zsh configuration to the user skeleton directory
-COPY zsh /etc/skel/.config/zsh
+COPY src/distro/zsh /etc/skel/.config/zsh
 
 # Nothing of the packs: the image carries the socle. A pack arrives afterwards,
 # on a living instance, with `.\wsl.ps1 add_pack`, which copies its folder into
@@ -157,7 +157,7 @@ RUN echo 'export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"' > /etc/skel/.z
     && chmod 700 /etc/skel/.ssh
 
 # 6. Deploy first-boot onboarding script and trigger it via root bashrc
-COPY first_boot.sh /root/first_boot.sh
+COPY src/distro/build/first_boot.sh /root/first_boot.sh
 RUN chmod +x /root/first_boot.sh \
     && echo '/root/first_boot.sh' >> /root/.bashrc \
     && chown -R root:root /etc/skel

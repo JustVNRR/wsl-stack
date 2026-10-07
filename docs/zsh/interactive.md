@@ -73,4 +73,4 @@ current tree.
 
 `fnew` — the interactive project scaffolding picker — comes with the `scaffold`
 pack, which the `python` pack requires: see
-[Project scaffolding](../../packs/scaffold/docs/project-setup.md).
+[Project scaffolding](../../src/distro/packs/scaffold/docs/project-setup.md).
