@@ -455,8 +455,12 @@ Remove python, devops? [Y/n]
 
 And a pack a still-installed pack requires is refused outright: the choice
 comes back with the claimant named, because the removal would leave that pack
-standing on nothing. Take the demanding pack out first, or leave this one
-where it is.
+standing on nothing — every visible pack stands on `zsh`, the shell socle:
+
+```text
+[ABORT] 'zsh' cannot be removed: required by python.
+        Take python out first, or leave 'zsh' where it is.
+```
 
 The chosen pack goes first, and the packs it held up follow: that order is what
 lets a `remove.sh` ask whether a neighbour still claims its packages and get
@@ -535,6 +539,11 @@ An unticked pack a ticked one requires is refused too, said the same way on
 the line under the list, and nothing is applied: untick the demanding pack as
 well, or leave this one ticked. The window's editor greys APPLY while it
 stands.
+
+```text
+[ABORT] 'zsh' cannot be removed: required by python.
+        Untick python as well, or leave 'zsh' ticked.
+```
 
 If the boxes have not moved, it says so and stops there.
 

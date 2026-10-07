@@ -140,6 +140,10 @@ invisible ones that follow their last claimant.
 `devops` and `scaffold` are the two: the project targets `python` and `gcp`
 both need, and the act of creating a project.
 
+Every visible pack also requires the `zsh` pack — the shell socle — so
+choosing one brings the shell with it, and the shell only leaves when the
+last pack standing on it does.
+
 They are required for what they bring, not for a macro: `devops` ships the
 sample that carries `PACKAGE_NAME` and `DOCKER_BASE_IMAGE`; `scaffold` is what
 runs once a template has been copied (`SCAFFOLD_AFTER_python`). What a target
