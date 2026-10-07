@@ -3,11 +3,12 @@
 # already carries, the Docker image, Docker Desktop, the first shell). It is
 # called in PowerShell with its arguments NAMED - wsl.ps1's road hands extra
 # arguments over positionally, which is how they used to land nowhere - and
-# the window waits for Enter at the end: an abort must not vanish with the
-# process.
+# the window closes with the build: it waits for Enter only when the build
+# ABORTED, so the error is read instead of vanishing with the process.
 
 param([string]$Name, [string]$User, [string]$Packs, [string]$Module, [string]$BuildScript)
 
+$failed = $false
 try {
     Import-Module $Module -Force
     $mgr = New-InstanceManager
@@ -15,7 +16,10 @@ try {
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)"
+    $failed = $true
 }
 
-Write-Host ""
-$null = Read-Host "Press Enter to close this window"
+if ($failed) {
+    Write-Host ""
+    $null = Read-Host "Press Enter to close this window"
+}
