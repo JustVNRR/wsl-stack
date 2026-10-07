@@ -90,4 +90,24 @@ elif ! grep -q 'ZDOTDIR' "$HOME/.zshenv"; then
     echo "        export ZDOTDIR=\"\${XDG_CONFIG_HOME:-\$HOME/.config}/zsh\""
 fi
 
+# The home's leftovers from a shell used before the pack. A ~/.zshrc at the
+# home's own root is never read again once ZDOTDIR points at the settings -
+# the stub this repository's image leaves is taken back, and one zsh's
+# first-run assistant wrote is moved aside, never deleted. A ~/.zsh_history
+# is folded into the state file the settings name, so the commands you
+# already typed keep their history.
+if [ -e "$HOME/.zshrc" ]; then
+    if head -1 "$HOME/.zshrc" | grep -q '^# The shell starts bare'; then
+        rm -f "$HOME/.zshrc"
+    else
+        mv -f "$HOME/.zshrc" "$HOME/.zshrc.before-zsh-pack"
+        echo "NOTE: your ~/.zshrc was moved to ~/.zshrc.before-zsh-pack - the"
+        echo "      settings below take over from here; move back what you miss."
+    fi
+fi
+if [ -s "$HOME/.zsh_history" ]; then
+    cat "$HOME/.zsh_history" >> "$HOME/.local/state/zsh/history"
+fi
+rm -f "$HOME/.zsh_history"
+
 success "The shell socle is installed. Open a new shell, or run:  exec zsh"

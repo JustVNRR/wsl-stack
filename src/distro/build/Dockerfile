@@ -148,7 +148,14 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.local/
 # shell this image never runs - they go. The ZDOTDIR bootstrap and the shell's
 # state/cache directories are not here: they come with the configuration, so
 # they are the zsh pack's to write, into the home and into this skeleton.
-RUN rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
+# One file stays: a bare ~/.zshrc, because zsh opens its first-run assistant
+# when none of its startup files exist - an instance that never takes the
+# pack should open a plain shell, not a questionnaire. The pack takes this
+# stub back when it brings the real settings.
+RUN printf '%s\n%s\n' \
+      '# The shell starts bare: install the zsh pack for the settings.' \
+      '# This file only keeps zsh'"'"'s first-run assistant out of the way.' > /etc/skel/.zshrc \
+    && rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
     && mkdir -p /etc/skel/.ssh \
     && mkdir -p /etc/skel/projects \
     && chmod 700 /etc/skel/.ssh

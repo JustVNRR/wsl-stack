@@ -51,6 +51,11 @@ whole when every declared package is already installed, and the clones and
 the binaries are asked about before they start. Re-running the install on an
 instance whose settings are already there writes nothing and fetches nothing.
 
+Leftovers from a shell used before the pack are tidied in the same spirit:
+the image's bare `~/.zshrc` is taken back, a `~/.zshrc` of your own is moved
+to `~/.zshrc.before-zsh-pack` rather than deleted, and a `~/.zsh_history` is
+folded into `~/.local/state/zsh/history`.
+
 The one file that is never touched is `~/.zshenv`: it is where a login
 starts, and a file of your own is yours. The install writes it only when it
 is missing, and when it exists without a `ZDOTDIR` line it says what to add
