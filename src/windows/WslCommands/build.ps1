@@ -343,7 +343,9 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
         }
     } else {
         # The instance being replaced still exists here: what it carries is what
-        # the boxes show. A first build opens on an empty checklist.
+        # the boxes show. On top of it - and alone on a first build - the shell
+        # pack arrives ticked: every visible pack requires it, and its box
+        # unticks like any other.
         $PreChecked = @()
         if ($WasRegistered) {
             $PreviousHome = Get-InstanceHome -DistroName $DistroName
@@ -353,6 +355,7 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
                 Write-Host "  Could not read what '$DistroName' carries: no pack arrives checked." -ForegroundColor (Get-MessageColour warning)
             }
         }
+        $PreChecked += @(Get-BuildDefaultPacks -Catalog $PackCatalog)
 
         # -Installed stays at its default: the instance this build makes carries
         # nothing yet - boxes to tick, no removal to compute.

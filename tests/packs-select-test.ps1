@@ -222,13 +222,16 @@ Check "both unticked -> the run goes through" `
 Write-Output ""
 Write-Output "--- The family: a pack is only offered where its apt lives ---"
 
-# A third catalog, of two packs of two families: the filter reads
+# A third catalog, of three packs of two families: the filter reads
 # PACK_FAMILY (absent means debian), and the machine's own family - read from
-# its /etc/os-release - decides which one a question shows.
+# its /etc/os-release - decides which one a question shows. Its shell pack is
+# Fedora's, so it is also what says the build's default stays unticked when
+# the shell is not the build's own family.
 $PacksRoot3 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-family-" + [Guid]::NewGuid().ToString("N"))
 $Declarations3 = @(
     @{ Name = "alpha"; Description = "A Debian-family pack" },
-    @{ Name = "beta";  Description = "A Fedora-family pack"; Family = "fedora" }
+    @{ Name = "beta";  Description = "A Fedora-family pack"; Family = "fedora" },
+    @{ Name = "zsh";   Description = "A Fedora-family shell"; Family = "fedora" }
 )
 foreach ($Declaration in $Declarations3) {
     $Folder = Join-Path $PacksRoot3 $Declaration.Name
@@ -244,9 +247,15 @@ Check "a declared family is read" ($Familied.GetPack("beta").Family) "fedora"
 Check "the debian surface shows only the debian pack" `
     (($Familied.OfferedFor("debian").Name) -join ",") "alpha"
 Check "  ... and the fedora one the other" `
-    (($Familied.OfferedFor("fedora").Name) -join ",") "beta"
+    (($Familied.OfferedFor("fedora").Name) -join ",") "beta,zsh"
 Check "a machine that cannot say filters nothing" `
-    (($Familied.OfferedFor("").Name) -join ",") "alpha,beta"
+    (($Familied.OfferedFor("").Name) -join ",") "alpha,beta,zsh"
+
+# The build's default box: the shell pack every visible pack requires, and
+# only where its family is the build's own - a built image is Debian.
+Check "the build ticks the shell pack" ((Get-BuildDefaultPacks -Catalog $Guarded) -join ",") "zsh"
+Check "  ... and nothing when the shell is another family" ((Get-BuildDefaultPacks -Catalog $Familied) -join ",") ""
+Check "  ... or when the catalog carries no shell" ((Get-BuildDefaultPacks -Catalog $Catalog) -join ",") ""
 
 # What the checklist means on each family: the same boxes question, one pack
 # fewer - and a foreign-family pack, installed here or not, is in neither

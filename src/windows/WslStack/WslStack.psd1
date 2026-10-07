@@ -97,6 +97,7 @@
         'Select-EligibleInstance'
         'Select-Packs'
         'Resolve-PackSelection'
+        'Get-BuildDefaultPacks'
         'Resolve-InstallPath'
         'Resolve-InstanceIdentity'
         'Resolve-DefaultUser'

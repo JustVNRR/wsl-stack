@@ -344,6 +344,20 @@ function Resolve-PackSelection {
     }
 }
 
+# The packs a build ticks before the user does: the zsh pack, which carries
+# the settings every visible pack requires - and only where its family is the
+# build's own. A built image is Debian (Ubuntu), so that is the family read
+# here; a shell pack of another family is left unticked, and a catalog
+# without one ticks nothing. The box is a default, not a command: the user
+# unticks it like any other.
+function Get-BuildDefaultPacks {
+    param([WslPackCatalog]$Catalog)
+
+    $Shell = $Catalog.GetPack('zsh')
+    if ($Shell -and $Shell.Offered -and $Shell.Family -eq 'debian') { return @('zsh') }
+    return @()
+}
+
 # The checklist, the two lists, and the one question that carries them. $null
 # means the user backed out (Escape, or "n" to the confirmation); otherwise
 # { ToAdd; ToRemove }, either possibly empty - empty is an answer, not a

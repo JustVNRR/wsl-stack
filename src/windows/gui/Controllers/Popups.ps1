@@ -254,6 +254,7 @@ function New-PackChecklist {
     param(
         $Panel,
         [string[]]$Installed,
+        [string[]]$Checked = $null,
         $Catalog,
         $TxtAdd,
         $TxtDel,
@@ -263,6 +264,11 @@ function New-PackChecklist {
         [string]$NothingText,
         [string]$Family = "debian"
     )
+
+    # What arrives ticked is not what is installed: at build time the instance
+    # carries nothing yet, while the boxes expected ticked are the shell pack's
+    # - the console's checklist draws the same two apart.
+    if ($null -eq $Checked) { $Checked = $Installed }
 
     $script:ChecklistInstalled = $Installed
     $script:ChecklistCatalog = $Catalog
@@ -288,7 +294,7 @@ function New-PackChecklist {
         $label.Text = "{0,-12} {1}" -f $pack.Name, $pack.Description
         $check.Content = $label
         $check.Margin = "0,3,0,3"
-        $check.IsChecked = ($Installed -contains $pack.Name)
+        $check.IsChecked = ($Checked -contains $pack.Name)
         $script:ChecklistEntries += [PSCustomObject]@{ Pack = $pack; Check = $check }
         $null = $Panel.Children.Add($check)
     }
@@ -467,6 +473,7 @@ function Show-AddInstance {
     }
 
     New-PackChecklist -Panel $form.FindName("Boxes") -Installed @() -Catalog $Catalog `
+        -Checked (Get-BuildDefaultPacks -Catalog $Catalog) `
         -TxtAdd $form.FindName("TxtAdd") -TxtDel $form.FindName("TxtDel") -TxtNotes $form.FindName("TxtNotes") `
         -NothingText "No pack selected - it will start bare."
 

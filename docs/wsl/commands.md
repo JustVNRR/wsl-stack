@@ -231,13 +231,16 @@ The packs are asked before anything is created:
 Packs for 'ubuntu-ml-dev'
   > [ ] gcp          The Google Cloud CLI (about 409 MB installed)
     [ ] vision       ffmpeg, ImageMagick and Tesseract OCR (about 500 MB)
+    [x] zsh          The shell: zsh, oh-my-zsh, Starship and the daily CLI tools (about 200 MB installed)
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
-Escape, or an empty checklist, is a real answer: no pack, and the build goes on.
-A rebuild arrives with the boxes ticked for what the instance being replaced
-carries, so its packs come back without being chosen again. What is ticked is
-summarised and confirmed as in `manage_packs` — one question for the whole list.
+The `zsh` pack arrives ticked — every visible pack requires it, and it carries
+the settings; untick it for a bare shell. Escape, or an empty checklist, is a
+real answer: no pack, and the build goes on. A rebuild arrives with the boxes
+ticked for what the instance being replaced carries, so its packs come back
+without being chosen again. What is ticked is summarised and confirmed as in
+`manage_packs` — one question for the whole list.
 
 They are installed **once the instance exists** — after the deployment, and the
 `* Packs` line of the screen that announces it carries the outcome. A pack that

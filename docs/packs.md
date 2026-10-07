@@ -105,7 +105,8 @@ newcomers' folders before removing anything, so a package two packs share is
 left where it is — [the order, and why](wsl/commands.md#manage_packs).
 
 A new instance can start with its packs already in place: `.\wsl.ps1 build`
-asks the same checklist before it builds, and installs the answer once the
+asks the same checklist before it builds — the `zsh` pack arrives ticked,
+since every visible pack requires it — and installs the answer once the
 instance exists.
 
 They are all documented in
