@@ -16,18 +16,22 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <ComboBox Name="CmbDockerfile" Grid.Column="0"/>
-            <Button Name="BtnDockerfileUpload" Grid.Column="1" Content="Upload a Dockerfile..." Margin="8,0,0,0"/>
+            <Button Name="BtnDockerfileDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+            <Button Name="BtnDockerfileUpload" Grid.Column="2" Content="Upload a Dockerfile..." Margin="8,0,0,0"/>
         </Grid>
         <TextBlock Margin="0,12,0,0" Text="First boot:"/>
         <Grid Margin="0,6,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
-            <Button Name="BtnFirstBootUpload" Grid.Column="1" Content="Upload a first_boot..." Margin="8,0,0,0"/>
+            <Button Name="BtnFirstBootDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+            <Button Name="BtnFirstBootUpload" Grid.Column="2" Content="Upload a first_boot..." Margin="8,0,0,0"/>
         </Grid>
         <TextBlock Margin="0,12,0,0" Text="Packs:"/>
         <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">

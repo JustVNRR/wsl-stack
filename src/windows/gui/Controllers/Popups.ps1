@@ -443,24 +443,29 @@ function Get-GuiBuildRecipes {
     $firstboots = [System.Collections.Generic.List[object]]::new()
 
     $dockerfiles.Add([PSCustomObject]@{
-        Name = "Dockerfile (default)"
-        Path = (Join-Path $repo "src\distro\build\Dockerfile")
+        Name     = "Dockerfile (default)"
+        Path     = (Join-Path $repo "src\distro\build\Dockerfile")
+        Uploaded = $false
     })
     $firstboots.Add([PSCustomObject]@{
-        Name = "first_boot.sh (default)"
-        Path = (Join-Path $repo "src\distro\build\first_boot.sh")
+        Name     = "first_boot.sh (default)"
+        Path     = (Join-Path $repo "src\distro\build\first_boot.sh")
+        Uploaded = $false
     })
 
     # A slot counts only when its file is there - a folder half-copied is not
-    # a recipe, and neither is one whose file was deleted since.
+    # a recipe, and neither is one whose file was deleted since. Uploaded is
+    # what the trash beside the list reads: the repository's own rows are not
+    # deletable, a slot is.
     $dockerRoot = Join-Path $AssetsDir "dockerfiles"
     if (Test-Path $dockerRoot) {
         foreach ($slot in @(Get-ChildItem $dockerRoot -Directory | Sort-Object Name)) {
             $file = Join-Path $slot.FullName "Dockerfile"
             if (Test-Path $file) {
                 $dockerfiles.Add([PSCustomObject]@{
-                    Name = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
-                    Path = $file
+                    Name     = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
+                    Path     = $file
+                    Uploaded = $true
                 })
             }
         }
@@ -471,13 +476,32 @@ function Get-GuiBuildRecipes {
             $file = Join-Path $slot.FullName "first_boot.sh"
             if (Test-Path $file) {
                 $firstboots.Add([PSCustomObject]@{
-                    Name = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
-                    Path = $file
+                    Name     = Format-GuiRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file
+                    Path     = $file
+                    Uploaded = $true
                 })
             }
         }
     }
     return [PSCustomObject]@{ Dockerfiles = $dockerfiles; FirstBoots = $firstboots }
+}
+
+# One uploaded file's slot, folder and all, gone: the trash beside each list
+# deletes the row it stands on. The guard is the row's own mark - the
+# repository's own files are never slots of their own. The dropdown goes
+# back to the default row, which is what a press leaves behind.
+function Remove-GuiBuildRecipe {
+    param($Row, $Choices, $Combo)
+
+    if (-not $Row.Uploaded) { return }
+    $slot = Split-Path -Path $Row.Path -Parent
+    if (Test-Path -LiteralPath $slot) { Remove-Item -LiteralPath $slot -Recurse -Force }
+    $index = $Choices.IndexOf($Row)
+    if ($index -ge 0) {
+        $Choices.RemoveAt($index)
+        $Combo.Items.RemoveAt($index)
+    }
+    $Combo.SelectedIndex = 0
 }
 
 # One uploaded recipe file into its slot, answering where it landed. A
@@ -521,6 +545,9 @@ function Show-AddInstance {
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($addXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+    # The trash glyphs are Font Awesome, handed to the form the way the main
+    # window hands them over; without the resource they would be empty boxes.
+    if ($GuiFonts.IconFont) { $form.Resources["IconFace"] = $GuiFonts.IconFont }
 
     Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $txtName = $form.FindName("TxtName")
@@ -591,6 +618,29 @@ function Show-AddInstance {
     $cmbDockerfile.SelectedIndex = 0
     $cmbFirstBoot.SelectedIndex = 0
 
+    # The trash beside each list: it deletes the SELECTED uploaded file -
+    # greyed on the repository's own rows, which are not the form's to take
+    # away. (A trash inside the dropdown itself would be a WPF item template;
+    # beside the list it is the same gesture with less rope.)
+    $btnDockerfileDelete = $form.FindName("BtnDockerfileDelete")
+    $btnFirstBootDelete = $form.FindName("BtnFirstBootDelete")
+    $UpdateTrash = {
+        $btnDockerfileDelete.IsEnabled = [bool]$dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Uploaded
+        $btnFirstBootDelete.IsEnabled = [bool]$bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Uploaded
+    }
+    $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash })
+    $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash })
+    & $UpdateTrash
+
+    $form.FindName("BtnDockerfileDelete").Add_Click({
+        $row = $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)]
+        if ($row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $dockerChoices -Combo $cmbDockerfile }
+    })
+    $form.FindName("BtnFirstBootDelete").Add_Click({
+        $row = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)]
+        if ($row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $bootChoices -Combo $cmbFirstBoot }
+    })
+
     # The file dialog's Enter lands on the owner once it closes, and the
     # default button answers it - the form would create on a keystroke meant
     # for the dialog (measured in the settings window). After each pick, the
@@ -619,8 +669,9 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "dockerfiles" -Source $dialog.FileName -FileName "Dockerfile"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
-            Path = $target
+            Name     = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
+            Path     = $target
+            Uploaded = $true
         }
         $dockerChoices.Add($row)
         $null = $cmbDockerfile.Items.Add("$($row.Name)")
@@ -637,8 +688,9 @@ function Show-AddInstance {
             $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "firstboots" -Source $dialog.FileName -FileName "first_boot.sh"
         } catch { return }
         $row = [PSCustomObject]@{
-            Name = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
-            Path = $target
+            Name     = Format-GuiRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target
+            Path     = $target
+            Uploaded = $true
         }
         $bootChoices.Add($row)
         $null = $cmbFirstBoot.Items.Add("$($row.Name)")

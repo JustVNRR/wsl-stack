@@ -144,7 +144,9 @@ repository's own file, an upload button beside it putting yours under
 `assets\dockerfiles\` or `assets\firstboots\` (same file uploaded again, same
 slot - the fonts' own convention; each uploaded row carries the date it
 arrived, so two versions of one name are told apart; a Dockerfile brings its
-`.dockerignore` along) - a name that already exists
+`.dockerignore` along), and a trash beside each list removing the selected
+uploaded file - the repository's own rows have none to press - a name that
+already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
