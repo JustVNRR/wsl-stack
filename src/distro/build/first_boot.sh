@@ -100,10 +100,25 @@ usermod -aG docker "$NEW_USER"
 
 echo ""
 echo "${C_CYAN}Configuring timezone...${C_RESET}"
-# The dialog frontend (whiptail): the list one entry per line, walked with the
-# arrows. The readline frontend packs the same list into columns across the
-# whole window, which the eye cannot follow.
-dpkg-reconfigure -f dialog tzdata
+# The right zone is already in place: WSL sets /etc/localtime from Windows at
+# every start, and tzdata's two questions only ask the user to confirm it.
+# The zone is read back from that link and handed to the package with no
+# screen - on its own, the screenless mode would reapply the zone RECORDED IN
+# THE IMAGE (UTC), not this machine's. A zone that cannot be read still gets
+# the questions, in the dialog frontend: one entry per line, walked with the
+# arrows (the readline frontend packs the same list into columns, which the
+# eye cannot follow).
+TZ_NAME=$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')
+if [ -n "$TZ_NAME" ] && [ -f "/usr/share/zoneinfo/$TZ_NAME" ]; then
+    debconf-set-selections <<EOF
+tzdata tzdata/Areas select ${TZ_NAME%%/*}
+tzdata tzdata/Zones/${TZ_NAME%%/*} select ${TZ_NAME#*/}
+EOF
+    dpkg-reconfigure -f noninteractive tzdata
+    echo "${C_GREEN}Timezone: $TZ_NAME (from Windows).${C_RESET}"
+else
+    dpkg-reconfigure -f dialog tzdata
+fi
 clear
 
 # The WSL configuration the onboarding knows. No [boot] block: the image ships

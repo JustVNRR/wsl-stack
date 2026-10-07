@@ -188,8 +188,8 @@ Folders left behind by an instance that is gone:
 
 Builds a new instance from the rootfs image, asks for the user the instance
 will open as, walks you through the first-boot onboarding (password or
-passwordless sudo, timezone), applies the Windows Terminal profile, and opens
-a shell in it.
+passwordless sudo — the timezone comes from Windows), applies the Windows
+Terminal profile, and opens a shell in it.
 
 ```powershell
 .\wsl.ps1 build
