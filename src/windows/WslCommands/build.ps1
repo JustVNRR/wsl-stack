@@ -21,7 +21,9 @@ param (
     # The build's recipe, when one was chosen - the window's lists, or the
     # command line. -Dockerfile and -Image are the two roads and exclude each
     # other; absent both, the repository's own Dockerfile is used. -FirstBoot
-    # is common to both roads: the onboarding script every build runs.
+    # is common to both roads: the onboarding script. Absent (a bare command
+    # line), it is asked for; PRESENT but empty (the window's unticked box),
+    # it means none - the image is used as it is, account included.
     [string]$Dockerfile,
     [string]$Image,
     [string]$FirstBoot,
@@ -232,7 +234,6 @@ function Install-SelectedPacks {
             if ($Skipped.Count -gt 0) {
                 $Report += "$($Skipped -join ', ') installation skipped."
             }
-            $Report += "Run .\wsl.ps1 manage_packs on '$($Instance.Name)' to finish."
             $Colour = "Red"
         } else {
             # What is there now, and nothing else: falling back on the names
@@ -323,8 +324,13 @@ if ($Image -and $Dockerfile) {
     exit 1
 }
 if (-not $Image -and -not $Dockerfile) { $Dockerfile = Join-Path $RepoRoot "src/distro/build/Dockerfile" }
-if (-not $FirstBoot) { $FirstBoot = Join-Path $RepoRoot "src/distro/build/first_boot.sh" }
-$ToCheck = @(@{ What = "first_boot"; Path = $FirstBoot })
+# The onboarding: absent from the command line (the console road), it
+# defaults to the repository's own script - asked about below. Present but
+# empty (the window's unticked box), it means none.
+$FirstBootAsked = -not $PSBoundParameters.ContainsKey('FirstBoot')
+if ($FirstBootAsked) { $FirstBoot = Join-Path $RepoRoot "src/distro/build/first_boot.sh" }
+$ToCheck = @()
+if ($FirstBoot) { $ToCheck += @{ What = "first_boot"; Path = $FirstBoot } }
 if ($Image) { $ToCheck += @{ What = "Docker image"; Path = $Image } }
 else { $ToCheck += @{ What = "Dockerfile"; Path = $Dockerfile } }
 foreach ($Named in $ToCheck) {
@@ -337,7 +343,7 @@ foreach ($Named in $ToCheck) {
 }
 $Dockerfile = if ($Dockerfile) { [System.IO.Path]::GetFullPath($Dockerfile) } else { "" }
 $Image = if ($Image) { [System.IO.Path]::GetFullPath($Image) } else { "" }
-$FirstBoot = [System.IO.Path]::GetFullPath($FirstBoot)
+$FirstBoot = if ($FirstBoot) { [System.IO.Path]::GetFullPath($FirstBoot) } else { "" }
 
 $ImageTag = "wsl-stack:latest"
 $ContainerName = "wsl-temp-export-$([guid]::NewGuid().ToString().Substring(0, 8))"
@@ -443,6 +449,14 @@ $TarPath = Join-Path -Path $ParentInstallDir -ChildPath "$DistroName-rootfs.tar"
 # 0-ter. The packs, asked here with everything else: nothing asks again once
 # the machine starts working - the answer waits in a variable and is applied
 # below. Empty, or Escape, means none, and the build goes on either way.
+# What family the recipe belongs to is read first: it decides the boxes
+# offered and the shell pack pre-ticked - the Dockerfile's FROM when there
+# is one, and unknown for an image, whose rootfs nests inside a save-tar.
+$RecipeFamily = if ($Image) { "" } else { Get-BuildRecipeFamily -Dockerfile $Dockerfile }
+# A family that cannot be read is said above the checklist, not hidden: the
+# packs stay in reach - the image may well be Debian under a name we cannot
+# read - and the line is the guard for whoever does not know.
+$FamilyNote = if ($RecipeFamily) { "" } else { "This recipe's system cannot be read - a pack made for another one will fail to install." }
 $PackSelection = $null
 $PackCatalog = Get-PackCatalog
 if ($PackCatalog.AvailablePacks.Count -gt 0) {
@@ -469,11 +483,11 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
                 Write-Host "  Could not read what '$DistroName' carries: no pack arrives checked." -ForegroundColor (Get-MessageColour warning)
             }
         }
-        $PreChecked += @(Get-BuildDefaultPacks -Catalog $PackCatalog)
+        $PreChecked += @(Get-BuildDefaultPacks -Catalog $PackCatalog -Family $RecipeFamily)
 
         # -Installed stays at its default: the instance this build makes carries
         # nothing yet - boxes to tick, no removal to compute.
-        $PackSelection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $PackCatalog -Checked $PreChecked
+        $PackSelection = Select-Packs -Title "Packs for '$DistroName'" -Catalog $PackCatalog -Checked $PreChecked -Family $RecipeFamily -Note $FamilyNote
 
         if ($null -eq $PackSelection -or $PackSelection.ToAdd.Count -eq 0) {
             Write-Host ""
@@ -483,22 +497,38 @@ if ($PackCatalog.AvailablePacks.Count -gt 0) {
     }
 }
 
-# 0-quater. The user the instance opens as, asked here with everything else:
-# nothing asks again once the machine starts working - the answer waits in a
+# 0-quater. The onboarding, asked only on the console road - the window's
+# box answers it. Skipped, the image keeps its own account: the name
+# question below disappears (there is no account to name), and who opens
+# the instance is read from the image's own tar inside the deployment. Then
+# the user the instance opens as, asked here with everything else: nothing
+# asks again once the machine starts working - the answer waits in a
 # variable, the instance is born with it at step 5, and the onboarding
 # receives it at step 6. On the window's road the answer rides in, checked
-# with the same rule the question applies - the window could not know this one.
-if ($PSBoundParameters.ContainsKey('User')) {
-    if ("$User" -cnotmatch '^[a-z][a-z0-9_-]*$') {
+# with the same rule the question applies - the window could not know this
+# one.
+$UserName = ""
+if ($FirstBoot) {
+    if ($FirstBootAsked) {
         Write-Host ""
-        Write-Host "[ABORT] '$User' is not a usable user name." -ForegroundColor (Get-MessageColour error)
-        Write-Host "        Lowercase letters, digits, '_' and '-' only, starting with a letter." -ForegroundColor (Get-MessageColour hint)
-        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
-        exit 1
+        if (-not (Confirm-YesNo "Run the onboarding shell?")) {
+            $FirstBoot = ""
+        }
     }
-    $UserName = $User
-} else {
-    $UserName = Resolve-DefaultUser -DistroName $DistroName -Proposed (Get-WindowsUserProposal)
+    if ($FirstBoot) {
+        if ($PSBoundParameters.ContainsKey('User')) {
+            if ("$User" -cnotmatch '^[a-z][a-z0-9_-]*$') {
+                Write-Host ""
+                Write-Host "[ABORT] '$User' is not a usable user name." -ForegroundColor (Get-MessageColour error)
+                Write-Host "        Lowercase letters, digits, '_' and '-' only, starting with a letter." -ForegroundColor (Get-MessageColour hint)
+                Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+                exit 1
+            }
+            $UserName = $User
+        } else {
+            $UserName = Resolve-DefaultUser -DistroName $DistroName -Proposed (Get-WindowsUserProposal)
+        }
+    }
 }
 
 # What this run has done, for the finally block and the exit code to read:
@@ -556,16 +586,32 @@ try {
     # and the question below answers from that list. A tar that cannot be
     # read yields no list - the import fails on it moments later anyway.
     $Accounts = @()
+    $ImageDefaultUser = ""
     $PreviousEAP = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
         $Accounts = @(tar -xOf $TarPath etc/passwd 2>$null | ForEach-Object { ($_ -split ":")[0] })
+        # An image used as it is keeps its own account: who opens the
+        # instance is what its /etc/wsl.conf says - read from the tar the
+        # way the accounts are, and WSL opens root when it names nobody.
+        if (-not $FirstBoot) {
+            foreach ($Line in @(tar -xOf $TarPath etc/wsl.conf 2>$null)) {
+                if ("$Line" -match '^\s*default\s*=\s*(\S+)\s*$') { $ImageDefaultUser = $Matches[1]; break }
+            }
+        }
     } finally {
         $ErrorActionPreference = $PreviousEAP
     }
-    while ($Accounts -contains $UserName) {
-        Write-Host "  The account '$UserName' already exists - pick another name." -ForegroundColor (Get-MessageColour warning)
-        $UserName = Resolve-DefaultUser -DistroName $DistroName
+    if ($FirstBoot) {
+        # A name the image already carries is asked again there, before
+        # anything is created - the skip is the other way out.
+        while ($Accounts -contains $UserName) {
+            Write-Host "  The account '$UserName' already exists in the image - pick another name, or skip" -ForegroundColor (Get-MessageColour warning)
+            Write-Host "  the onboarding to open the instance as the image's own account." -ForegroundColor (Get-MessageColour warning)
+            $UserName = Resolve-DefaultUser -DistroName $DistroName
+        }
+    } else {
+        $UserName = if ($ImageDefaultUser) { $ImageDefaultUser } else { "root" }
     }
 
     Write-Host "==> 5. Importing into WSL ($DistroName)..." -ForegroundColor (Get-MessageColour info)
@@ -583,12 +629,19 @@ try {
     if ($Image) { $Instance.DockerImage = $Image } else { $Instance.Dockerfile = $Dockerfile }
     $Instance.FirstBoot = $FirstBoot
 
-    # The recipe's other half, in place before step 6 runs it: the image
-    # carries no first_boot any more, so a different one costs no rebuild.
-    Install-FirstBootScript -DistroName $DistroName -Source $FirstBoot
+    if ($FirstBoot) {
+        # The recipe's other half, in place before step 6 runs it: the image
+        # carries no first_boot any more, so a different one costs no rebuild.
+        Install-FirstBootScript -DistroName $DistroName -Source $FirstBoot
 
-    Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
-    Invoke-WslFirstBoot -DistroName $DistroName -User $UserName
+        Write-Host "==> 6. Running initial onboarding setup..." -ForegroundColor (Get-MessageColour info)
+        Invoke-WslFirstBoot -DistroName $DistroName -User $UserName
+    } else {
+        Write-Host "==> 6. No onboarding - the image is used as it is." -ForegroundColor (Get-MessageColour info)
+        if (-not $ImageDefaultUser) {
+            Write-Host "    Its /etc/wsl.conf names no default user: the instance opens as root." -ForegroundColor (Get-MessageColour warning)
+        }
+    }
 
     Write-Host "==> 7. Shutting down distro so the next boot reads the user configuration..." -ForegroundColor (Get-MessageColour info)
     Stop-WslDistro -Name $DistroName
@@ -624,6 +677,14 @@ try {
         foreach ($Line in @($PackResult.Report | Select-Object -Skip 1)) {
             Write-Host "$(' ' * 24)$Line" -ForegroundColor $PackResult.Colour
         }
+        # And what the scripts themselves said, read back from the file the
+        # run kept them in - right here, with the news.
+        $ErrorLog = Join-Path $InstallPath "pack-errors.log"
+        if ((Test-Path $ErrorLog) -and (Get-Item $ErrorLog).Length -gt 0) {
+            foreach ($Line in @(Get-Content -LiteralPath $ErrorLog)) {
+                Write-Host "$(' ' * 24)  $Line" -ForegroundColor $PackResult.Colour
+            }
+        }
     }
     Write-Host ""
 
@@ -653,14 +714,9 @@ finally {
             # this run added goes back; the image itself, under its own name,
             # stays where Docker put it.
             if ($ImageAliased) {
-                Write-Host "==> Taking back the build's tag on the loaded image..." -ForegroundColor (Get-MessageColour info)
-                if (Test-NativeCommand { docker rmi -f $ImageTag }) {
-                    Write-Host "The build's tag '$ImageTag' was taken back - the loaded image stays in Docker." -ForegroundColor (Get-MessageColour success)
-                } else {
+                if (-not (Test-NativeCommand { docker rmi -f $ImageTag })) {
                     Write-Host "The build's tag could not be taken back - the image stays as it is." -ForegroundColor (Get-MessageColour warning)
                 }
-            } else {
-                Write-Host "The loaded image already carries '$ImageTag' - nothing was added to take back." -ForegroundColor (Get-MessageColour muted)
             }
         } elseif (-not (Confirm-YesNo "Keep Docker image?")) {
             Write-Host "==> Removing Docker image '$ImageTag'..." -ForegroundColor (Get-MessageColour info)
@@ -735,7 +791,11 @@ if ($Deployment.Succeeded) {
     # re-splits the line it is given, and the phrases come out as a program
     # name (measured: 0x80070002). The report below is this console's own,
     # and the packs' first-gesture lines went with the note.
-    Clear-Host
+    #
+    # A pack that failed changes the ending: the summary above is not wiped -
+    # it is the news.
+    $PacksFailed = ($null -ne $PackResult -and $PackResult.Colour -eq "Red")
+    if (-not $PacksFailed) { Clear-Host }
     if ($DockerReport) {
         foreach ($Line in $DockerReport) { Write-Host $Line -ForegroundColor $DockerReportColour }
     }

@@ -140,17 +140,26 @@ function Copy-PackIntoInstance {
 # A removal only takes things away, so the script runs as root, with the user's
 # home in HOME so the files it names are still theirs.
 function Invoke-PackScript {
-    param([string]$DistroName, [string]$Target, [string]$Script, [ref]$ExitCode, [switch]$AsRoot)
+    param([string]$DistroName, [string]$Target, [string]$Script, [ref]$ExitCode, [switch]$AsRoot, [string]$ErrorLog = "")
 
+    # 2>&1 then a filter: everything still streams to the screen (Out-Host,
+    # nothing buffered), and the error channel alone - where env, bash and
+    # apt speak - is also written to $ErrorLog.
     if ($AsRoot) {
         # Not named $home: the automatic is read-only, and the assignment throws.
         $UserHome = Get-InstanceHome -DistroName $DistroName
         Invoke-InInstance -DistroName $DistroName -Command @("env", "HOME=$UserHome", "bash", $Script) `
-            -WorkingDirectory $Target -RunAs "root" -ExitCode $ExitCode | Out-Host
+            -WorkingDirectory $Target -RunAs "root" -ExitCode $ExitCode 2>&1 | ForEach-Object {
+                if ($ErrorLog -and $_ -is [System.Management.Automation.ErrorRecord]) { Add-Content -Path $ErrorLog -Value "$_" }
+                $_
+            } | Out-Host
         return
     }
 
-    Invoke-InInstance -DistroName $DistroName -Command @("bash", $Script) -WorkingDirectory $Target -ExitCode $ExitCode | Out-Host
+    Invoke-InInstance -DistroName $DistroName -Command @("bash", $Script) -WorkingDirectory $Target -ExitCode $ExitCode 2>&1 | ForEach-Object {
+        if ($ErrorLog -and $_ -is [System.Management.Automation.ErrorRecord]) { Add-Content -Path $ErrorLog -Value "$_" }
+        $_
+    } | Out-Host
 }
 
 # The passwordless door, opened for a run: WSL trusts its Windows side with
@@ -252,6 +261,13 @@ function Invoke-PackApply {
 
     $Code = 0
 
+    # The run's errors, kept aside: the scripts' error channel lands in one
+    # file beside the instance, reset at the start of every run - the build
+    # opens it when something failed.
+    $InstanceFolder = Get-InstanceFolder -Name $DistroName
+    $ErrorLog = if ($InstanceFolder) { Join-Path $InstanceFolder "pack-errors.log" } else { "" }
+    if ($ErrorLog) { Remove-Item -Path $ErrorLog -Force -ErrorAction SilentlyContinue }
+
     # 1. Folders first, before anything leaves: the remove.sh scripts below ask
     # which packs are installed, and these count from here on. What was placed
     # and never installed is remembered: a failure takes those folders back out.
@@ -279,7 +295,7 @@ function Invoke-PackApply {
         Write-Host ""
         if (Test-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code)) {
             Write-Host "==> Removing '$Name'..." -ForegroundColor (Get-MessageColour info)
-            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code) -AsRoot
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code) -AsRoot -ErrorLog $ErrorLog
             if ($Code -ne 0) {
                 $RemoveCode = $Code
                 Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs $Placed -ExitCode ([ref]$Code)
@@ -316,7 +332,7 @@ function Invoke-PackApply {
         if (Test-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code)) {
             Write-Host ""
             Write-Host "==> Installing '$($Pack.Name)' in '$DistroName' (as root)..." -ForegroundColor (Get-MessageColour info)
-            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code) -AsRoot
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code) -AsRoot -ErrorLog $ErrorLog
             if ($Code -ne 0) {
                 # Nothing has run its install.sh yet, so no folder here is an
                 # installation: they all go back out. What the root part had
@@ -326,8 +342,6 @@ function Invoke-PackApply {
                 Remove-PlacedFolders -DistroName $DistroName -PacksDirectory $PacksDirectory -Packs $ToAdd -ExitCode ([ref]$Code)
                 Write-Host ""
                 Write-Host "[FAIL] The root part of '$($Pack.Name)' did not complete (exit code $RootCode)." -ForegroundColor (Get-MessageColour error)
-                Write-Host "       No pack was installed; the folders were taken back out." -ForegroundColor (Get-MessageColour hint)
-                Write-Host "       What the root part had already put in place stays - run this again to finish." -ForegroundColor (Get-MessageColour hint)
                 return [PSCustomObject]@{ Pack = $Pack.Name; ExitCode = $RootCode }
             }
         }
@@ -344,7 +358,7 @@ function Invoke-PackApply {
             $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $Pack.Name
             Write-Host ""
             Write-Host "==> Installing '$($Pack.Name)' in '$DistroName'..." -ForegroundColor (Get-MessageColour info)
-            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code)
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code) -ErrorLog $ErrorLog
 
             # Exit code 2 is the pack's way of saying it asked a question and the
             # answer was no - the claude pack asks before adding a second copy of a

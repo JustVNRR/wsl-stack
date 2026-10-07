@@ -346,16 +346,46 @@ function Resolve-PackSelection {
 
 # The packs a build ticks before the user does: the zsh pack, which carries
 # the settings every visible pack requires - and only where its family is the
-# build's own. A built image is Debian (Ubuntu), so that is the family read
-# here; a shell pack of another family is left unticked, and a catalog
-# without one ticks nothing. The box is a default, not a command: the user
-# unticks it like any other.
+# recipe's own. The family is handed in (Get-BuildRecipeFamily reads it off
+# the recipe; "" when nothing is known), and a shell pack of another family
+# is left unticked, as is a catalog without one. The box is a default, not a
+# command: the user unticks it like any other.
 function Get-BuildDefaultPacks {
-    param([WslPackCatalog]$Catalog)
+    param([WslPackCatalog]$Catalog, [string]$Family = "debian")
 
     $Shell = $Catalog.GetPack('zsh')
-    if ($Shell -and $Shell.Offered -and $Shell.Family -eq 'debian') { return @('zsh') }
+    if ($Shell -and $Shell.Offered -and $Shell.Family -eq $Family) { return @('zsh') }
     return @()
+}
+
+# What family a recipe belongs to, read off a Dockerfile's first FROM - the
+# build's own question, asked before the image exists. The known Debian
+# derivatives answer "debian" (the fold os-release would apply), anything
+# else answers its base name (alpine, fedora...), and a file that cannot be
+# read, or one whose FROM hides behind an ARG, answers "" - unknown, which
+# filters and ticks nothing. An uploaded IMAGE answers "" by its caller: a
+# docker-save tar keeps its rootfs in nested layers, and no half-cheap read
+# exists.
+function Get-BuildRecipeFamily {
+    param([string]$Dockerfile)
+
+    if (-not $Dockerfile -or -not (Test-Path -LiteralPath $Dockerfile)) { return "" }
+
+    $Base = $null
+    foreach ($Line in @(Get-Content -LiteralPath $Dockerfile -ErrorAction SilentlyContinue)) {
+        # --platform and friends ride in front of the image name.
+        if ("$Line" -match '^\s*FROM\s+(?:--\S+\s+)*(\S+)') { $Base = $Matches[1]; break }
+    }
+    if (-not $Base) { return "" }
+
+    # registry/path/image:tag@digest -> the image name alone.
+    $Name = ($Base -split '[@:]')[0].ToLower()
+    $Name = ($Name -split '/')[-1]
+    if ($Name -in @('debian', 'ubuntu', 'linuxmint', 'mint', 'kali', 'pop', 'raspbian',
+                    'elementary', 'zorin', 'parrot', 'deepin', 'neon')) {
+        return 'debian'
+    }
+    return $Name
 }
 
 # The checklist, the two lists, and the one question that carries them. $null
@@ -372,7 +402,8 @@ function Select-Packs {
         [WslPackCatalog]$Catalog,
         [string[]]$Installed = @(),
         [string[]]$Checked = $null,
-        [string]$Family = "debian"
+        [string]$Family = "debian",
+        [string]$Note = ""
     )
 
     if ($null -eq $Checked) { $Checked = $Installed }
@@ -389,10 +420,13 @@ function Select-Packs {
         if ($Checked -contains $Offered[$Index].Name) { $CheckedIndexes += $Index }
     }
 
+    # The family rides on each row, in brackets: a pack made for another
+    # system is spotted before it is ticked - the only guard there is when
+    # the recipe's own family cannot be read.
     $Chosen = Select-FromList -Title $Title -Items $Offered -Multi `
-        -CheckedIndexes $CheckedIndexes -Label {
+        -CheckedIndexes $CheckedIndexes -Note $Note -Label {
             param($Pack)
-            "{0,-12} {1}" -f $Pack.Name, $Pack.Description
+            "{0,-12} [{1}] {2}" -f $Pack.Name, $Pack.Family, $Pack.Description
         }
 
     if ($null -eq $Chosen) { return $null }

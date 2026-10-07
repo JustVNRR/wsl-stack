@@ -98,6 +98,7 @@
         'Select-Packs'
         'Resolve-PackSelection'
         'Get-BuildDefaultPacks'
+        'Get-BuildRecipeFamily'
         'Get-BuildRecipes'
         'Format-BuildRecipeName'
         'Resolve-InstallPath'

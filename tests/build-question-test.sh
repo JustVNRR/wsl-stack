@@ -20,6 +20,8 @@
 #   - a pack chosen is installed later, so the failure report names it
 #   - a recipe path that is not a file stops the run before anything is asked
 #   - an option the build knows binds by name, one it does not is refused
+#   - the onboarding is asked with the rest (Y on an empty answer), and on 'n'
+#     the account question disappears - the image keeps its own account
 #   - nothing is left behind: no instance, no tar, no folder, exit code 1
 #
 # Usage: bash tests/build-question-test.sh
@@ -74,7 +76,7 @@ echo "--- cancelled at the checklist (answer 0)"
 # The user name is left empty: the proposed Windows name must be taken. The
 # name after it is the fallback for a build that fails to propose - the check
 # on the hint is what tells the two apart.
-run_build 'pack-qtest-1\n\n0\n\nqtestuser\n'
+run_build 'pack-qtest-1\n\n0\n\n\nqtestuser\n'
 check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
@@ -84,7 +86,7 @@ check "exit code 1"                      "$Code" "1"
 
 echo ""
 echo "--- the pre-ticked shell, applied as-is (answer v, then the confirmation)"
-run_build 'pack-qtest-2\n\nv\n\nqtestuser\n'
+run_build 'pack-qtest-2\n\nv\n\n\nqtestuser\n'
 check "does not say no pack was selected" "$(contains '[OK] No pack selected.')" "no"
 check "and names the pack that was"       "$(contains 'The packs chosen earlier')" "yes"
 check "exit code 1"                       "$Code" "1"
@@ -95,7 +97,7 @@ echo "--- one pack chosen (2 = the second in the list) and confirmed"
 # leading underscore adduser would not take - so the question's own re-ask
 # shows in the output. The Read-Host prompt itself cannot be asserted on -
 # the runner's pwsh does not write it to a captured stream, a Write-Host does.
-run_build 'pack-qtest-3\n\n2\nv\n\nRoot\n_jean\nqtestuser\n'
+run_build 'pack-qtest-3\n\n2\nv\n\n\nRoot\n_jean\nqtestuser\n'
 # Which pack answer 2 chose is read from the run rather than written here: this
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
@@ -110,6 +112,16 @@ check "no empty 'Will remove' line"              "$(contains 'Will remove')" "no
 check "the failure names the pack it could not install" \
     "$(contains "The packs chosen earlier ($Chosen) were not installed: the build stopped before them.")" "yes"
 check "exit code 1" "$Code" "1"
+
+echo ""
+echo "--- the onboarding skipped (answer n): no account is asked for"
+# 'Root' follows the 'n': if the account question were asked, the rule would
+# refuse it and print the hint - with the onboarding off, nothing reads it.
+run_build 'pack-qtest-5\n\n0\nn\nRoot\n'
+check "says no pack was selected"         "$(contains '[OK] No pack selected.')" "yes"
+check "the account question is not asked" "$(contains 'Lowercase letters')" "no"
+check "and the run goes on to the build"  "$(contains '==> 1. Building Docker')" "yes"
+check "exit code 1"                       "$Code" "1"
 
 echo ""
 echo "--- the folder question's other answers: n, an unusable path, cancel"
@@ -137,7 +149,7 @@ check "exit code 1"                             "$Code" "1"
 # A path that is a file: the option is accepted and the questions start -
 # the run goes all the way to the build, where the stand-in docker stops it
 # like every other run here.
-run_build 'pack-qtest-4\n\n0\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
+run_build 'pack-qtest-4\n\n0\n\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
 check "a real Dockerfile is accepted" "$(contains '==> 1. Building Docker')" "yes"
 check "no recipe abort"               "$(contains '[ABORT] The Dockerfile')" "no"
 check "exit code 1"                   "$Code" "1"

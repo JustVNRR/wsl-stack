@@ -45,6 +45,41 @@ function Show-PopupExclusive {
 }
 
 # -----------------------------------------------------------------------------
+# ONE QUESTION, TWO ANSWERS - THE CONFIRM POPUP, WINDOW-SIDE
+# -----------------------------------------------------------------------------
+# The smallest gate: a title, a question, Cancel and the red CONFIRM - the
+# theme worn like the rest, which a system MessageBox cannot. It opens as a
+# plain dialog of its OWNER, never through Show-PopupExclusive: its callers
+# are popups themselves, and sinking a dialog window ends it (see the gate's
+# own warning above). Answers $true for CONFIRM, $false for everything else -
+# Cancel, Escape, the close crosses.
+function Show-GuiConfirm {
+    param([string]$Title, [string]$Question, [System.Windows.Window]$Owner)
+
+    [xml]$confirmXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\Confirm.xaml"))
+
+    $confirm = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($confirmXaml))
+    $confirm.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+
+    Set-WindowPhosphorFrame -Win $confirm -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $confirm.FindName("TxtLead").Text = $Title
+    $confirm.FindName("TxtQuestion").Text = $Question
+
+    $script:ConfirmResult = $false
+    $confirm.FindName("BtnConfirmCancel").Add_Click({ $script:ConfirmResult = $false; $confirm.Close() })
+    $confirm.FindName("BtnConfirmOk").Add_Click({ $script:ConfirmResult = $true; $confirm.Close() })
+
+    Set-WindowFitToContent -Win $confirm
+    # The owner goes in by property, then the window opens bare: PowerShell's
+    # binder refuses Window.ShowDialog(owner) - "no overload with 1 argument"
+    # (measured) - while the bare ShowDialog is the one every window in this
+    # file already uses.
+    if ($Owner) { $confirm.Owner = $Owner }
+    $null = $confirm.ShowDialog()
+    return $script:ConfirmResult
+}
+
+# -----------------------------------------------------------------------------
 # THE TRASH, ONE ROW AT A TIME - THE REMOVAL GATE, WINDOW-SIDE
 # -----------------------------------------------------------------------------
 # A row's trash opens the same gate the console's unregister puts up: what is
@@ -291,7 +326,10 @@ function New-PackChecklist {
         # descriptions past the edge (measured on screen).
         $label = New-Object System.Windows.Controls.TextBlock
         $label.TextWrapping = [System.Windows.TextWrapping]::Wrap
-        $label.Text = "{0,-12} {1}" -f $pack.Name, $pack.Description
+        # The family rides on the row, in brackets - the console's checklist
+        # shows the same, so a pack made for another system is spotted
+        # before it is ticked.
+        $label.Text = "{0,-12} [{1}] {2}" -f $pack.Name, $pack.Family, $pack.Description
         $check.Content = $label
         $check.Margin = "0,3,0,3"
         $check.IsChecked = ($Checked -contains $pack.Name)
@@ -504,6 +542,7 @@ function Show-AddInstance {
     $txtUser = $form.FindName("TxtUser")
     $txtUserError = $form.FindName("TxtUserError")
     $txtImageError = $form.FindName("TxtImageError")
+    $lblUser = $form.FindName("LblUser")
     $txtUser.Text = $ProposedUser
 
     $form.Add_ContentRendered({ $null = $txtName.Focus() })
@@ -587,17 +626,66 @@ function Show-AddInstance {
     $boxImage = $form.FindName("BoxDockerImage")
     $ShowRecipeBox = {
         $fromImage = [bool]$rbImage.IsChecked
+        # The onboarding follows the road: an uploaded image is presumed
+        # complete as it is - or foreign, alpine having no bash - so its
+        # box arrives unticked; a Dockerfile build keeps it, our images
+        # need the account. The user re-ticks it like any other default.
+        $chkRunFirstBoot.IsChecked = -not $fromImage
         $boxDockerfile.Visibility = if ($fromImage) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
         $boxImage.Visibility = if ($fromImage) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
     }
-    $rbDockerfile.Add_Checked({ & $ShowRecipeBox })
-    $rbImage.Add_Checked({ & $ShowRecipeBox })
+    $rbDockerfile.Add_Checked({ & $ShowRecipeBox; & $RefreshChecklist })
+    $rbImage.Add_Checked({ & $ShowRecipeBox; & $RefreshChecklist })
 
-    # The trash beside each list: it deletes the SELECTED uploaded file -
-    # greyed on the repository's own rows, which are not the form's to take
-    # away, and with no image chosen there is nothing to press either. (A
-    # trash inside the dropdown itself would be a WPF item template; beside
-    # the list it is the same gesture with less rope.)
+    # The onboarding box: unticked, the image is used as it is - nothing of
+    # the first_boot is placed or run, and there is no account to name: the
+    # field and its row grey out, they are exactly what the onboarding
+    # brings. The empty first_boot the form sends is what tells the build.
+    $chkRunFirstBoot = $form.FindName("ChkRunFirstBoot")
+    $boxFirstBoot = $form.FindName("BoxFirstBoot")
+
+    # The checklist follows the recipe: the shell pack is ticked for a
+    # Debian-family one and for it alone - the family is read off the chosen
+    # Dockerfile's FROM, and an image, whose family cannot be read off a
+    # save-tar, ticks nothing. What the last paint ticked BY DEFAULT goes
+    # with the old family; what the user ticked themselves survives the
+    # redraw, and so do the boxes the new family still offers.
+    $script:ChecklistDefaults = @(Get-BuildDefaultPacks -Catalog $Catalog)
+    $RefreshChecklist = {
+        $family = if ($rbImage.IsChecked) { "" } else { Get-BuildRecipeFamily -Dockerfile $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
+        # A family that cannot be read is SAID, not hidden: the packs stay in
+        # reach - the image may well be Debian under a name we cannot read -
+        # and the line is the guard for whoever does not know.
+        $form.FindName("TxtPacksForeign").Visibility = if ($family) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+        $ticked = @($script:ChecklistEntries | Where-Object { $_.Check.IsChecked } | ForEach-Object { $_.Pack.Name })
+        $mine = @($ticked | Where-Object { $_ -notin $script:ChecklistDefaults })
+        $defaults = @(Get-BuildDefaultPacks -Catalog $Catalog -Family $family)
+        $script:ChecklistDefaults = $defaults
+        $form.FindName("Boxes").Children.Clear()
+        New-PackChecklist -Panel $form.FindName("Boxes") -Installed @() -Catalog $Catalog `
+            -Checked (@($mine) + $defaults) `
+            -TxtAdd $form.FindName("TxtAdd") -TxtDel $form.FindName("TxtDel") -TxtNotes $form.FindName("TxtNotes") `
+            -NothingText "No pack selected - it will start bare." `
+            -Family $family
+    }
+    $UpdateOnboarding = {
+        $on = [bool]$chkRunFirstBoot.IsChecked
+        $txtUser.IsEnabled = $on
+        $lblUser.IsEnabled = $on
+        $boxFirstBoot.IsEnabled = $on
+        if (-not $on) { $txtUserError.Visibility = [System.Windows.Visibility]::Collapsed }
+    }
+    # Checked/Unchecked, not Click: the road's toggle ticks this box by code,
+    # and a programmatic tick fires no click - the greying must follow it too.
+    $chkRunFirstBoot.Add_Checked({ & $UpdateOnboarding })
+    $chkRunFirstBoot.Add_Unchecked({ & $UpdateOnboarding })
+
+    # The trash beside each list: it deletes the SELECTED uploaded file,
+    # asking first (the red CONFIRM) - greyed on the repository's own rows,
+    # which are not the form's to take away, and with no image chosen there
+    # is nothing to press either. (A trash inside the dropdown itself would
+    # be a WPF item template; beside the list it is the same gesture with
+    # less rope.)
     $btnDockerfileDelete = $form.FindName("BtnDockerfileDelete")
     $btnFirstBootDelete = $form.FindName("BtnFirstBootDelete")
     $btnDockerImageDelete = $form.FindName("BtnDockerImageDelete")
@@ -606,22 +694,31 @@ function Show-AddInstance {
         $btnFirstBootDelete.IsEnabled = [bool]$bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Uploaded
         $btnDockerImageDelete.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) -and [bool]$imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)].Uploaded
     }
-    $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash })
+    $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash; & $RefreshChecklist })
     $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash })
-    $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash })
+    $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash; & $RefreshChecklist })
     & $UpdateTrash
 
     $form.FindName("BtnDockerfileDelete").Add_Click({
         $row = $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)]
-        if ($row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $dockerChoices -Combo $cmbDockerfile }
+        if ($row.Uploaded -and (Show-GuiConfirm -Owner $form -Title "Delete Dockerfile" `
+                -Question "Remove '$($row.Name)' from the available Dockerfiles?")) {
+            Remove-GuiBuildRecipe -Row $row -Choices $dockerChoices -Combo $cmbDockerfile
+        }
     })
     $form.FindName("BtnFirstBootDelete").Add_Click({
         $row = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)]
-        if ($row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $bootChoices -Combo $cmbFirstBoot }
+        if ($row.Uploaded -and (Show-GuiConfirm -Owner $form -Title "Delete onboarding shell" `
+                -Question "Remove '$($row.Name)' from the available onboarding shells?")) {
+            Remove-GuiBuildRecipe -Row $row -Choices $bootChoices -Combo $cmbFirstBoot
+        }
     })
     $form.FindName("BtnDockerImageDelete").Add_Click({
         $row = $imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)]
-        if ($row -and $row.Uploaded) { Remove-GuiBuildRecipe -Row $row -Choices $imageChoices -Combo $cmbDockerImage }
+        if ($row -and $row.Uploaded -and (Show-GuiConfirm -Owner $form -Title "Delete Docker image" `
+                -Question "Remove '$($row.Name)' from the available Docker images?")) {
+            Remove-GuiBuildRecipe -Row $row -Choices $imageChoices -Combo $cmbDockerImage
+        }
     })
 
     # The file dialog's Enter lands on the owner once it closes, and the
@@ -703,18 +800,21 @@ function Show-AddInstance {
     $form.FindName("BtnAddCancel").Add_Click({ $script:AddResult = $null; $form.Close() })
     $form.FindName("BtnAddCreate").Add_Click({
         # The red lines are the refusal: say them and stay open. The image
-        # road needs an image - the one refusal that is not a field.
+        # road needs an image - the one refusal that is not a field. The
+        # user name is the onboarding's business: off, there is no account
+        # to name and the field's rule does not apply.
         & $CheckName
-        & $CheckUser
+        $runFirstBoot = [bool]$chkRunFirstBoot.IsChecked
+        if ($runFirstBoot) { & $CheckUser } else { $script:AddUserOk = $true }
         $fromImage = [bool]$rbImage.IsChecked
         $txtImageError.Text = if ($fromImage -and $cmbDockerImage.SelectedIndex -lt 0) { "Upload a Docker image first." } else { "" }
         $txtImageError.Visibility = if ($txtImageError.Text) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
         if ($script:AddNameOk -and $script:AddUserOk -and -not $txtImageError.Text) {
             $script:AddResult = [PSCustomObject]@{
                 Name       = $txtName.Text.Trim()
-                User       = $txtUser.Text.Trim()
+                User       = if ($runFirstBoot) { $txtUser.Text.Trim() } else { "" }
                 Dockerfile = if ($fromImage) { "" } else { $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
-                FirstBoot  = $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path
+                FirstBoot  = if ($runFirstBoot) { $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path } else { "" }
                 Image      = if ($fromImage) { $imageChoices[$cmbDockerImage.SelectedIndex].Path } else { "" }
                 Packs      = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
             }

@@ -138,9 +138,13 @@ scrolling its band while it works - the archive is kept; the trash opens a
 gate of the same manners as the instance's - what is lost, spelled out, and
 the exact name typed back - and the folder goes for good, tar and look
 together. The header carries its icons beside the title: **+**, a new
-instance - name, user, the build's recipe and packs in one form: the
-**Build from** is a toggle - **Dockerfile** or **Docker image**, one road or
-the other, and only its row shows. The **Dockerfile** and the **first_boot**
+instance - name, user, the build's recipe and packs in one form. **Build
+from** is a toggle - **Dockerfile** or **Docker image**, one road or
+the other, and only its row shows. A **Run onboarding shell** box sits above
+the **Onboarding:** row - ticked for a Dockerfile, unticked for an image, an
+uploaded one being presumed complete as it is (or foreign, alpine having no
+bash). Unticked, the user-name field and the row grey out with it, they are
+what the onboarding brings. The **Dockerfile** and the **onboarding shell**
 rows open on the repository's own file; the **Docker image** row lists what
 was uploaded under `assets\dockerimages\` (the repository ships none). Each
 row carries an upload button and a trash beside it, putting yours under
@@ -148,8 +152,8 @@ row carries an upload button and a trash beside it, putting yours under
 file uploaded again, same slot - the fonts' own convention; each uploaded row
 carries the date it arrived, so two versions of one name are told apart; a
 Dockerfile brings its `.dockerignore` along); the trash removes the selected
-uploaded file, and the repository's own rows have none to press - a name that
-already exists
+uploaded file — a confirmation first, its red CONFIRM — and the repository's
+own rows have none to press - a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
@@ -242,6 +246,14 @@ executable, armed in root's `.bashrc` — and then run as step 6 below. The
 image carries none: changing the first_boot never rebuilds the image. A path
 that names no file stops the build before anything is asked or destroyed.
 
+The onboarding is **optional**: the window's **Run onboarding shell** box
+(ticked by default) and the console's own question skip it — for an image
+that already carries its account and its settings, an export of a
+distribution, say. Skipped, nothing is placed or run, no user name is asked,
+and the instance opens as the image says: its own `/etc/wsl.conf`
+`[user] default` when it names one, root otherwise — said at build end,
+never refused.
+
 What was used is recorded on the instance (`instance.json`, the file an
 archive carries): a copy, an archive and a restore keep it, so what an
 instance was built with is never guessed.
@@ -281,14 +293,20 @@ The packs are asked before anything is created:
 
 ```text
 Packs for 'ubuntu-ml-dev'
-  > [ ] gcp          The Google Cloud CLI
-    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR
-    [x] zsh          The shell: zsh, oh-my-zsh, Starship and the daily CLI tools
+  > [ ] gcp          [debian] The Google Cloud CLI
+    [ ] vision       [debian] ffmpeg, ImageMagick and Tesseract OCR
+    [x] zsh          [debian] oh-my-zsh, Starship and daily CLI tools
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
 The `zsh` pack arrives ticked — every visible pack requires it, and it carries
-the settings; untick it for a bare shell. Escape, or an empty checklist, is a
+the settings; untick it for a bare shell. It arrives ticked for a
+**Debian-family recipe only**: the family is read off the chosen Dockerfile's
+`FROM` line, and an uploaded image, whose family cannot be read from a
+save-tar, arrives with nothing ticked. Each row carries its pack's family in
+brackets (`zsh [debian] …`), and a family that cannot be read is said above
+the checklist — a pack from another world is spotted before it is ticked,
+not after it failed. Escape, or an empty checklist, is a
 real answer: no pack, and the build goes on. A rebuild arrives with the boxes
 ticked for what the instance being replaced carries, so its packs come back
 without being chosen again. What is ticked is summarised and confirmed as in
@@ -306,7 +324,9 @@ name is offered in brackets (`[jean-dupont]`) when it cleans into a usable
 one, and Enter takes it. It is asked with the rest, so the instance is born with it
 and the first-boot onboarding does not ask again. The name is checked against
 the image's own accounts just before the import; a name the image already
-carries is asked again there, before anything is created.
+carries is asked again there, before anything is created — or skip the
+onboarding to open the instance as the image's own account. When the
+onboarding is skipped, this question is not asked at all.
 
 ---
 
@@ -429,7 +449,7 @@ Which one? (0 to cancel) 2
 
        Already in 'ubuntu-template': python
 Packs available for 'ubuntu-template':
-   1.  gcp          The Google Cloud CLI
+   1.  gcp          [debian] The Google Cloud CLI
    0.  Cancel
 Which one? (0 to cancel) 1
 
@@ -574,8 +594,8 @@ the missing ones installed, the unchecked ones taken out.
 
 ```text
 Packs for 'new_distro2'
-  > [x] gcp          The Google Cloud CLI
-    [ ] vision       ffmpeg, ImageMagick and Tesseract OCR
+  > [x] gcp          [debian] The Google Cloud CLI
+    [ ] vision       [debian] ffmpeg, ImageMagick and Tesseract OCR
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 

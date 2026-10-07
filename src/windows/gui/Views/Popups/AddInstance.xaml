@@ -18,7 +18,7 @@
                 <TextBlock Margin="0,10,0,0" Text="Instance name:"/>
                 <TextBox Name="TxtName" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
                 <TextBlock Name="TxtNameError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
-                <TextBlock Margin="0,12,0,0" Text="User name:"/>
+                <TextBlock Name="LblUser" Margin="0,12,0,0" Text="User name:"/>
                 <TextBox Name="TxtUser" Margin="0,6,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
                 <TextBlock Name="TxtUserError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
                 <TextBlock Margin="0,12,0,0" Text="Build from:"/>
@@ -53,18 +53,22 @@
                     </Grid>
                     <TextBlock Name="TxtImageError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
                 </StackPanel>
-                <TextBlock Margin="0,12,0,0" Text="First boot:"/>
-                <Grid Margin="0,6,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
-                    <Button Name="BtnFirstBootDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
-                    <Button Name="BtnFirstBootUpload" Grid.Column="2" Content="Upload a first_boot..." Margin="8,0,0,0"/>
-                </Grid>
+                <CheckBox Name="ChkRunFirstBoot" Margin="0,12,0,0" Content="Run onboarding shell" IsChecked="True" Foreground="{DynamicResource AppForegroundBrush}"/>
+                <StackPanel Name="BoxFirstBoot">
+                    <TextBlock Margin="0,10,0,0" Text="Onboarding:"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Name="CmbFirstBoot" Grid.Column="0"/>
+                        <Button Name="BtnFirstBootDelete" Grid.Column="1" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected uploaded file"/>
+                        <Button Name="BtnFirstBootUpload" Grid.Column="2" Content="Upload onboarding shell..." Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
                 <TextBlock Margin="0,12,0,0" Text="Packs:"/>
+                <TextBlock Name="TxtPacksForeign" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppWarningBrush}" Visibility="Collapsed" Text="The recipe's system cannot be read. Please make sure your Docker image is compatible with the following packs before ticking them."/>
                 <ScrollViewer MaxHeight="260" Margin="0,6,0,0" VerticalScrollBarVisibility="Auto">
                     <StackPanel Name="Boxes"/>
                 </ScrollViewer>

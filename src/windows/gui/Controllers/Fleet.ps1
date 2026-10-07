@@ -240,10 +240,19 @@ $RowAction = [System.Windows.RoutedEventHandler]{
             return
         }
 
-        $selection = Show-PackEditor $inst.Name @($installed) $catalog (Get-InstanceFamily -DistroName $inst.Name)
+        $family = Get-InstanceFamily -DistroName $inst.Name
+        $selection = Show-PackEditor $inst.Name @($installed) $catalog $family
         if ($null -eq $selection) { return }
         if ($selection.ToAdd.Count -eq 0 -and $selection.ToRemove.Count -eq 0) {
-            & $SetStatus "Nothing to do: '$($inst.Name)' already has exactly that."
+            # Two nothings look alike: no pack is made for this system (an
+            # alpine instance has an empty checklist), or the packs applied
+            # are already exactly what it carries. The offered list tells the
+            # two apart - the first sentence over the second would be wrong.
+            if (@($catalog.OfferedFor($family)).Count -eq 0) {
+                & $SetStatus "No compatible pack found for '$($inst.Name)' - no pack is made for its system."
+            } else {
+                & $SetStatus "Nothing to do: '$($inst.Name)' already has exactly that."
+            }
             return
         }
 
