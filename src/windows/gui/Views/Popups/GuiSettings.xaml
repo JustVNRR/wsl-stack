@@ -34,15 +34,21 @@
         <TextBlock Margin="0,10,0,0" Text="Theme"/>
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <ComboBox Name="LstGuiColours" MaxWidth="420"/>
+            <Button Name="BtnGuiThemeEdit" Content="&#xF044;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Open the selected theme in the default editor"/>
             <Button Name="BtnGuiThemeUpload" Content="&#xF093;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Upload a theme file..."/>
             <Button Name="BtnGuiThemeDownload" Content="&#xF019;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Save the selected theme..."/>
             <Button Name="BtnGuiThemeDelete" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected theme"/>
         </StackPanel>
         <TextBlock Name="TxtThemeError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+        <TextBlock Margin="0,12,0,0" Text="Catalogue" FontWeight="SemiBold"/>
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <ComboBox Name="LstGuiPacks" MaxWidth="420"/>
+            <Button Name="BtnGuiPackEdit" Content="&#xF044;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Open the selected pack's folder"/>
+            <Button Name="BtnGuiPackDelete" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected pack"/>
+        </StackPanel>
+        <TextBlock Name="TxtCatalogueError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Name="BtnGuiCancel" Content="Cancel" Width="80" Margin="0,0,8,0" IsCancel="True"
-                    Style="{DynamicResource BtnCancel}"/>
-            <Button Name="BtnGuiApply" Content="APPLY" Width="90" IsDefault="True"
+            <Button Name="BtnGuiClose" Content="CLOSE" Width="90" IsDefault="True" IsCancel="True"
                     Style="{DynamicResource BtnApply}"/>
         </StackPanel>
     </StackPanel>

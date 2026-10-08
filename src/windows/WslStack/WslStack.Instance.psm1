@@ -58,7 +58,7 @@ function New-InstanceManager {
         Write-Host ""
         Write-Host "  $($Choice.Note)" -ForegroundColor (Get-MessageColour warning)
     }
-    return [WslInstanceManager]::new($Choice.Root)
+    return [WslInstanceManager]::new($Choice.Root, (Get-PacksRoot))
 }
 
 # Is this folder an instance of ours? A folder name proves nothing - it is the
@@ -109,6 +109,20 @@ function Test-FontInstalled {
         }
     }
     return $false
+}
+
+# The font file a build installs, as carried by the repository: the slots
+# under assets\fonts, by file name. Empty when the checkout carries none -
+# the caller keeps its download as the fallback then.
+function Get-BundledFont {
+    param([string]$FileName)
+
+    $Root = Join-Path (Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent) "assets\fonts"
+    if (-not (Test-Path $Root)) { return "" }
+    $Found = @(Get-ChildItem -Path $Root -Recurse -File -Filter $FileName -ErrorAction SilentlyContinue |
+        Select-Object -First 1)
+    if ($Found.Count -eq 0) { return "" }
+    return $Found[0].FullName
 }
 
 # ---------------------------------------------------------------------------

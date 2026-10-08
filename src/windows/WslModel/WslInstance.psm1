@@ -384,7 +384,9 @@ class WslInstance {
         # The font the look names: Windows must have it before the fragment
         # points at it.
         if ($this.Look.FontMissing()) {
-            $FontStatus = $this.Look.EnsureFont()
+            # The repository's own copy when it has one - the download is the
+            # fallback, not the road.
+            $FontStatus = $this.Look.EnsureFont((Get-BundledFont -FileName "MesloLGS NF Regular.ttf"))
             if ($FontStatus.State -ne "installed") {
                 $Warnings += "the font '$($this.Look.FontName)' would not install: $($FontStatus.Error)"
             }

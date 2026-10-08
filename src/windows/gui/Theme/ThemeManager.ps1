@@ -98,15 +98,16 @@ function Set-WindowPhosphorFrame {
         # 15-point furniture reads wrong. A window IGNORES a LayoutTransform
         # of its own (measured: set on the Window, the 19-point choice moved
         # nothing), so the content carries it; a frame Border stays outside,
-        # its line and glow whole. The fixed widths scale with it, or the
-        # zoomed content would clip; the layouts still measure at 15.
+        # its line and glow whole. The window's own size is the fit's
+        # business (Set-WindowFitToContent, measured at the worn face) - the
+        # width is never scaled here: a second call would scale it again,
+        # and a window dressed twice in a row grew with every change.
         $scale = $UiFontSize / 15.0
         $Win.FontFamily = $UiFont
         $Win.FontSize = 15
         $content = $Win.Content
         if ($content -is [System.Windows.Controls.Border]) { $content = $content.Child }
         if ($content) { $content.LayoutTransform = [System.Windows.Media.ScaleTransform]::new($scale, $scale) }
-        if ($Win.Width) { $Win.Width = $Win.Width * $scale }
     }
 
     # The frame treatment, once per window: no chrome, a transparent window,
@@ -138,6 +139,7 @@ function Set-WindowPhosphorFrame {
         $effect.Opacity = 0.30
         $border.Effect = $effect
         $border.Child = $content
+        $border.Tag = "wsl-frame"
         $Win.Content = $border
 
         $Win.Add_MouseLeftButtonDown({
@@ -184,6 +186,25 @@ function Set-WindowPhosphorFrame {
                 $script:window.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $sink)
             }
         })
+    }
+
+    # The frame's three colours, re-read on every dress - the chart can have
+    # changed under it (the settings window applies live), and a border built
+    # with FindResource holds the OLD brush objects otherwise until the
+    # window re-opens. Only a frame this function drew: the main window's own
+    # border carries live bindings and answers for itself.
+    $frame = $Win.Content
+    if ($frame -is [System.Windows.Controls.Border] -and "$($frame.Tag)" -eq "wsl-frame") {
+        $frame.BorderBrush = $Win.FindResource("AppFrameBrush")
+        $frame.Background = $Win.FindResource("AppBackgroundBrush")
+        if ($frame.Effect -is [System.Windows.Media.Effects.DropShadowEffect]) {
+            $effect = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $effect.Color = $Win.FindResource("AppGlowColor")
+            $effect.BlurRadius = 10
+            $effect.ShadowDepth = 0
+            $effect.Opacity = 0.30
+            $frame.Effect = $effect
+        }
     }
 }
 

@@ -36,7 +36,7 @@ $DistroName = $Distro.Name
 Invoke-External { wsl.exe -d $DistroName --exec /bin/true } "Could not start '$DistroName'."
 
 # 2. Which pack - the ones this repository carries and that instance lacks
-$Catalog = Get-PackCatalog
+$Catalog = $Manager.Catalog
 if ($Catalog.AvailablePacks.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No pack found in $PacksRoot." -ForegroundColor (Get-MessageColour error)
@@ -54,7 +54,7 @@ if ($null -eq $Installed) {
     exit 1
 }
 
-$Candidates = @($Manager.CandidatePacks($Distro, $Catalog))
+$Candidates = @($Manager.CandidatePacks($Distro))
 
 if ($Candidates.Count -eq 0) {
     Write-Host ""

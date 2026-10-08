@@ -27,7 +27,7 @@ $DistroName = $Distro.Name
 Invoke-External { wsl.exe -d $DistroName --exec /bin/true } "Could not start '$DistroName'."
 
 # 2. Every pack this checkout carries, and what that instance already has
-$Catalog = Get-PackCatalog
+$Catalog = $Manager.Catalog
 if ($Catalog.AvailablePacks.Count -eq 0) {
     Write-Host ""
     Write-Host "[ABORT] No pack found in $PacksRoot." -ForegroundColor (Get-MessageColour error)

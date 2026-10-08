@@ -234,7 +234,7 @@ $RowAction = [System.Windows.RoutedEventHandler]{
             & $SetStatus "'$($inst.Name)' did not say where its user's home is - its packs cannot be read." -Alert
             return
         }
-        $catalog = Get-PackCatalog
+        $catalog = $Manager.Catalog
         if ($catalog.AvailablePacks.Count -eq 0) {
             & $SetStatus "No pack found in the repository's packs folder." -Alert
             return

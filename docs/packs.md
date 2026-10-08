@@ -4,7 +4,9 @@
 
 A pack is optional tooling — a CLI the image does not ship, the gmake targets
 that drive it, the shell commands, the variables it reads — and the two scripts
-that install and remove it, all of it living in one folder under `src/distro/packs/`. The
+that install and remove it, all of it living in one folder. The app reads
+`assets/packs/`, filled at first use with a copy of `src/distro/packs/` — the
+repository's own stays the seed, and the copy is yours to edit and delete. The
 shell knows nothing about any particular pack: it finds the folders and loads
 what they carry. Adding a pack touches no file outside that folder.
 
@@ -21,7 +23,7 @@ on a foreign Debian the same pack carries the tools too. Its page is
 ## The folder
 
 ```text
-src/distro/packs/<name>/
+assets/packs/<name>/         # seeded from src/distro/packs/
 ├── pack.conf              # what the shell and the installer read
 ├── install.sh             # what `.\wsl.ps1 add_pack` runs inside the instance
 ├── install_root.sh        # what needs root, run by the engine as WSL's root, before install.sh

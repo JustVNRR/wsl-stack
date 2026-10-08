@@ -16,7 +16,7 @@ try {
     # The distro must be up to carry packs - the console's own first move.
     Invoke-External { wsl.exe -d $Name --exec /bin/true } "Could not start '$Name'."
 
-    $catalog = Get-PackCatalog
+    $catalog = $mgr.Catalog
     $toAdd = @()
     foreach ($n in @($Add -split ',' | Where-Object { $_ })) {
         $pack = $catalog.GetPack($n)

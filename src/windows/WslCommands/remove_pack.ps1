@@ -47,8 +47,8 @@ if (@($Installed).Count -eq 0) {
     exit 0
 }
 
-$Catalog = Get-PackCatalog
-$Offered = @($Manager.RemovablePacks($Distro, $Catalog))
+$Catalog = $Manager.Catalog
+$Offered = @($Manager.RemovablePacks($Distro))
 if ($Offered.Count -eq 0) {
     Write-Host ""
     Write-Host "[OK] '$DistroName' carries no pack you choose or remove by hand." -ForegroundColor (Get-MessageColour success)

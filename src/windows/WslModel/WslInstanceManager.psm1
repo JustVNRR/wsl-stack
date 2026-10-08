@@ -130,6 +130,7 @@ class WslInstanceManager {
 
     [string]$InstancesRoot
     [string]$ArchivesRoot
+    [WslPackCatalog]$Catalog
     [WslInstance[]]$Instances = @()
 
     # Folders under the root carrying the marker that no registered instance
@@ -138,9 +139,10 @@ class WslInstanceManager {
     # deletes them.
     [string[]]$ForgottenFolders = @()
 
-    WslInstanceManager([string]$instancesRoot) {
+    WslInstanceManager([string]$instancesRoot, [string]$packsRoot) {
         $this.InstancesRoot = $instancesRoot.TrimEnd('\')
         $this.ArchivesRoot  = Join-Path $this.InstancesRoot "archives"
+        $this.Catalog = [WslPackCatalog]::new($packsRoot)
         $this.Refresh()
     }
 
@@ -270,21 +272,21 @@ class WslInstanceManager {
     # instance's family fits them, and the instance lacks them. -Offered only
     # - an invisible pack arrives with the pack that requires it, never
     # offered.
-    [WslPack[]] CandidatePacks([WslInstance]$Instance, [WslPackCatalog]$Catalog) {
+    [WslPack[]] CandidatePacks([WslInstance]$Instance) {
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
         $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
         $Family = Get-InstanceFamily -DistroName $Instance.Name
-        return @($Catalog.OfferedFor($Family) | Where-Object { $Installed -notcontains $_.Name })
+        return @($this.Catalog.OfferedFor($Family) | Where-Object { $Installed -notcontains $_.Name })
     }
 
     # The packs this instance carries that a user may take out by hand: the
     # invisible ones leave with the last pack that requires them.
-    [string[]] RemovablePacks([WslInstance]$Instance, [WslPackCatalog]$Catalog) {
+    [string[]] RemovablePacks([WslInstance]$Instance) {
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
         $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
         $Offered = @()
         foreach ($Name in $Installed) {
-            $Pack = $Catalog.GetPack($Name)
+            $Pack = $this.Catalog.GetPack($Name)
             if ($null -ne $Pack -and -not $Pack.Offered) { continue }
             $Offered += $Name
         }
@@ -296,10 +298,9 @@ class WslInstanceManager {
     # whether a neighbour still claims its packages while it can still say
     # yes. -Missing names the ones installed before packs had a remove.sh.
     [object] RemovalPlan([WslInstance]$Instance, [string]$PackName) {
-        $Catalog = Get-PackCatalog
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
         $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
-        $ToRemove = @($Catalog.ResolveRemoval($Installed, @($PackName), @()))
+        $ToRemove = @($this.Catalog.ResolveRemoval($Installed, @($PackName), @()))
 
         $Missing = @()
         $Code = 0
@@ -404,13 +405,12 @@ class WslInstanceManager {
     # halves is undone, a half-installed pack is worse than none, the Makefile
     # loads whatever folder is there.
     [object] AddPack([WslInstance]$Instance, [string]$PackName) {
-        $Catalog = Get-PackCatalog
         $PacksDirectory = $this.PacksDirectoryOf($Instance)
         $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
 
         $ToInstall = @()
-        foreach ($Name in @($Catalog.ResolveSelection(@($PackName), $Installed))) {
-            $Entry = $Catalog.GetPack($Name)
+        foreach ($Name in @($this.Catalog.ResolveSelection(@($PackName), $Installed))) {
+            $Entry = $this.Catalog.GetPack($Name)
             if ($null -ne $Entry) { $ToInstall += $Entry }
         }
 

@@ -173,14 +173,22 @@ face - the font, its size and its colour theme, dark and light versions
 shipped (assets\colours) - with the sun and the moon beside it, switching
 the current theme's version on the spot. A theme is one `.xaml` file under
 `assets\colours\`, its file name the theme's name: the row carries upload,
-download and a trash - the upload drops a file in (refused if it will not
-load as a resource dictionary, the red CONFIRM replacing a name already
-taken), the download hands the selected file out as a model to edit
-("Default" offers `theme.xaml`, the chart itself), the trash takes the
-selected theme's file off the disk. A **Root folder** row sits above it all:
-the working folder in a greyed box, an edit button opening it; changing it —
-after the red CONFIRM — archives the whole fleet and moves it there
-(`migrate`), the window closing behind the run's own console.
+download, an edit button and a trash - the upload drops a file in (refused if
+it will not load as a resource dictionary, the red CONFIRM replacing a name
+already taken), the download hands the selected file out as a model to edit
+("Default" offers `theme.xaml`, the chart itself), the edit opens the
+selected theme's file as Windows opens it (the default application, or the
+picker once when none is set), the trash takes the selected theme's file off
+the disk. A **Root folder** row sits above it all:
+the working folder in a greyed box, an edit button opening a move dialog — a
+warning that every instance is stopped and archived on the way, the folder in
+a box, Cancel or the red CONFIRM. A confirmed folder archives the whole fleet
+and moves it there (`migrate`), the window closing behind the run's own
+console. A **Catalogue**
+section lists the packs of `assets\packs\`: the edit button opens the selected
+pack's folder as Windows opens folders, the trash removes it whole — the red
+CONFIRM first, naming the packs that depend on it when any do — and the base
+set comes back by deleting `assets\packs\`.
 Nothing here exists only in the window: it is a keystroke-free way in, not a
 second engine.
 

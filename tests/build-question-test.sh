@@ -20,8 +20,9 @@
 #   - a pack chosen is installed later, so the failure report names it
 #   - a recipe path that is not a file stops the run before anything is asked
 #   - an option the build knows binds by name, one it does not is refused
-#   - the onboarding is asked with the rest (Y on an empty answer), and on 'n'
-#     the account question disappears - the image keeps its own account
+#   - the onboarding is asked with the rest (Y on an empty answer) and the
+#     shell list follows it - the default first - and on 'n' nothing of the
+#     onboarding is asked, the account question included
 #   - nothing is left behind: no instance, no tar, no folder, exit code 1
 #
 # Usage: bash tests/build-question-test.sh
@@ -42,8 +43,13 @@ export USERNAME="Jean.Dupont"
 Failures=0
 Out=$(mktemp)
 # Where the checkout stands before the runs: they write nothing, and this is
-# what says so - whether the tree is clean or carries work in progress.
-Before=$(git -C "$RepoTemplate" status --short)
+# what says so - whether the tree is clean or carries work in progress. The
+# packs seed is the one write a run is meant to make (the first import fills
+# assets\packs from src\distro\packs), so it is left out of the picture.
+tree_state() {
+    git -C "$RepoTemplate" status --short | grep -v 'assets/packs' || true
+}
+Before=$(tree_state)
 
 # Whatever follows the answers is handed to the build as it came: the recipe
 # options ride through the entry the way -Format does for archive.
@@ -76,7 +82,7 @@ echo "--- cancelled at the checklist (answer 0)"
 # The user name is left empty: the proposed Windows name must be taken. The
 # name after it is the fallback for a build that fails to propose - the check
 # on the hint is what tells the two apart.
-run_build 'pack-qtest-1\n\n0\n\n\nqtestuser\n'
+run_build 'pack-qtest-1\n\n0\n\n1\n\nqtestuser\n'
 check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
@@ -86,7 +92,7 @@ check "exit code 1"                      "$Code" "1"
 
 echo ""
 echo "--- the pre-ticked shell, applied as-is (answer v, then the confirmation)"
-run_build 'pack-qtest-2\n\nv\n\n\nqtestuser\n'
+run_build 'pack-qtest-2\n\nv\n\n\n1\n\nqtestuser\n'
 check "does not say no pack was selected" "$(contains '[OK] No pack selected.')" "no"
 check "and names the pack that was"       "$(contains 'The packs chosen earlier')" "yes"
 check "exit code 1"                       "$Code" "1"
@@ -97,7 +103,7 @@ echo "--- one pack chosen (2 = the second in the list) and confirmed"
 # leading underscore adduser would not take - so the question's own re-ask
 # shows in the output. The Read-Host prompt itself cannot be asserted on -
 # the runner's pwsh does not write it to a captured stream, a Write-Host does.
-run_build 'pack-qtest-3\n\n2\nv\n\n\nRoot\n_jean\nqtestuser\n'
+run_build 'pack-qtest-3\n\n2\nv\n\n\n1\nRoot\n_jean\nqtestuser\n'
 # Which pack answer 2 chose is read from the run rather than written here: this
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
@@ -149,7 +155,7 @@ check "exit code 1"                             "$Code" "1"
 # A path that is a file: the option is accepted and the questions start -
 # the run goes all the way to the build, where the stand-in docker stops it
 # like every other run here.
-run_build 'pack-qtest-4\n\n0\n\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
+run_build 'pack-qtest-4\n\n0\n\n1\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
 check "a real Dockerfile is accepted" "$(contains '==> 1. Building Docker')" "yes"
 check "no recipe abort"               "$(contains '[ABORT] The Dockerfile')" "no"
 check "exit code 1"                   "$Code" "1"
@@ -193,7 +199,7 @@ check "no folder left"         "$(find /d/WSL -maxdepth 1 -name 'pack-qtest-*' 2
 check "no tar left"            "$(find /d/WSL -maxdepth 1 -name '*rootfs.tar' 2>/dev/null | wc -l)" "0"
 echo "--- and the checkout is untouched by the runs"
 check "the runs left the checkout exactly as it was" \
-    "$([ "$Before" = "$(git -C "$RepoTemplate" status --short)" ] && echo yes || echo no)" "yes"
+    "$([ "$Before" = "$(tree_state)" ] && echo yes || echo no)" "yes"
 
 rm -f "$Out"
 echo ""

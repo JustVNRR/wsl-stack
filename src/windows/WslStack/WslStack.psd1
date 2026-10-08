@@ -40,6 +40,7 @@
         'Test-TemplateInstance'
         'New-InstanceMarker'
         'Test-FontInstalled'
+        'Get-BundledFont'
         'Get-UsableFonts'
         'Get-InstanceFolder'
         'Get-RegisteredDistros'
@@ -76,6 +77,7 @@
         # class file drives the moves by name, and only this surface is
         # visible to it
         'Get-PackCatalog'
+        'Get-PacksRoot'
         'Get-InstalledPacks'
         'Get-PackFolder'
         'Test-PackScript'

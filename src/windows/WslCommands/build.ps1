@@ -421,20 +421,25 @@ if ($PSBoundParameters.ContainsKey('Name')) {
     $WasRegistered = $Identity.WasRegistered
 }
 
-# 0-bis-bis. What to build from, when an image was ever uploaded: the
-# repository's Dockerfile, or one of the uploaded images. No image around -
-# or a road already chosen, which is how the window answers this one, and
-# how a command line that passed -Dockerfile or -Image does - and the
-# question is not asked: the Dockerfile road, as always.
+# 0-bis-bis. What to build from, when an image was ever uploaded: the road
+# first - a Dockerfile, or an image - then the list that road offers, uploads
+# included. No image around - or a road already chosen, which is how the
+# window answers this one, and how a command line that passed -Dockerfile or
+# -Image does - and none of it is asked: the Dockerfile road, as always.
 if (-not $PSBoundParameters.ContainsKey('Dockerfile') -and -not $PSBoundParameters.ContainsKey('Image')) {
     $Recipes = Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")
     if ($Recipes.Images.Count -gt 0) {
-        $Options = @($Recipes.Dockerfiles[0]) + @($Recipes.Images)
-        $Picked = Select-FromList -Title "Build from" -Items $Options -Label { param($Row) $Row.Name }
-        if ($null -eq $Picked) { Stop-Cancelled }
-        if ($Picked.Uploaded) {
+        $Road = Select-FromList -Title "Build from" -Items @("Dockerfile", "Docker image")
+        if ($null -eq $Road) { Stop-Cancelled }
+        if ($Road -eq "Docker image") {
+            $Picked = Select-FromList -Title "Docker image" -Items $Recipes.Images -Label { param($Row) $Row.Name }
+            if ($null -eq $Picked) { Stop-Cancelled }
             $Image = $Picked.Path
             $Dockerfile = ""
+        } else {
+            $Picked = Select-FromList -Title "Dockerfile" -Items $Recipes.Dockerfiles -Label { param($Row) $Row.Name }
+            if ($null -eq $Picked) { Stop-Cancelled }
+            $Dockerfile = $Picked.Path
         }
     }
 }
@@ -458,7 +463,7 @@ $RecipeFamily = if ($Image) { "" } else { Get-BuildRecipeFamily -Dockerfile $Doc
 # read - and the line is the guard for whoever does not know.
 $FamilyNote = if ($RecipeFamily) { "" } else { "This recipe's system cannot be read - a pack made for another one will fail to install." }
 $PackSelection = $null
-$PackCatalog = Get-PackCatalog
+$PackCatalog = $Manager.Catalog
 if ($PackCatalog.AvailablePacks.Count -gt 0) {
     if ($PSBoundParameters.ContainsKey('Packs')) {
         # The window answered this one too: names in, and the shared resolver
@@ -513,6 +518,13 @@ if ($FirstBoot) {
         Write-Host ""
         if (-not (Confirm-YesNo "Run the onboarding shell?")) {
             $FirstBoot = ""
+        } else {
+            # Which one: the repository's own first_boot first, the uploaded
+            # ones under it - the list the window's form offers.
+            $Boots = @((Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")).FirstBoots)
+            $Picked = Select-FromList -Title "Onboarding shell" -Items $Boots -Label { param($Row) $Row.Name }
+            if ($null -eq $Picked) { Stop-Cancelled }
+            $FirstBoot = $Picked.Path
         }
     }
     if ($FirstBoot) {

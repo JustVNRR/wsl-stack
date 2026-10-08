@@ -106,13 +106,59 @@ $btnQuit.Add_Click({ $window.Close() })
 $safetyNet = [System.Windows.Threading.DispatcherUnhandledExceptionEventHandler]{
     param($source, $e)
     $e.Handled = $true
-    & $SetStatus "A drawing failed: $($e.Exception.Message)" -Alert
+    # The failing LINE too, when PowerShell knows it - the message alone
+    # never said where (measured enough times).
+    $where = ""
+    if ($e.Exception.ErrorRecord -and $e.Exception.ErrorRecord.ScriptStackTrace) {
+        $where = " @ " + (($e.Exception.ErrorRecord.ScriptStackTrace -split "`n")[0] -replace '^\s+', '')
+    }
+    & $SetStatus "A drawing failed: $($e.Exception.Message)$where" -Alert
 }
 $window.Dispatcher.Add_UnhandledException($safetyNet)
 
-# Settings: the gui's own face - the family, its size, the colour set.
-# Applied on the spot to this window; the popups follow on their next
-# open, which is where their dresser reads the face from.
+# The face, applied - one block for the settings window's own combos (they
+# apply as they change) and for its APPLY: the family, its size, the colour
+# set, saved at once and worn on the spot; the popups follow on their next
+# open, which is where their dresser reads the face from. A font whose file
+# is gone is refused whole - nothing half-worn.
+$ApplyLook = {
+    param($Name, $Family, $Folder, [int]$Size, [string]$ColourSet)
+
+    # A folder face's file must be on disk right now - the filesystem is the
+    # truth. NOT a rendered glyph: rendering resolves the family NAME through
+    # the Windows font cache, which can still point it at a file that is gone
+    # (measured: it refused a just-uploaded face whose file sat right there).
+    if ($Folder) {
+        $faceFile = @(Get-ChildItem $Folder -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Extension -in ".ttf", ".otf" })
+        if ($faceFile.Count -eq 0) {
+            & $SetStatus "'$Name' cannot be used: its file seems gone." -Alert
+            return
+        }
+    }
+    $GuiSettings.FontFamily = $Name
+    $GuiSettings.FontSize = $Size
+    $GuiSettings.ColourSet = $ColourSet
+    Save-GuiSettings $GuiSettings
+    $GuiFonts.UiFont = $Family
+    $GuiFonts.UiSize = $Size
+    # The colour set: the window's copy of the chart is swapped for a
+    # fresh one wearing it - every reference is dynamic, so the window
+    # repaints itself on the spot.
+    $window.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
+    & $UpdateThemeButton
+    Set-WindowPhosphorFrame -Win $window -UiFont $Family -UiFontSize $Size
+    # The columns re-measure under the new face, and the fitted width follows
+    # the zoom - then the face speaks, after the reload's own count line.
+    & $LoadFleet
+    $setName = if ($ColourSet) { $ColourSet } else { "default" }
+    & $SetStatus "Window face: '$Name' at $Size pt, theme '$setName'. Popups follow on their next open."
+}
+
+# Settings: the gui's own face - the family, its size, the colour set, the
+# working folder. The face applies as it changes (the window's combos are
+# wired to the block above); this handler carries what is left: the working
+# folder's move.
 $btnSettings.Add_Click({
     # The family really worn, not the saved name - which can be stale (a
     # font since deleted) - so the select stands on the truth; with nothing
@@ -122,45 +168,24 @@ $btnSettings.Add_Click({
         $worn = "$($GuiFonts.UiFont.FamilyNames.Values | Select-Object -First 1)"
         if (-not $worn) { $worn = "$($GuiFonts.UiFont.Source)" -replace '^\./#', '' }
     }
-    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize -CurrentColourSet $GuiSettings.ColourSet -CurrentRoot $Manager.InstancesRoot
+    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize -CurrentColourSet $GuiSettings.ColourSet -CurrentRoot $Manager.InstancesRoot -Catalog $Manager.Catalog
     if ($null -eq $look) { return }
-    # A folder face's file must be on disk right now - the filesystem is the
-    # truth. NOT a rendered glyph: rendering resolves the family NAME through
-    # the Windows font cache, which can still point it at a file that is gone
-    # (measured: it refused a just-uploaded face whose file sat right there).
-    if ($look.Folder) {
-        $faceFile = @(Get-ChildItem $look.Folder -File -ErrorAction SilentlyContinue |
-            Where-Object { $_.Extension -in ".ttf", ".otf" })
-        if ($faceFile.Count -eq 0) {
-            & $SetStatus "'$($look.Name)' cannot be used: its file seems gone." -Alert
-            return
-        }
-    }
-    $GuiSettings.FontFamily = $look.Name
-    $GuiSettings.FontSize = $look.Size
-    $GuiSettings.ColourSet = $look.ColourSet
-    Save-GuiSettings $GuiSettings
-    $GuiFonts.UiFont = $look.Family
-    $GuiFonts.UiSize = $look.Size
-    # The colour set: the window's copy of the chart is swapped for a
-    # fresh one wearing it - every reference is dynamic, so the window
-    # repaints itself on the spot.
-    $window.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
-    & $UpdateThemeButton
-    Set-WindowPhosphorFrame -Win $window -UiFont $look.Family -UiFontSize $look.Size
-    # The columns re-measure under the new face, and the fitted width follows
-    # the zoom - then the face speaks, after the reload's own count line.
-    & $LoadFleet
-    $setName = if ($look.ColourSet) { $look.ColourSet } else { "default" }
-    & $SetStatus "Window face: '$($look.Name)' at $($look.Size) pt, theme '$setName'. Popups follow on their next open."
 
-    # The working folder, when it was changed: the whole fleet follows, by the
-    # migrate command in a console of its own - the console IS the log - and
-    # the window closes behind it. Nothing moves on one Enter: the red CONFIRM
-    # explains first. The console waits for a key and reopens this manager.
-    $newRoot = "$($look.Root)".Trim().Trim('"').TrimEnd('\')
+    # A pack removed in the window: the manager's catalogue is rebuilt on the
+    # spot, so every list agrees at once.
+    if ($look.CatalogueChanged) { $Manager.Catalog = Get-PackCatalog }
+
+    # The working folder, when it was changed: by the input's APPLY - the red
+    # CONFIRM here explains first - or by the move dialog's own CONFIRM,
+    # which already warned (MoveTo rides the answer, not asked twice). The
+    # whole fleet follows, by the migrate command in a console of its own -
+    # the console IS the log - and the window closes behind it. The console
+    # waits for a key and reopens this manager.
+    $newRoot = if ($look.MoveTo) { "$($look.MoveTo)" } else { "$($look.Root)" }
+    $newRoot = $newRoot.Trim().Trim('"').TrimEnd('\')
     if ($newRoot -and ($newRoot -ne $Manager.InstancesRoot.TrimEnd('\'))) {
-        if (Show-GuiConfirm -Owner $window -Title "Move the fleet" -Question "All existing instances will be archived and moved to '$newRoot'. Continue?") {
+        $confirmed = if ($look.MoveTo) { $true } else { Show-GuiConfirm -Owner $window -Title "Move the fleet" -Question "All existing instances will be archived and moved to '$newRoot'. Continue?" }
+        if ($confirmed) {
             $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\MigrateRunner.ps1"
             $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
             $Entry = Join-Path $PSScriptRoot "..\..\..\wsl.ps1"
@@ -206,7 +231,7 @@ $btnAdd.Add_Click({
     # The Docker check rides behind the form now - it used to hold the door
     # for a second and told nothing the questions could not (see
     # Show-AddInstance).
-    $catalog = Get-PackCatalog
+    $catalog = $Manager.Catalog
     $form = Show-AddInstance -Catalog $catalog -ProposedUser (Get-WindowsUserProposal) -InstancesRoot $Manager.InstancesRoot -Manager $Manager
     if ($null -eq $form) { return }
 

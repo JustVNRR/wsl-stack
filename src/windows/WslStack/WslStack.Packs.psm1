@@ -17,12 +17,28 @@
 # whoever called in what shape (measured in the questions next door).
 using module ..\WslModel\WslModel.psd1
 
-# Where the packs live, and the cleanup that travels with a removal - the
-# script sits IN the packs folder, where it moves with them. Read here, at
-# load time, and not inside the functions: $PSScriptRoot means the file
-# being executed, and a function belongs to whichever script called it.
-$PacksRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "distro\packs"
-$OrphanCleanupScript = Join-Path $PacksRoot "cleanup_orphans.sh"
+# Where the packs live now, and the cleanup script. The packs are DATA: the
+# catalogue reads assets\packs - editable, deletable - seeded once from the
+# repository's own src\distro\packs. Only the DIRECTORIES travel: a pack is a
+# folder, and the cleanup script is machinery - it stays the repository's own,
+# never copied, always run from here. Both paths are read at load time, not
+# inside the functions: $PSScriptRoot means the file being executed, and a
+# function belongs to whichever script called it.
+$RepoRoot = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
+$SourcePacksRoot = Join-Path $RepoRoot "src\distro\packs"
+$PacksRoot = Join-Path $RepoRoot "assets\packs"
+$OrphanCleanupScript = Join-Path $SourcePacksRoot "cleanup_orphans.sh"
+
+# The seed: the first import on a machine without a packs folder fills it
+# with the repository's own - once, silently. Deleting assets\packs brings
+# the base packs back the same way; what was edited or added there is gone
+# with it, which is the price of a folder of one's own.
+if (-not (Test-Path $PacksRoot) -and (Test-Path $SourcePacksRoot)) {
+    $null = New-Item -ItemType Directory -Path $PacksRoot -Force
+    foreach ($PackDir in (Get-ChildItem -Path $SourcePacksRoot -Directory)) {
+        Copy-Item -LiteralPath $PackDir.FullName -Destination $PacksRoot -Recurse
+    }
+}
 
 # The catalog of packs this checkout carries, read by the model: the line a
 # menu shows, the folder to copy from, the declarations both checklists read -
@@ -31,6 +47,13 @@ $OrphanCleanupScript = Join-Path $PacksRoot "cleanup_orphans.sh"
 function Get-PackCatalog {
     param([string]$Root = $PacksRoot)
     return [WslPackCatalog]::new($Root)
+}
+
+# The folder the packs live in, for the factory: the manager is handed its
+# catalogue the way it is handed its root - decided here, at the one place
+# that knows the repository's layout.
+function Get-PacksRoot {
+    return $PacksRoot
 }
 
 # A pack is its folder WITH its pack.conf: that is what the gmake side counts

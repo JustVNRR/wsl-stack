@@ -54,7 +54,7 @@ function Show-PopupExclusive {
 # own warning above). Answers $true for CONFIRM, $false for everything else -
 # Cancel, Escape, the close crosses.
 function Show-GuiConfirm {
-    param([string]$Title, [string]$Question, [System.Windows.Window]$Owner)
+    param([string]$Title, [string]$Question, [System.Windows.Window]$Owner, [string]$Danger = "")
 
     [xml]$confirmXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\Confirm.xaml"))
 
@@ -63,7 +63,19 @@ function Show-GuiConfirm {
 
     Set-WindowPhosphorFrame -Win $confirm -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $confirm.FindName("TxtLead").Text = $Title
-    $confirm.FindName("TxtQuestion").Text = $Question
+    # The question, one block with two colours: the plain text, then - when
+    # there is one - the red line under it (a Run of its own in the same
+    # TextBlock: no new element, no new name to find).
+    $txtQuestion = $confirm.FindName("TxtQuestion")
+    $txtQuestion.Inlines.Clear()
+    $txtQuestion.Inlines.Add([System.Windows.Documents.Run]::new($Question))
+    if ($Danger) {
+        $txtQuestion.Inlines.Add([System.Windows.Documents.LineBreak]::new())
+        $txtQuestion.Inlines.Add([System.Windows.Documents.LineBreak]::new())
+        $dangerRun = [System.Windows.Documents.Run]::new($Danger)
+        $dangerRun.Foreground = $confirm.FindResource("AppDangerBrush")
+        $txtQuestion.Inlines.Add($dangerRun)
+    }
 
     $script:ConfirmResult = $false
     $confirm.FindName("BtnConfirmCancel").Add_Click({ $script:ConfirmResult = $false; $confirm.Close() })
@@ -77,6 +89,37 @@ function Show-GuiConfirm {
     if ($Owner) { $confirm.Owner = $Owner }
     $null = $confirm.ShowDialog()
     return $script:ConfirmResult
+}
+
+# The working folder's move, asked on its own: the warning first - every
+# instance stops and is archived on the way - the folder in a box, a Cancel
+# and a red CONFIRM. Answers the new folder, or $null when cancelled or left
+# empty.
+function Show-GuiRootMove {
+    param([string]$Current, [System.Windows.Window]$Owner)
+
+    [xml]$moveXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\RootMove.xaml"))
+
+    $move = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($moveXaml))
+    $move.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+
+    Set-WindowPhosphorFrame -Win $move -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $move.FindName("TxtLead").Text = "Move the working folder"
+    $move.FindName("TxtWarning").Text = "Every instance will be stopped and archived first.`nMake sure you saved your work before proceeding."
+    $move.FindName("TxtNewRoot").Text = $Current
+
+    $script:RootMoveResult = $null
+    $move.FindName("BtnRootCancel").Add_Click({ $move.Close() })
+    $move.FindName("BtnRootOk").Add_Click({
+        $chosen = $move.FindName("TxtNewRoot").Text.Trim().Trim('"').TrimEnd('\')
+        if ($chosen) { $script:RootMoveResult = $chosen }
+        $move.Close()
+    })
+
+    Set-WindowFitToContent -Win $move
+    if ($Owner) { $move.Owner = $Owner }
+    $null = $move.ShowDialog()
+    return $script:RootMoveResult
 }
 
 # -----------------------------------------------------------------------------
@@ -1288,7 +1331,7 @@ function Show-DuplicatePrompt {
 # repository's own font folder, beside VT323, and the family it carries
 # joins the list, selected - the icon's own manners, one seat over.
 function Show-GuiSettings {
-    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize, [string]$CurrentColourSet, [string]$CurrentRoot)
+    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize, [string]$CurrentColourSet, [string]$CurrentRoot, $Catalog)
 
     [xml]$settingsXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\GuiSettings.xaml"))
 
@@ -1304,8 +1347,16 @@ function Show-GuiSettings {
     $txtRoot = $form.FindName("TxtRoot")
     $txtRoot.Text = $CurrentRoot
     $form.FindName("BtnGuiRootEdit").Add_Click({
-        $txtRoot.IsEnabled = $true
-        $txtRoot.Focus()
+        # The move, asked on its own: the warning, the folder now, a Cancel
+        # and a red CONFIRM. A confirmed folder rides the answer and the
+        # window steps out of the way - the console and the manager's return
+        # are gui.ps1's.
+        $chosen = Show-GuiRootMove -Owner $form -Current $txtRoot.Text.Trim()
+        if ($chosen) {
+            $script:MoveTo = $chosen
+            $script:GuiSettingsResult = & $BuildResult
+            $form.Close()
+        }
     })
 
     # The list: the folders first, then the machine's usable fonts - the
@@ -1340,9 +1391,8 @@ function Show-GuiSettings {
     $lstFonts = $form.FindName("LstGuiFonts")
     $fontIndex = 0
     for ($i = 0; $i -lt $choiceRows.Count; $i++) {
-        $here = if ($choiceRows[$i].Name -eq $CurrentFamily) { "  ✓" } else { "" }
         if ($choiceRows[$i].Name -eq $CurrentFamily) { $fontIndex = $i }
-        $null = $lstFonts.Items.Add("$($choiceRows[$i].Name)$here")
+        $null = $lstFonts.Items.Add("$($choiceRows[$i].Name)")
     }
     if ($choiceRows.Count -gt 0) { $lstFonts.SelectedIndex = $fontIndex }
 
@@ -1352,9 +1402,8 @@ function Show-GuiSettings {
     if ($sizes -notcontains $CurrentSize) { $sizes = @($CurrentSize) + $sizes }
     $sizeIndex = 0
     for ($i = 0; $i -lt $sizes.Count; $i++) {
-        $here = if ($sizes[$i] -eq $CurrentSize) { "  ✓" } else { "" }
         if ($sizes[$i] -eq $CurrentSize) { $sizeIndex = $i }
-        $null = $lstSizes.Items.Add("$($sizes[$i])$here")
+        $null = $lstSizes.Items.Add("$($sizes[$i])")
     }
     $lstSizes.SelectedIndex = $sizeIndex
 
@@ -1378,21 +1427,44 @@ function Show-GuiSettings {
     $setIndex = 0
     for ($i = 0; $i -lt $setNames.Count; $i++) {
         $label = if ($setNames[$i]) { $setNames[$i] } else { "Default" }
-        $here = if ($setNames[$i] -eq $CurrentColourSet) { "  ✓" } else { "" }
         if ($setNames[$i] -eq $CurrentColourSet) { $setIndex = $i }
-        $null = $lstColours.Items.Add("$label$here")
+        $null = $lstColours.Items.Add("$label")
     }
     $lstColours.SelectedIndex = $setIndex
 
-    # The theme's trash: greyed on "Default" - no file to take off the disk.
+    # The theme's trash and edit: both greyed on "Default" - no file to take
+    # off the disk, none to open either.
     $txtThemeError = $form.FindName("TxtThemeError")
     $btnThemeDelete = $form.FindName("BtnGuiThemeDelete")
-    $UpdateThemeTrash = {
+    $btnThemeEdit = $form.FindName("BtnGuiThemeEdit")
+    $UpdateThemeButtons = {
         $at = $lstColours.SelectedIndex
-        $btnThemeDelete.IsEnabled = ($at -ge 0) -and [bool]$setNames[$at]
+        $hasFile = ($at -ge 0) -and [bool]$setNames[$at]
+        $btnThemeDelete.IsEnabled = $hasFile
+        $btnThemeEdit.IsEnabled = $hasFile
     }
-    $lstColours.Add_SelectionChanged({ & $UpdateThemeTrash })
-    & $UpdateThemeTrash
+    $lstColours.Add_SelectionChanged({ & $UpdateThemeButtons })
+    & $UpdateThemeButtons
+
+    # The face applies as it changes - the family, its size, the colour set:
+    # the window behind repaints on each pick and the choice is saved at
+    # once (the block lives in gui.ps1, where the window's own things are).
+    # These three combos have nothing waiting on an APPLY.
+    $ApplySelection = {
+        $choice = $choiceRows[[Math]::Max(0, $lstFonts.SelectedIndex)]
+        $size = $sizes[[Math]::Max(0, $lstSizes.SelectedIndex)]
+        & $ApplyLook -Name $choice.Name -Family $choice.Family -Folder $choice.Folder `
+            -Size $size -ColourSet $setNames[[Math]::Max(0, $lstColours.SelectedIndex)]
+        # The window being looked at wears it too: the same chart, the same
+        # face, and the fit redone at the new face - the "popups follow on
+        # their next open" starts with this one.
+        $form.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
+        Set-WindowPhosphorFrame -Win $form -UiFont $choice.Family -UiFontSize $size
+        Set-WindowFitToContent -Win $form -Shrink -Cap 640
+    }
+    $lstFonts.Add_SelectionChanged({ & $ApplySelection })
+    $lstSizes.Add_SelectionChanged({ & $ApplySelection })
+    $lstColours.Add_SelectionChanged({ & $ApplySelection })
 
     # The file dialog's Enter lands on the owner once it closes, and the
     # default button answers it - the popup closed applying the old choice
@@ -1497,16 +1569,116 @@ function Show-GuiSettings {
         $setNames.RemoveAt($at)
         $lstColours.Items.RemoveAt($at)
         $lstColours.SelectedIndex = [Math]::Min($at, $lstColours.Items.Count - 1)
-        & $UpdateThemeTrash
+        & $UpdateThemeButtons
+    })
+    $form.FindName("BtnGuiThemeEdit").Add_Click({
+        $at = $lstColours.SelectedIndex
+        if ($at -lt 0) { return }
+        $name = $setNames[$at]
+        if (-not $name) { return }
+        # The selected theme's file, opened as Windows opens it - the default
+        # application, or the picker once when none is set. A refusal is said
+        # on the red line instead of killing the window.
+        try {
+            Invoke-Item -LiteralPath (Join-Path $coloursRoot "$name.xaml") -ErrorAction Stop
+        } catch {
+            $txtThemeError.Text = "The file did not open: $($_.Exception.Message)"
+            $txtThemeError.Visibility = [System.Windows.Visibility]::Visible
+        }
     })
 
-    $script:GuiSettingsResult = $null
-    $form.FindName("BtnGuiCancel").Add_Click({ $script:GuiSettingsResult = $null; $form.Close() })
-    $form.FindName("BtnGuiApply").Add_Click({
+    # The catalogue: the packs of assets\packs, in a list of their own - the
+    # edit button opens the selected pack's folder as Windows opens folders,
+    # the trash removes the folder whole (the red CONFIRM first). A removal
+    # rides back in the result: the manager's catalogue is rebuilt behind it,
+    # so a pack gone here is gone from every list at once.
+    $script:CatalogueChanged = $false
+    $txtCatalogueError = $form.FindName("TxtCatalogueError")
+    $btnPackEdit = $form.FindName("BtnGuiPackEdit")
+    $btnPackDelete = $form.FindName("BtnGuiPackDelete")
+    $lstPacks = $form.FindName("LstGuiPacks")
+    $lstPacks.Width = $comboWidth
+    $packRows = [System.Collections.Generic.List[object]]::new()
+    foreach ($Pack in @($Catalog.AvailablePacks | Sort-Object Name)) {
+        $packRows.Add($Pack)
+        $null = $lstPacks.Items.Add("$($Pack.Name) ($($Pack.Family))")
+    }
+    if ($lstPacks.Items.Count -gt 0) { $lstPacks.SelectedIndex = 0 }
+    $UpdatePacks = {
+        $has = $lstPacks.SelectedIndex -ge 0
+        $btnPackEdit.IsEnabled = $has
+        $btnPackDelete.IsEnabled = $has
+    }
+    $lstPacks.Add_SelectionChanged({ & $UpdatePacks })
+    & $UpdatePacks
+
+    $form.FindName("BtnGuiPackEdit").Add_Click({
+        if ($lstPacks.SelectedIndex -lt 0) { return }
+        # A refusal is said on the red line instead of killing the window.
+        try {
+            Invoke-Item -LiteralPath $packRows[$lstPacks.SelectedIndex].Path -ErrorAction Stop
+        } catch {
+            $txtCatalogueError.Text = "The folder did not open: $($_.Exception.Message)"
+            $txtCatalogueError.Visibility = [System.Windows.Visibility]::Visible
+        }
+    })
+    $form.FindName("BtnGuiPackDelete").Add_Click({
+        $at = $lstPacks.SelectedIndex
+        if ($at -lt 0) { return }
+        $Pack = $packRows[$at]
+
+        # Who would be left holding a missing pack: every pack whose chain of
+        # PACK_REQUIRES runs through this one - the walk follows the requires
+        # until nothing new answers. Named one per line, in the question.
+        $Dependents = [System.Collections.Generic.List[string]]::new()
+        $Frontier = @($Pack.Name)
+        while ($Frontier.Count -gt 0) {
+            $Next = @()
+            foreach ($Row in $packRows) {
+                if ($Row.Name -eq $Pack.Name -or $Dependents.Contains($Row.Name)) { continue }
+                if (@($Row.Requires | Where-Object { $Frontier -contains $_ }).Count -gt 0) {
+                    $Dependents.Add($Row.Name)
+                    $Next += $Row.Name
+                }
+            }
+            $Frontier = @($Next)
+        }
+
+        $Question = "Remove the pack '$($Pack.Name)'?"
+        $Danger = ""
+        if ($Dependents.Count -gt 0) {
+            $Question += "`n`nThese packs depend on it:"
+            $Question += "`n" + (@($Dependents | ForEach-Object { "- $_" }) -join "`n")
+            $Danger = "Removing it may break them."
+        } else {
+            $Question += " Instances already carrying it keep their own copy."
+        }
+        if (-not (Show-GuiConfirm -Owner $form -Title "Remove the pack" -Question $Question -Danger $Danger)) { return }
+        Remove-Item -LiteralPath $Pack.Path -Recurse -Force -ErrorAction SilentlyContinue
+        $packRows.RemoveAt($at)
+        $lstPacks.Items.RemoveAt($at)
+        $lstPacks.SelectedIndex = [Math]::Min($at, $lstPacks.Items.Count - 1)
+        & $UpdatePacks
+        $script:CatalogueChanged = $true
+    })
+
+    # The window's answer, one shape for both ways out: CLOSE builds it from
+    # the combos, the move dialog's CONFIRM builds the same and rides its
+    # folder in MoveTo.
+    $BuildResult = {
         $choice = $choiceRows[[Math]::Max(0, $lstFonts.SelectedIndex)]
         $size = $sizes[[Math]::Max(0, $lstSizes.SelectedIndex)]
         $set = if ($lstColours.SelectedIndex -ge 0) { $setNames[$lstColours.SelectedIndex] } else { "" }
-        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size; ColourSet = $set; Root = $txtRoot.Text.Trim() }
+        [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size; ColourSet = $set; Root = $txtRoot.Text.Trim(); CatalogueChanged = [bool]$script:CatalogueChanged; MoveTo = "$script:MoveTo" }
+    }
+
+    $script:MoveTo = ""
+    $script:GuiSettingsResult = $null
+    # One way out: CLOSE hands the answer back (the catalogue's flag, the
+    # move dialog's folder) - the face applied as it changed, so there is
+    # nothing left for it to apply.
+    $form.FindName("BtnGuiClose").Add_Click({
+        $script:GuiSettingsResult = & $BuildResult
         $form.Close()
     })
 

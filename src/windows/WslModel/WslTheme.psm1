@@ -48,8 +48,10 @@ class WslTheme {
     }
 
     # Installs it for the user, best effort: a download that fails must not
-    # fail a build. Answers what happened for the caller to report.
-    [object] EnsureFont() {
+    # fail a build. A file handed in - the repository's own, under assets -
+    # is copied straight from there; the network is only the fallback.
+    # Answers what happened for the caller to report.
+    [object] EnsureFont([string]$From = "") {
         # Not named $FontName: that is this class's own member (and PowerShell
         # does not tell the two cases apart).
         $Face = "MesloLGS NF"
@@ -65,14 +67,20 @@ class WslTheme {
         # the finally either way.
         $TempFontPath = Join-Path $env:TEMP "$([guid]::NewGuid().ToString('N')).ttf"
         try {
-            $FontUrl = "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
-            Invoke-WebRequest -Uri $FontUrl -OutFile $TempFontPath -UseBasicParsing
+            $SourcePath = ""
+            if ($From -and (Test-Path $From)) {
+                $SourcePath = $From
+            } else {
+                $FontUrl = "https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
+                Invoke-WebRequest -Uri $FontUrl -OutFile $TempFontPath -UseBasicParsing
+                $SourcePath = $TempFontPath
+            }
 
             if (-not (Test-Path $UserFontsDir)) {
                 New-Item -ItemType Directory -Path $UserFontsDir -Force | Out-Null
             }
             if (-not (Test-Path $DestFontPath)) {
-                Copy-Item -Path $TempFontPath -Destination $DestFontPath -Force
+                Copy-Item -Path $SourcePath -Destination $DestFontPath -Force
             }
             if (-not (Get-ItemProperty -Path $FontRegPath -Name "$Face (TrueType)" -ErrorAction SilentlyContinue)) {
                 New-ItemProperty -Path $FontRegPath -Name "$Face (TrueType)" -Value $DestFontPath -PropertyType String -Force | Out-Null
