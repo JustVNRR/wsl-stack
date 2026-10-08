@@ -159,7 +159,7 @@ two are seeded into the assets on the first run - a missing folder is filled
 from `src\distro\build\` - and they come back by deleting the folder. Each
 row carries an upload button, a
 download beside it and a trash at its end:
-the upload puts yours under `assets\dockerfiles\`, `assets\firstboots\` or
+the upload puts yours under `assets\dockerfiles\`, `assets\onboardings\` or
 `assets\dockerimages\` (same file uploaded again, same slot - the fonts' own
 convention; each row carries the date it arrived, so two versions of
 one name are told apart; a Dockerfile brings its `.dockerignore` along); the
@@ -271,7 +271,7 @@ taken back at the end, and the image itself, under its own name, stays where
 Docker put it.
 
 The **first_boot** is the onboarding script, common to both roads. It is
-placed in the instance *after* the import — `/root/first_boot.sh`,
+placed in the instance *after* the import — `/root/onboarding.sh`,
 executable, armed in root's `.bashrc` — and then run as step 6 below. The
 image carries none: changing the first_boot never rebuilds the image. A path
 that names no file stops the build before anything is asked or destroyed.

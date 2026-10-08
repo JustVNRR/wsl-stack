@@ -45,10 +45,10 @@ Out=$(mktemp)
 # Where the checkout stands before the runs: they write nothing, and this is
 # what says so - whether the tree is clean or carries work in progress. The
 # seeds are the writes a run is meant to make (the first import fills
-# assets\packs, assets\dockerfiles and assets\firstboots from src), so they
+# assets\packs, assets\dockerfiles and assets\onboardings from src), so they
 # are left out of the picture.
 tree_state() {
-    git -C "$RepoTemplate" status --short | grep -vE 'assets/(packs|dockerfiles|firstboots)' || true
+    git -C "$RepoTemplate" status --short | grep -vE 'assets/(packs|dockerfiles|onboardings)' || true
 }
 Before=$(tree_state)
 
@@ -149,7 +149,7 @@ check "and asks nothing"                        "$(contains 'Name of the instanc
 check "and builds nothing"                      "$(contains '==> 1. Building Docker')" "no"
 check "exit code 1"                             "$Code" "1"
 
-run_build 'recipe-qtest-2\n' -FirstBoot "$RepoTemplate/nowhere/first_boot.sh"
+run_build 'recipe-qtest-2\n' -FirstBoot "$RepoTemplate/nowhere/onboarding.sh"
 check "and a first_boot that is not a file too" "$(contains '[ABORT] The first_boot is not a file:')" "yes"
 check "exit code 1"                             "$Code" "1"
 

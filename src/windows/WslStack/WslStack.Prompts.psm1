@@ -17,16 +17,16 @@
 using module ..\WslModel\WslModel.psd1
 
 # The recipes are DATA, like the packs: the build's lists read the assets -
-# assets\dockerfiles and assets\firstboots - seeded once from the
+# assets\dockerfiles and assets\onboardings - seeded once from the
 # repository's own src\distro\build when a folder is missing. The seed slots
-# carry the source files' plain names (Dockerfile, first_boot), hash-less:
+# carry the source files' plain names (Dockerfile, onboarding), hash-less:
 # they sort ahead of the same-named uploads, so a fresh checkout opens on
 # them. Deleting a recipe is for good; deleting the folder brings the pair
 # back.
 $RecipesRepoRoot = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
 $SeedRecipes = @(
     @{ Kind = "dockerfiles"; Source = "src\distro\build\Dockerfile"; FileName = "Dockerfile"; Slot = "Dockerfile"; Sibling = "Dockerfile.dockerignore" }
-    @{ Kind = "firstboots"; Source = "src\distro\build\first_boot.sh"; FileName = "first_boot.sh"; Slot = "first_boot"; Sibling = "" }
+    @{ Kind = "onboardings"; Source = "src\distro\build\onboarding.sh"; FileName = "onboarding.sh"; Slot = "onboarding"; Sibling = "" }
 )
 foreach ($Seed in $SeedRecipes) {
     $SeedRoot = Join-Path $RecipesRepoRoot "assets\$($Seed.Kind)"
@@ -578,7 +578,7 @@ function Resolve-DefaultUser {
 
 # The files a build may start from: whatever the assets carry - Dockerfiles
 # in assets\dockerfiles\<name>\Dockerfile, first boots in
-# assets\firstboots\<name>\first_boot.sh, images in assets\dockerimages\
+# assets\onboardings\<name>\onboarding.sh, images in assets\dockerimages\
 # under the name they arrived with. The repository's own Dockerfile and
 # first_boot are seeded among them (see above): one source for the console's
 # lists and the window's. One row per file: Name (what a list shows), Path
@@ -605,10 +605,10 @@ function Get-BuildRecipes {
             }
         }
     }
-    $bootRoot = Join-Path $AssetsDir "firstboots"
+    $bootRoot = Join-Path $AssetsDir "onboardings"
     if (Test-Path $bootRoot) {
         foreach ($slot in @(Get-ChildItem $bootRoot -Directory | Sort-Object Name)) {
-            $file = Join-Path $slot.FullName "first_boot.sh"
+            $file = Join-Path $slot.FullName "onboarding.sh"
             if (Test-Path $file) {
                 $firstboots.Add([PSCustomObject]@{
                     Name     = Format-BuildRecipeName -BaseName ($slot.Name -replace '-[0-9a-f]{8}$', '') -Path $file

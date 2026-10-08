@@ -145,7 +145,7 @@ function Get-BundledFont {
 #       "Docker":  "yes",
 #       "Dockerfile":  "D:\\wsl-stack\\src\\distro\\build\\Dockerfile",
 #       "DockerImage":  "D:\\wsl-stack\\assets\\dockerimages\\x-1a2b3c4d\\x.tar",
-#       "FirstBoot":  "D:\\wsl-stack\\src\\distro\\build\\first_boot.sh"
+#       "FirstBoot":  "D:\\wsl-stack\\src\\distro\\build\\onboarding.sh"
 #   }
 #
 # The four Icon* fields are the recipe: they let one change keep the others -

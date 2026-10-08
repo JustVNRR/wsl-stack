@@ -23,7 +23,7 @@
 
 ## The WSL file
 
-`first_boot.sh` writes `/etc/wsl.conf` whole at the first boot; the switches
+`onboarding.sh` writes `/etc/wsl.conf` whole at the first boot; the switches
 below add `[boot]` or edit the sections, and a pack may add its own.
 
 | Section | Sets |

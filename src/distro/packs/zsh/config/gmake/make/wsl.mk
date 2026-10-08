@@ -2,7 +2,7 @@
 # THE INSTANCE ITSELF: ITS FILES, ITS STATE, AND ITS SWITCHES
 # ==============================================================================
 # The machine's, not a project's: the three files the instance keeps outside
-# ~/.config - /etc/wsl.conf, written whole by first_boot.sh at the first boot;
+# ~/.config - /etc/wsl.conf, written whole by onboarding.sh at the first boot;
 # /etc/resolv.conf, which answers the DNS; /etc/fstab, the mounts to apply at
 # start - the status that reports what it runs on, and the ten switches.
 #

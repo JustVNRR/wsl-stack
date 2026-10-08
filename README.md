@@ -302,7 +302,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   └── build/
 │   │       ├── Dockerfile   # Rootfs build recipe: Ubuntu 24.04 and the tools
 │   │       ├── Dockerfile.dockerignore # Keeps the context lean, keeps .env.global out of the image
-│   │       └── first_boot.sh # User creation, sudo, timezone, /etc/wsl.conf
+│   │       └── onboarding.sh # User creation, sudo, timezone, /etc/wsl.conf
 │   ├── windows/             # Instance administration, one file per command
 │   │   ├── WslStack/        # The module: one nested file per family - the
 │   │                        #   messages, the instances' family, the pack
@@ -398,7 +398,7 @@ deleting the distro deletes all of it.
                              # tools (python), the claude launcher (claude)
 ~/.local/share/uv/           # the Python builds it downloaded, and their environments
 ~/.config/gcloud/            # The two GCP logins (gcp_auth_cli, gcp_auth_libs)
-/etc/wsl.conf                # Default user, automount, interop (first_boot.sh; reopened by gmake wsl_config)
+/etc/wsl.conf                # Default user, automount, interop (onboarding.sh; reopened by gmake wsl_config)
 /etc/resolv.conf             # Name servers (WSL's, or yours; reopened by gmake dns_resolve)
 /etc/fstab                   # Mounts to apply at start (reopened by gmake fstab_config)
 ```

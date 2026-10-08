@@ -153,7 +153,7 @@ function Stop-WslDistro {
 
 function Invoke-WslFirstBoot {
     param([string]$DistroName, [string]$User)
-    Invoke-NativeCommand { wsl.exe -d $DistroName -u root /root/first_boot.sh $User } "The first_boot.sh configuration script failed."
+    Invoke-NativeCommand { wsl.exe -d $DistroName -u root /root/onboarding.sh $User } "The onboarding.sh configuration script failed."
 }
 
 # The onboarding script, placed in the instance right after the import: the
@@ -165,7 +165,7 @@ function Invoke-WslFirstBoot {
 function Install-FirstBootScript {
     param([string]$DistroName, [string]$Source)
 
-    # D:\...\first_boot.sh -> /mnt/d/.../first_boot.sh: the packs' own road.
+    # D:\...\onboarding.sh -> /mnt/d/.../onboarding.sh: the packs' own road.
     $ThroughTheDrives = "/mnt/" + $Source.Substring(0, 1).ToLower() + ($Source.Substring(2) -replace "\\", "/")
     $ExitCode = 0
 
@@ -175,10 +175,10 @@ function Install-FirstBootScript {
     # the pack copy's rule: wsl.exe re-splits what it is handed.
     Invoke-InInstance -DistroName $DistroName -RunAs "root" -ExitCode ([ref]$ExitCode) -Quiet -Command @(
         "sh", "-c",
-        "cp -f '$ThroughTheDrives' /root/first_boot.sh && chmod 755 /root/first_boot.sh && echo /root/first_boot.sh >> /root/.bashrc"
+        "cp -f '$ThroughTheDrives' /root/onboarding.sh && chmod 755 /root/onboarding.sh && echo /root/onboarding.sh >> /root/.bashrc"
     )
     if ($ExitCode -ne 0) {
-        throw "'$Source' could not be placed in '$DistroName' as /root/first_boot.sh - are the Windows drives mounted in it?"
+        throw "'$Source' could not be placed in '$DistroName' as /root/onboarding.sh - are the Windows drives mounted in it?"
     }
 }
 
@@ -351,7 +351,7 @@ $FirstBootAsked = -not $PSBoundParameters.ContainsKey('FirstBoot')
 if ($FirstBootAsked) {
     $BootRows = @((Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")).FirstBoots)
     if ($BootRows.Count -eq 0) {
-        Write-Host "  No onboarding shell under 'assets\firstboots' - the instance will be built without one." -ForegroundColor (Get-MessageColour muted)
+        Write-Host "  No onboarding shell under 'assets\onboardings' - the instance will be built without one." -ForegroundColor (Get-MessageColour muted)
         $FirstBoot = ""
     } else {
         $FirstBoot = $BootRows[0].Path

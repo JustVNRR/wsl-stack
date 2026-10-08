@@ -549,7 +549,7 @@ function Show-PackEditor {
 # assets for the console road and the window alike, the repository's own
 # seeded among them. An upload lands in a slot of its own under the assets,
 # named <file>-<sha1-8> and holding the file under its plain name
-# (Dockerfile, first_boot.sh) - or under the name it arrived with, for an
+# (Dockerfile, onboarding.sh) - or under the name it arrived with, for an
 # image - the fonts' own convention (the upload button in Show-GuiSettings):
 # the same file uploaded again lands in the same slot, and a changed file
 # takes a path no reader has seen.
@@ -886,13 +886,13 @@ function Show-AddInstance {
     })
     $form.FindName("BtnFirstBootUpload").Add_Click({
         $dialog = New-Object Microsoft.Win32.OpenFileDialog
-        $dialog.Title = "A first_boot script for the build"
+        $dialog.Title = "An onboarding script for the build"
         $dialog.Filter = "Shell scripts (*.sh)|*.sh|All files (*.*)|*.*"
         $picked = $dialog.ShowDialog($form)
         $script:EatEnter = $true
         if ($picked -ne $true) { return }
         try {
-            $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "firstboots" -Source $dialog.FileName -FileName "first_boot.sh"
+            $target = Copy-GuiBuildRecipe -AssetsDir $AssetsDir -Kind "onboardings" -Source $dialog.FileName -FileName "onboarding.sh"
         } catch { return }
         $row = [PSCustomObject]@{
             Name     = Format-BuildRecipeName -BaseName ([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)) -Path $target

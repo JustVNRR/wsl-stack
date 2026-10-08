@@ -50,7 +50,7 @@ adduser --disabled-password --gecos "" --shell /usr/bin/zsh "$NEW_USER"
 # The trigger in /root/.bashrc runs this again on every root shell, and the
 # account exists from here: a re-run could only fail on adduser. Disarmed now,
 # not at the end - a failure above would leave that loop running.
-sed -i '/first_boot\.sh/d' /root/.bashrc 2>/dev/null || true
+sed -i '/onboarding\.sh/d' /root/.bashrc 2>/dev/null || true
 
 echo ""
 # The account was created with no password of its own (--disabled-password):
@@ -145,5 +145,5 @@ WSLCONF
 # The pages cache is a convenience: a machine without network must not lose the
 # run - and the script deletes itself last, once nothing below can fail.
 su - "$NEW_USER" -c "tldr --update" || echo "${C_GREY}  (tldr cache left as it was)${C_RESET}"
-rm -f /root/first_boot.sh
+rm -f /root/onboarding.sh
 exit 0

@@ -11,7 +11,7 @@ if /i "%1"=="rmi" exit /b 0
 if /i "%1"=="export" (
     rem docker export -o <tar> <container>: the tar is the THIRD word, -o is
     rem the second. The file must not be a tar, or the run would go on to
-    rem first_boot.
+    rem onboarding.
     echo not-a-tar > %3
     exit /b 0
 )

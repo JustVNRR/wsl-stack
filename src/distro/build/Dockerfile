@@ -48,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     tzdata \
     # The dialog frontend debconf draws its lists with, one entry per line:
-    # first_boot.sh's timezone question asks for it by name, and without it
+    # onboarding.sh's timezone question asks for it by name, and without it
     # debconf quietly falls back to the columned readline list.
     whiptail \
     zsh \
@@ -162,7 +162,7 @@ RUN printf '%s\n%s\n' \
     && chown -R root:root /etc/skel
 
 # No first_boot in the image: the build places the chosen one in the instance
-# right after the import - /root/first_boot.sh, executable, armed in root's
+# right after the import - /root/onboarding.sh, executable, armed in root's
 # .bashrc - and then step 6 runs it. That is what this Dockerfile used to bake
 # in, moved out so a different onboarding costs no image rebuild.
 
