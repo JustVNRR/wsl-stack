@@ -19,15 +19,15 @@ name, and the description from its own `pack.conf`:
 ```text
 Packs currently installed:
 
-  gcp       The Google Cloud CLI
-  python    Python 3, uv, ruff and the compilation tools
-  vision    ffmpeg, ImageMagick and Tesseract OCR
+  hide_my_ops  The Google Cloud CLI
+  oh_my_py     Python 3, uv, ruff and the compilation tools
+  oh_my_peg    ffmpeg, ImageMagick and Tesseract OCR
 
 Packs are managed from Windows (.\wsl.ps1)
 ```
 
 A pack marked `PACK_VISIBLE := no` in its `pack.conf` has no line here either.
-It is a shared dependency — `devops`, the project targets python and gcp both need
-— and a shared engine is not a car: it does not belong in the list of what you
+It is a shared dependency — `hide_my_ops`, the project targets `oh_my_py` and `oh_my_cloud` both
+need — and a shared engine is not a car: it does not belong in the list of what you
 asked for. It arrived with the pack that requires it, and leaves with the last
 one that does.

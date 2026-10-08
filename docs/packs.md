@@ -11,14 +11,14 @@ shell knows nothing about any particular pack: it finds the folders and loads
 what they carry. Adding a pack touches no file outside that folder.
 
 A pack needs no tool: what it brings is what its folder carries, and that may be
-targets, a tool, or both — `devops` is targets only, `vision` a tool only.
+targets, a tool, or both — `hide_my_ops` is targets only, `oh_my_peg` a tool only.
 
-The `zsh` pack is one of them, and the one with a special job: the image bakes
+The `oh_my_shell` pack is one of them, and the one with a special job: the image bakes
 the tools (the shell, Oh-My-Zsh, Starship, the modern CLI set), and this pack
 deploys the settings — its `config/` folder, the `.zshenv` that points zsh at
 it, and the skeleton. An instance built without it has zsh and no settings;
 on a foreign Debian the same pack carries the tools too. Its page is
-[the shell, as a pack](packs/zsh/docs/zsh.md).
+[the shell, as a pack](../src/distro/packs/oh_my_shell/docs/zsh.md).
 
 ## The folder
 
@@ -35,7 +35,7 @@ assets/packs/<name>/         # seeded from src/distro/packs/
 ├── env.project.sample     # its share of a project's variables
 ├── cheatsheets/*.sh       # its fcheat sheets, each with a `# requires:` header
 ├── docs/*.md              # its pages: one per module, and whatever else it needs
-└── config/                # the zsh pack's own: the shell's files, copied into ~/.config/zsh
+└── config/                # the oh_my_shell pack's own: the shell's files, copied into ~/.config/zsh
 ```
 
 | Code | What it says | What happens |
@@ -81,14 +81,14 @@ files make loaded, so a pack whose folder is gone contributes no line at all.
 A pack's targets are ordinary ones, with one thing they can declare: a target
 that only makes sense from `~/projects` (scaffolding) says so in its module —
 `SCAFFOLD_GOALS += copier_project cruft_project ccds_project`, in
-`src/distro/packs/scaffold/make/project-setup.mk` — and the location gate in the Makefile
+`src/distro/packs/hide_my_scaff/make/project-setup.mk` — and the location gate in the Makefile
 reads that declaration. The gate is checked after the modules are loaded,
 precisely so it can: `$(error)` fires when make *reads* the line.
 
 A pack also curates its own template catalog (`cheatsheets/templates.tsv`), and
-the `scaffold` pack's `fnew` reads every installed pack's, showing each row with
+the `hide_my_scaff` pack's `fnew` reads every installed pack's, showing each row with
 the pack it was read from. What runs once such a row's template has been copied
-is that pack's to declare — `SCAFFOLD_AFTER_python := init_venv`, in its own
+is that pack's to declare — `SCAFFOLD_AFTER_oh_my_py := init_venv`, in its own
 module, beside the macro it names — and `fnew` names the row's pack on the make
 command line. A pack that declares nothing names nothing: its projects are
 copied and left alone.
@@ -107,7 +107,7 @@ newcomers' folders before removing anything, so a package two packs share is
 left where it is — [the order, and why](wsl/commands.md#manage_packs).
 
 A new instance can start with its packs already in place: `.\wsl.ps1 build`
-asks the same checklist before it builds — the `zsh` pack arrives ticked,
+asks the same checklist before it builds — the `oh_my_shell` pack arrives ticked,
 since every visible pack requires it — and installs the answer once the
 instance exists.
 
@@ -121,7 +121,7 @@ they live** — `~/.config/packs/*/zsh/*.zsh`, from the `.zshrc` that loads
 everything else. Nothing is copied into `~/.config/zsh`: a pack that leaves
 takes its commands out of the shell exactly as it takes its targets out of the
 menu, and an instance carrying no pack reads nothing there at all. The
-`scaffold` pack's `fnew` and the catalogs it reads travel together that way — the
+`hide_my_scaff` pack's `fnew` and the catalogs it reads travel together that way — the
 picker resolves them from its own file's location, not from a path that only
 exists in the shell.
 
@@ -146,16 +146,16 @@ the same pass, or both stay. And the cascade never takes a *visible* pack
 along: a visible one leaves only because somebody unticked it — it is the
 invisible ones that follow their last claimant.
 
-`devops` and `scaffold` are the two: the project targets `python` and `gcp`
+`hide_my_ops` and `hide_my_scaff` are the two: the project targets `oh_my_py` and `oh_my_cloud`
 both need, and the act of creating a project.
 
-Every visible pack also requires the `zsh` pack — the shell — so
+Every visible pack also requires the `oh_my_shell` pack — the shell — so
 choosing one brings the shell with it, and the shell only leaves when the
 last pack standing on it does.
 
-They are required for what they bring, not for a macro: `devops` ships the
-sample that carries `PACKAGE_NAME` and `DOCKER_BASE_IMAGE`; `scaffold` is what
-runs once a template has been copied (`SCAFFOLD_AFTER_python`). What a target
+They are required for what they bring, not for a macro: `hide_my_ops` ships the
+sample that carries `PACKAGE_NAME` and `DOCKER_BASE_IMAGE`; `hide_my_scaff` is what
+runs once a template has been copied (`SCAFFOLD_AFTER_oh_my_py`). What a target
 *calls* — `check_vars`, `confirm_action` — is the shell's, loaded with every
 module.
 
@@ -176,7 +176,7 @@ and the last pack to want it takes it away with it.
 What apt never sees goes through the same question. A tool a pack installs
 itself — a binary under `~/.local`, outside dpkg's graph — is declared in
 `PACK_OUTSIDE_APT`, and its `remove.sh` asks before erasing a single file. `uv`
-is the case: `python` uses it for a project's environment, `scaffold` for every
+is the case: `oh_my_py` uses it for a project's environment, `hide_my_scaff` for every
 tool it runs, so the first to leave leaves it and the last takes it away.
 
 Two things a `remove.sh` never does:
@@ -196,7 +196,7 @@ name it either — removing it would take a neighbour's program along. The pack
 installs it beside the program that wants it, and never in `PACK_PACKAGES`;
 its `remove.sh` marks it automatic on the way out
 (`apt-mark auto`), which makes it an orphan the moment the pack is gone, and the
-cleanup `remove_pack` runs afterwards takes it back. `web` is the case that
+cleanup `remove_pack` runs afterwards takes it back. `oh_my_web` is the case that
 exists: Firefox loads `libavcodec60` for H.264 and `libpulse0` for the sound,
 and nothing declares either.
 

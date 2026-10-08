@@ -58,7 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     strace \
     lsof \
     # make is the whole command surface of this image, and it used to arrive as
-    # a dependency of build-essential - the python pack's now. Named here in
+    # a dependency of build-essential - the oh_my_py pack's now. Named here in
     # plain sight: without this line the image would carry no make at all, and
     # every gmake target would be gone with it.
     make \
@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ripgrep \
     # The line editor cruft's and ccds' questions lack: cookiecutter reads a
     # plain line, so the bytes an arrow key sends land in the answer.
-    # src/distro/packs/scaffold/make/project-setup.mk runs it in front of the three tools,
+    # src/distro/packs/hide_my_scaff/make/project-setup.mk runs it in front of the three tools,
     # and it has to be there before the first project.
     rlwrap \
     shellcheck \
@@ -98,8 +98,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Database CLI
     sqlite3 \
     # No Python and no compiler for it: uv, python3-dev, libffi-dev, libssl-dev
-    # and build-essential are the `python` pack's, and ffmpeg, ImageMagick and
-    # Tesseract the `vision` pack's - they arrive on the instance that asks,
+    # and build-essential are the `oh_my_py` pack's, and ffmpeg, ImageMagick and
+    # Tesseract the `oh_my_peg` pack's - they arrive on the instance that asks,
     # with `.\wsl.ps1 add_pack`.
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -147,13 +147,13 @@ RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.local/
 # (.bashrc, .bash_logout, .profile) in /etc/skel, inherited by accounts for a
 # shell this image never runs - they go. The ZDOTDIR bootstrap and the shell's
 # state/cache directories are not here: they come with the configuration, so
-# they are the zsh pack's to write, into the home and into this skeleton.
+# they are the oh_my_shell pack's to write, into the home and into this skeleton.
 # One file stays: a bare ~/.zshrc, because zsh opens its first-run assistant
 # when none of its startup files exist - an instance that never takes the
 # pack should open a plain shell, not a questionnaire. The pack takes this
 # stub back when it brings the real settings.
 RUN printf '%s\n%s\n' \
-      '# The shell starts bare: install the zsh pack for the settings.' \
+      '# The shell starts bare: install the oh_my_shell pack for the settings.' \
       '# This file only keeps zsh'"'"'s first-run assistant out of the way.' > /etc/skel/.zshrc \
     && rm -f /etc/skel/.bashrc /etc/skel/.bash_logout /etc/skel/.profile \
     && mkdir -p /etc/skel/.ssh \

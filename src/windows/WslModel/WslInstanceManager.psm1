@@ -463,7 +463,7 @@ class WslInstanceManager {
                 $InstallCode = $Code
 
                 # Exit code 2: the pack asked a question and the answer was no
-                # (the claude pack asks about a second copy installed on Windows).
+                # (the oh_my_code pack asks about a second copy installed on Windows).
                 # Its folder goes back out; nothing is broken.
                 if ($InstallCode -eq 2) {
                     Remove-PackFolder -DistroName $Instance.Name -Target $Target -ExitCode ([ref]$Code)

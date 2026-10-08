@@ -138,7 +138,10 @@ function Invoke-DockerLoad {
 
 function New-DockerContainer {
     param([string]$Name, [string]$Image)
-    Invoke-NativeCommand { docker create --name $Name $Image } "Container creation failed."
+    # The container's ID lands on stdout and says nothing here; the
+    # assignment swallows it and nothing else - stderr, the why of a
+    # failure, stays on screen.
+    Invoke-NativeCommand { $null = docker create --name $Name $Image } "Container creation failed."
 }
 
 function Export-DockerContainer {
@@ -214,7 +217,7 @@ function Install-SelectedPacks {
         if (-not $NewHome) { throw "'$($Instance.Name)' did not say where its user's home is." }
 
         Write-Host ""
-        Write-Host "==> Installing the packs..." -ForegroundColor (Get-MessageColour info)
+        Write-Host "==> 8. Installing selected packs..." -ForegroundColor (Get-MessageColour info)
         $Apply = $Manager.ManagePacks($Instance, $PackSelection.ToAdd, @(), "Run .\wsl.ps1 manage_packs to finish.")
 
         $PacksNow = @($Apply.Now)

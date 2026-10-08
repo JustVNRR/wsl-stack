@@ -138,7 +138,7 @@ enabled=true
 appendWindowsPath=true
 WSLCONF
 
-# No Python here: uv and the interpreter come with the `python` pack, the
+# No Python here: uv and the interpreter come with the `oh_my_py` pack, the
 # scaffolding tools with `scaffold` - they arrive on the instance that asks,
 # with `.\wsl.ps1 add_pack` or by being chosen while the instance is built.
 

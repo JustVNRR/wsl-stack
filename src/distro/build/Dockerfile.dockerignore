@@ -11,7 +11,7 @@
 #
 # distro/packs/ is in this list because the image carries no pack: a pack
 # arrives on the instance, from Windows, and no COPY line reads that folder.
-# The zsh pack carries the shell's settings the same way - the image bakes
+# The oh_my_shell pack carries the shell's settings the same way - the image bakes
 # the tools, never a configuration.
 .git
 .gitattributes

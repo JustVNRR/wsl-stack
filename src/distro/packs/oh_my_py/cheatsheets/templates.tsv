@@ -1,0 +1,26 @@
+# ==============================================================================
+# PROJECT TEMPLATE CATALOG - the oh_my_py pack's
+# ==============================================================================
+# `fnew` reads the catalog of every installed pack and shows each row with the
+# pack it was read from; that pack's step runs once the template is copied. A
+# row another pack knows what to do with belongs in that pack's catalog.
+#
+# One template per line:  <url> <TAB> <tool> <TAB> <version> <TAB> <description>
+#   url         anything copier or ccds accepts (gh: shorthand or full URL).
+#               A cruft row needs the full https:// address: cruft hands the
+#               string to git, which does not know gh:.
+#   tool        copier | cruft | ccds   (dispatches to the matching gmake target)
+#   version     optional pinned ref/tag (e.g. v1); empty for the default
+#   description shown in the fnew picker
+#
+# An entry belongs here when a checkable fact justifies it - the project is
+# maintained, its CI scaffolds one - and that fact goes in the description.
+# Nothing here suits you? You do not need an entry:
+#   fnew gh:owner/repo [copier|cruft|ccds]      # reads and writes nothing
+# and if it earns its place, append a line - TABs, not spaces, or the picker
+# ignores the row (it says so on stderr when it does).
+# ==============================================================================
+https://github.com/drivendataorg/cookiecutter-data-science	ccds		DrivenData's DS reference v2 (current; CI scaffolds a project)
+https://github.com/drivendataorg/cookiecutter-data-science	cruft	v1	Same template, v1 (deprecated upstream, kept for cruft update)
+gh:NLeSC/python-template	copier		Netherlands eScience Center research template (active, CI scaffolds a project)
+gh:JustVNRR/mlops-template	copier		Our own MLOps template (CI scaffolds a project, lints, tests and builds its image)

@@ -47,13 +47,13 @@ jobs:
       - name: Shellcheck (real shell scripts)
         run: |
           find . -type f -name '*.sh' \
-            -not -path './src/distro/packs/zsh/config/cheatsheets/*' \
+            -not -path './src/distro/packs/oh_my_shell/config/cheatsheets/*' \
             -not -path './src/distro/packs/*/cheatsheets/*' -print0 |
             xargs -0 -r shellcheck
 
       - name: Zsh syntax (zsh -n, no execution)
         run: |
-          # One root: the shell lives in the zsh pack's config/ now, and the
+          # One root: the shell lives in the oh_my_shell pack's config/ now, and the
           # other packs ship zsh files of their own - all of it under packs/.
           find src/distro/packs -type f \( -name '*.zsh' -o -name '.zshrc' \) -print0 |
             xargs -0 -r -n1 zsh -n
@@ -195,7 +195,7 @@ jobs:
           # Comment lines are skipped, as the picker itself does: prose can
           # name a target without offering it - `# requires: gcloud`, or a
           # sentence about the menu.
-          grep -hvE '^[[:space:]]*#' src/distro/packs/zsh/config/cheatsheets/*_commands.sh \
+          grep -hvE '^[[:space:]]*#' src/distro/packs/oh_my_shell/config/cheatsheets/*_commands.sh \
                                        src/distro/packs/*/cheatsheets/*_commands.sh |
             grep -oE 'gmake [a-zA-Z_-]+' |
             awk '{print $2}' | sort -u > documented.txt
@@ -275,7 +275,7 @@ jobs:
           awk '/^  /{print $1}' help.txt | grep -vx -e help -e make > help_targets.txt
           # Same cut as the drift check: what the picker offers is what has to
           # document the menu, comments excluded.
-          grep -hvE '^[[:space:]]*#' src/distro/packs/zsh/config/cheatsheets/*_commands.sh \
+          grep -hvE '^[[:space:]]*#' src/distro/packs/oh_my_shell/config/cheatsheets/*_commands.sh \
                                        src/distro/packs/*/cheatsheets/*_commands.sh > sheet_lines.txt
           while read -r target; do
             grep -q "gmake ${target}\b" sheet_lines.txt || {

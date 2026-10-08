@@ -3,22 +3,22 @@
 A reproducible WSL2 stack: one PowerShell command builds a fresh Ubuntu 24.04 distro with:
 - the shell,
 - optional tooling as packs, added with `.\wsl.ps1 add_pack`:
-  - `python`: Python 3, `uv`, ruff and the compilation tools
-  - `gcp`: the Google Cloud CLI
-  - `vision`: ffmpeg, ImageMagick and Tesseract OCR
-  - `web`: Firefox, and a WireGuard tunnel
-  - `claude`: Claude Code, the agentic CLI
-  - `pandoc`: Pandoc and XeLaTeX, to build a markdown document into a PDF
+  - `oh_my_py`: Python 3, `uv`, ruff and the compilation tools
+  - `oh_my_cloud`: the Google Cloud CLI
+  - `oh_my_peg`: ffmpeg, ImageMagick and Tesseract OCR
+  - `oh_my_web`: Firefox, and a WireGuard tunnel
+  - `oh_my_code`: Claude Code, the agentic CLI
+  - `oh_my_doc`: Pandoc and XeLaTeX, to build a markdown document into a PDF
 
 ## Features
 
 - **Minimal setup** — the build asks for your username, then whether sudo should ask for a password (say no and it never does); Ubuntu then asks for your region and city.
 - **A modern shell** — Zsh, Oh My Zsh, and Starship, with fzf everywhere and Rust-based replacements for `ls` and `cat` ([shell environment](#shell-environment-zsh)).
 - **Command memory** — cheatsheets stored as plain files, injected into the prompt with `Alt + z`.
-- **Data Science ready** — the `python` pack brings `uv`, Python 3 and the C build toolchain most wheels are compiled with; `vision` brings the media and OCR tools.
+- **Data Science ready** — the `oh_my_py` pack brings `uv`, Python 3 and the C build toolchain most wheels are compiled with; `oh_my_peg` brings the media and OCR tools.
 - **Project scaffolding** — `fnew` fuzzy-picks a template from the catalogs the installed packs curate, or takes one by URL, and the pack the row came from finishes the job: a Python project gets its virtual environment and direnv.
-- **Modular targets** — `gmake` exposes its targets, and the packs add their own: `devops` (Docker, GitHub PRs), `gcp` (BigQuery, Cloud Run, VMs), `python` (lint, tests), `pandoc` (PDF). They appear as the packs do ([the gmake Makefile](#makefile-gmake), [optional tooling](#optional-tooling)).
-- **A browser, and a tunnel** — the `web` pack installs Firefox from Mozilla's own repository and opens it with `fox`, on its light privacy profile, with `pfox` for the strict one in private; its `vpn_*` targets connect the instance to your WireGuard server — the servers live in one JSON, the settings in `.env.global` — and bring it up with the distro.
+- **Modular targets** — `gmake` exposes its targets, and the packs add their own: `hide_my_ops` (Docker, GitHub PRs), `oh_my_cloud` (BigQuery, Cloud Run, VMs), `oh_my_py` (lint, tests), `oh_my_doc` (PDF). They appear as the packs do ([the gmake Makefile](#makefile-gmake), [optional tooling](#optional-tooling)).
+- **A browser, and a tunnel** — the `oh_my_web` pack installs Firefox from Mozilla's own repository and opens it with `fox`, on its light privacy profile, with `pfox` for the strict one in private; its `vpn_*` targets connect the instance to your WireGuard server — the servers live in one JSON, the settings in `.env.global` — and bring it up with the distro.
 
 ---
 
@@ -110,18 +110,18 @@ Then the packs — each listed once: a pack leaves with its folder.
 
 | Pack | Start here | Main targets |
 | :--- | :--- | :--- |
-| `claude` | [Claude Code](src/distro/packs/claude/docs/claude.md) | `claude_status`, `claude_profile`, `claude_edit_profiles`, `claude_project` |
-| `devops` | [The devops pack](src/distro/packs/devops/docs/devops.md) | `docker_*`, `gh_pr_*` |
-| `gcp` | [GCP onboarding guide](src/distro/packs/gcp/docs/onboarding.md) | `gcp_*`, `gcs_*`, `iam_*`, `bigquery_*`, `cloudrun_*`, `vm_*`, `artifact_registry_*` |
-| `pandoc` | [Pandoc & PDF](src/distro/packs/pandoc/docs/pandoc.md) | `pdf_from_md`, `pdf_open`, `docx_from_md`, `csl_from_catalog`, `font_from_*` |
-| `python` | [Python](src/distro/packs/python/docs/python.md) | `lint*`, `test*` |
-| `scaffold` | [Project scaffolding, the pack](src/distro/packs/scaffold/docs/scaffold.md) | `fnew`, `copier_project`, `cruft_project`, `ccds_project` |
-| `vision` | [Vision & OCR](src/distro/packs/vision/docs/vision.md) | — |
-| `web` | [Web browser and tunnel](src/distro/packs/web/docs/web.md) | `fox`, `pfox`, `fox_tweak_*`, `vpn_*` |
+| `oh_my_code` | [Claude Code](src/distro/packs/oh_my_code/docs/claude.md) | `claude_status`, `claude_profile`, `claude_edit_profiles`, `claude_project` |
+| `hide_my_ops` | [The hide_my_ops pack](src/distro/packs/hide_my_ops/docs/devops.md) | `docker_*`, `gh_pr_*` |
+| `oh_my_cloud` | [GCP onboarding guide](src/distro/packs/oh_my_cloud/docs/onboarding.md) | `gcp_*`, `gcs_*`, `iam_*`, `bigquery_*`, `cloudrun_*`, `vm_*`, `artifact_registry_*` |
+| `oh_my_doc` | [Pandoc & PDF](src/distro/packs/oh_my_doc/docs/pandoc.md) | `pdf_from_md`, `pdf_open`, `docx_from_md`, `csl_from_catalog`, `font_from_*` |
+| `oh_my_py` | [Python](src/distro/packs/oh_my_py/docs/python.md) | `lint*`, `test*` |
+| `hide_my_scaff` | [Project scaffolding, the pack](src/distro/packs/hide_my_scaff/docs/scaffold.md) | `fnew`, `copier_project`, `cruft_project`, `ccds_project` |
+| `oh_my_peg` | [Vision & OCR](src/distro/packs/oh_my_peg/docs/vision.md) | — |
+| `oh_my_web` | [Web browser and tunnel](src/distro/packs/oh_my_web/docs/web.md) | `fox`, `pfox`, `fox_tweak_*`, `vpn_*` |
 
-The table holds a pack's extremes: `devops` brings targets and no tool,
-`vision` a tool and no target. `devops` and `scaffold` are the two nobody
-chooses — `python` and `gcp` require the first, `python` the second.
+The table holds a pack's extremes: `hide_my_ops` brings targets and no tool,
+`oh_my_peg` a tool and no target. `hide_my_ops` and `hide_my_scaff` are the two nobody
+chooses — `oh_my_py` and `oh_my_cloud` require the first, `oh_my_py` the second.
 
 What a pack is, what it must contain, and how to add one:
 [`docs/packs.md`](docs/packs.md). One reaches an instance with
@@ -146,20 +146,20 @@ leaves with `remove_pack`.
 
 | Category | Tools |
 | :--- | :--- |
-| Claude Code | [Claude Code](src/distro/packs/claude/docs/claude.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Google Cloud CLI | [GCP onboarding guide](src/distro/packs/gcp/docs/onboarding.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Pandoc & PDF | [Pandoc & PDF](src/distro/packs/pandoc/docs/pandoc.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Python | [Python](src/distro/packs/python/docs/python.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Vision & OCR | [Vision & OCR](src/distro/packs/vision/docs/vision.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| Firefox & VPN | [Web browser and tunnel](src/distro/packs/web/docs/web.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
-| The shell | [The shell, as a pack](src/distro/packs/zsh/docs/zsh.md) — the settings; the image carries the tools, and [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) also dresses a foreign base with them |
+| Claude Code | [Claude Code](src/distro/packs/oh_my_code/docs/claude.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Google Cloud CLI | [GCP onboarding guide](src/distro/packs/oh_my_cloud/docs/onboarding.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Pandoc & PDF | [Pandoc & PDF](src/distro/packs/oh_my_doc/docs/pandoc.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Python | [Python](src/distro/packs/oh_my_py/docs/python.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Vision & OCR | [Vision & OCR](src/distro/packs/oh_my_peg/docs/vision.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| Firefox & VPN | [Web browser and tunnel](src/distro/packs/oh_my_web/docs/web.md), [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) |
+| The shell | [The shell, as a pack](src/distro/packs/oh_my_shell/docs/zsh.md) — the settings; the image carries the tools, and [`.\wsl.ps1 add_pack`](docs/wsl/commands.md#add_pack) also dresses a foreign base with them |
 
 ### Python & Data Science
 
 None of it is in the image: `uv`, Python 3, ruff and the compiler a wheel needs
 (`build-essential`, `python3-dev`, `libffi-dev`, `libssl-dev`) arrive with the
-[`python` pack](src/distro/packs/python/docs/python.md); the scaffolding tools with
-[`scaffold`](src/distro/packs/scaffold/docs/scaffold.md), which `python` requires and which
+[`oh_my_py` pack](src/distro/packs/oh_my_py/docs/python.md); the scaffolding tools with
+[`hide_my_scaff`](src/distro/packs/hide_my_scaff/docs/scaffold.md), which `oh_my_py` requires and which
 takes each tool from uv's cache the day it is first used.
 
 ---
@@ -173,7 +173,7 @@ distro's recipe and baggage — the build recipe (`src/distro/build/`) and the
 packs (`src/distro/packs/`), both seeded into the writable `assets\` folder
 on the first run — from there they are read, and are yours to edit or
 delete.
-The image carries the tools; the packs carry the settings, the `zsh` pack
+The image carries the tools; the packs carry the settings, the `oh_my_shell` pack
 first of all: its `config/` folder is what fills `~/.config/zsh`.
 
 ### The repository
@@ -184,11 +184,11 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │                            #   (windows/)
 │   ├── distro/              # The repository's half of the two trees: what the
 │   │                        #   build bakes (build/) and deploys (packs/ - the
-│   │                        #   zsh pack's config/ is the shell's settings)
-│   │   ├── packs/           # Optional tooling, one folder per pack - the zsh
+│   │                        #   oh_my_shell pack's config/ is the shell's settings)
+│   │   ├── packs/           # Optional tooling, one folder per pack - the oh_my_shell
 │   │   │                    #   pack carrying the shell's settings
 │   │   │   ├── cleanup_orphans.sh # The one thing a removal runs inside an instance
-│   │   │   ├── claude/      # Claude Code, the agentic CLI, under ~/.local
+│   │   │   ├── oh_my_code/  # Claude Code, the agentic CLI, under ~/.local
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
@@ -198,7 +198,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── make/    # its gmake module: claude_status, claude_profile, claude_project
 │   │   │   │   ├── cheatsheets/ # its fcheat sheet: the CLI, the provider, the projects, the disk
 │   │   │   │   └── docs/    # the pack's page
-│   │   │   ├── devops/      # the project targets: Docker, GitHub PRs
+│   │   │   ├── hide_my_ops/ # the project targets: Docker, GitHub PRs
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
@@ -206,7 +206,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── make/    # the pack's modules, loaded as soon as the folder is there
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets: the docker commands, its gmake targets
 │   │   │   │   └── docs/    # the pack's pages, one per module
-│   │   │   ├── gcp/         # Google Cloud CLI, BigQuery, Cloud Run, VMs, Artifact Registry
+│   │   │   ├── oh_my_cloud/ # Google Cloud CLI, BigQuery, Cloud Run, VMs, Artifact Registry
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
@@ -216,7 +216,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── make/    # the pack's modules, loaded as soon as the folder is there
 │   │   │   │   ├── cheatsheets/ # the pack's fcheat sheets, each with its `# requires:` header
 │   │   │   │   └── docs/    # the pack's pages, onboarding walkthrough included
-│   │   │   ├── pandoc/      # Pandoc and XeLaTeX: Markdown to PDF, bibliography included
+│   │   │   ├── oh_my_doc/   # Pandoc and XeLaTeX: Markdown to PDF, bibliography included
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
@@ -226,7 +226,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── make/    # its gmake module: the document targets, the styles, the fonts
 │   │   │   │   ├── cheatsheets/ # its fcheat sheet: the targets, the commands, the PDF tools
 │   │   │   │   └── docs/    # the pack's page
-│   │   │   ├── python/      # Python 3, uv, ruff, the compiler a wheel is built with
+│   │   │   ├── oh_my_py/ # Python 3, uv, ruff, the compiler a wheel is built with
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
@@ -235,7 +235,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets, and the catalog fnew reads
 │   │   │   │   ├── zsh/     # its shell files: uv's PATH and completions
 │   │   │   │   └── docs/    # the pack's pages, one per module
-│   │   │   ├── scaffold/    # making a project: fnew, the picker, the three targets
+│   │   │   ├── hide_my_scaff/ # making a project: fnew, the picker, the three targets
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
@@ -244,14 +244,14 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets: the scaffolding commands
 │   │   │   │   ├── zsh/     # its shell files: uv's PATH, the fnew picker
 │   │   │   │   └── docs/    # the pack's pages, one per module
-│   │   │   ├── vision/      # ffmpeg, ImageMagick, Tesseract: media and OCR tools
+│   │   │   ├── oh_my_peg/   # ffmpeg, ImageMagick, Tesseract: media and OCR tools
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
 │   │   │   │   ├── remove.sh # what `wsl.ps1 remove_pack` runs before the folder goes
 │   │   │   │   ├── cheatsheets/ # their commands, in the fcheat picker
 │   │   │   │   └── docs/    # the pack's page
-│   │   │   ├── web/         # Firefox (Mozilla's repository) and the WireGuard tunnel
+│   │   │   ├── oh_my_web/   # Firefox (Mozilla's repository) and the WireGuard tunnel
 │   │   │   │   ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │   │   ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
 │   │   │   │   ├── install_root.sh # the root half of the install, run by the engine as root, before install.sh
@@ -265,7 +265,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │   │   │   ├── zsh/     # its shell files: the `fox` and `pfox` functions
 │   │   │   │   ├── cheatsheets/ # its fcheat sheets: the browser and the tunnel
 │   │   │   │   └── docs/    # the pack's pages, one per module
-│   │   │   └── zsh/         # The shell's settings as a pack; on a foreign Debian
+│   │   │   └── oh_my_shell/ # The shell's settings as a pack; on a foreign Debian
 │   │   │       │            #   the pack carries the tools too
 │   │   │       ├── pack.conf # what it installs, and the line `add_pack` shows
 │   │   │       ├── install.sh # what `wsl.ps1 add_pack` runs inside the instance
@@ -374,7 +374,7 @@ Written by the build or by `gmake` targets. None of it is versioned, and
 deleting the distro deletes all of it.
 
 ```text
-~/.config/zsh/               # = the zsh pack's config/ folder, from the repository
+~/.config/zsh/               # = the oh_my_shell pack's config/ folder, from the repository
 ├── gmake/
 │   ├── .env.global          # Shared defaults (gmake env_global_enable)
 │   ├── env.global.sample    # The header every .env.global opens on
@@ -384,7 +384,7 @@ deleting the distro deletes all of it.
 └── .zshrc, modules, lib/, prompts/, cheatsheets/
 
 ~/.config/packs/             # A pack lands here, its files and its tool together:
-└── gcp/                     # added by `.\wsl.ps1 add_pack`, removed by remove_pack.
+└── oh_my_cloud/             # added by `.\wsl.ps1 add_pack`, removed by remove_pack.
                              # ~/.zshrc reads its zsh/ here, gmake its make/ - nothing is copied
 
 ~/projects/<project>/        # One directory per project
@@ -393,7 +393,7 @@ deleting the distro deletes all of it.
 ├── .envrc                   # direnv hook (the template's, or written by the scaffolding)
 └── .venv/
 
-~/.local/share/oh-my-zsh/    # Cloned at build time, or by the zsh pack's install
+~/.local/share/oh-my-zsh/    # Cloned at build time, or by the oh_my_shell pack's install
 ~/.local/bin/                # the packs that install outside apt: uv and its
                              # tools (python), the claude launcher (claude)
 ~/.local/share/uv/           # the Python builds it downloaded, and their environments

@@ -323,19 +323,20 @@ The packs are asked before anything is created:
 
 ```text
 Packs for 'ubuntu-ml-dev'
-  > [ ] gcp          [debian] The Google Cloud CLI
-    [ ] vision       [debian] ffmpeg, ImageMagick and Tesseract OCR
-    [x] zsh          [debian] oh-my-zsh, Starship and daily CLI tools
+  > [ ] oh_my_cloud  [debian] The Google Cloud CLI
+    [ ] oh_my_peg    [debian] ffmpeg, ImageMagick and Tesseract OCR
+    [x] oh_my_shell  [debian] oh-my-zsh, Starship and daily CLI tools
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
-The `zsh` pack arrives ticked — every visible pack requires it, and it carries
-the settings; untick it for a bare shell. It arrives ticked for a
+The `oh_my_shell` pack arrives ticked — every visible pack requires it, and
+it carries the settings; untick it for a bare shell. It arrives ticked for a
 **Debian-family recipe only**: the family is read off the chosen Dockerfile's
 `FROM` line, and an uploaded image, whose family cannot be read from a
 save-tar, arrives with nothing ticked. Each row carries its pack's family in
-brackets (`zsh [debian] …`), and a family that cannot be read is said above
-the checklist — a pack from another world is spotted before it is ticked,
+brackets (`oh_my_shell [debian] …`), and a family that cannot be read is said
+above the checklist — a pack from another world is spotted before it is
+ticked,
 not after it failed. Escape, or an empty checklist, is a
 real answer: no pack, and the build goes on. A rebuild arrives with the boxes
 ticked for what the instance being replaced carries, so its packs come back
@@ -477,13 +478,13 @@ Our Instances
    0.  Cancel
 Which one? (0 to cancel) 2
 
-       Already in 'ubuntu-template': python
+       Already in 'ubuntu-template': oh_my_py
 Packs available for 'ubuntu-template':
-   1.  gcp          [debian] The Google Cloud CLI
+   1.  oh_my_cloud  [debian] The Google Cloud CLI
    0.  Cancel
 Which one? (0 to cancel) 1
 
-==> Installing 'gcp' in 'ubuntu-template'...
+==> Installing 'oh_my_cloud' in 'ubuntu-template'...
 ```
 
 Only the packs the instance does not have yet are offered. The packs are the
@@ -496,21 +497,21 @@ automount_down`) — so a pack arrives either way, and its scripts are made
 executable on arrival.
 
 The list is the packs a **user** chooses. A pack that says `PACK_VISIBLE := no`
-in its `pack.conf` is never in it: it is a shared dependency — `devops` is the
+in its `pack.conf` is never in it: it is a shared dependency — `hide_my_ops` is the
 project targets several packs need — and it arrives with the pack that requires
 it, before it, in the same run:
 
 ```text
-==> Installing 'devops' in 'ubuntu-template'...
-    It comes with 'gcp', which requires it.
+==> Installing 'hide_my_ops' in 'ubuntu-template'...
+    It comes with 'oh_my_cloud', which requires it.
 
-==> Installing 'gcp' in 'ubuntu-template' (as root)...
-==> Installing 'gcp' in 'ubuntu-template'...
+==> Installing 'oh_my_cloud' in 'ubuntu-template' (as root)...
+==> Installing 'oh_my_cloud' in 'ubuntu-template'...
 ```
 
 **It asks nothing.** The root halves run first, one per pack, as WSL's own
 root - `wsl -u root`, no password - before anything else: that is what lets
-the `zsh` pack install `sudo` itself on a machine that has none, since the
+the `oh_my_shell` pack install `sudo` itself on a machine that has none, since the
 door below is a `sudo` rule and cannot open before `sudo` exists. Then the
 engine opens WSL's own passwordless root door to `sudo` for the length of the
 `install.sh` runs, and closes it after: the run never stops to ask. (Run
@@ -541,12 +542,12 @@ repository leave the system — then its folder leaves the instance.
 
 ```text
 Packs installed in 'ubuntu-template':
-   1.  gcp
+   1.  oh_my_cloud
    0.  Cancel
 Which one? (0 to cancel) 1
 
-==> Removing from 'ubuntu-template': gcp
-Remove 'gcp'? [Y/n] y
+==> Removing from 'ubuntu-template': oh_my_cloud
+Remove 'oh_my_cloud'? [Y/n] y
 ```
 
 The list comes from the instance, not from this repository: a pack installed by
@@ -556,18 +557,18 @@ hand, since removing it would pull the base out from under a pack still
 installed. It leaves with the last pack that requires it:
 
 ```text
-==> Removing from 'ubuntu-template': python, devops
-    'devops' goes with 'python': nothing installed requires it any more.
-Remove python, devops? [Y/n]
+==> Removing from 'ubuntu-template': oh_my_py, hide_my_ops
+    'hide_my_ops' goes with 'oh_my_py': nothing installed requires it any more.
+Remove oh_my_py, hide_my_ops? [Y/n]
 ```
 
 And a pack a still-installed pack requires is refused outright: the choice
 comes back with the claimant named, because the removal would leave that pack
-standing on nothing — every visible pack stands on `zsh`, the shell:
+standing on nothing — every visible pack stands on `oh_my_shell`, the shell:
 
 ```text
-[ABORT] 'zsh' cannot be removed: required by python.
-        Take python out first, or leave 'zsh' where it is.
+[ABORT] 'oh_my_shell' cannot be removed: required by oh_my_py.
+        Take oh_my_py out first, or leave 'oh_my_shell' where it is.
 ```
 
 The chosen pack goes first, and the packs it held up follow: that order is what
@@ -624,8 +625,8 @@ the missing ones installed, the unchecked ones taken out.
 
 ```text
 Packs for 'new_distro2'
-  > [x] gcp          [debian] The Google Cloud CLI
-    [ ] vision       [debian] ffmpeg, ImageMagick and Tesseract OCR
+  > [x] oh_my_cloud  [debian] The Google Cloud CLI
+    [ ] oh_my_peg    [debian] ffmpeg, ImageMagick and Tesseract OCR
   up/down to move, space to check, Enter to apply, Escape to cancel
 ```
 
@@ -633,9 +634,9 @@ Space checks and unchecks, Enter applies, Escape cancels. Each list gets a line
 when it has something in it, and one question covers them both:
 
 ```text
-Will install : python, devops
-               (devops: required by python)
-Will remove  : gcp
+Will install : oh_my_py, hide_my_ops
+               (devops: required by oh_my_py)
+Will remove  : oh_my_cloud
                Their tools leave, and the dependencies nothing needs any more.
 
 Proceed? [Y/n]
@@ -650,8 +651,8 @@ well, or leave this one ticked. The window's editor greys APPLY while it
 stands.
 
 ```text
-[ABORT] 'zsh' cannot be removed: required by python.
-        Untick python as well, or leave 'zsh' ticked.
+[ABORT] 'oh_my_shell' cannot be removed: required by oh_my_py.
+        Untick oh_my_py as well, or leave 'oh_my_shell' ticked.
 ```
 
 If the boxes have not moved, it says so and stops there.
@@ -826,9 +827,9 @@ rebuild destroys it the same way. Before either:
 | :--- | :--- |
 | `~/projects/` | Nothing backs it up — push your work to a remote first |
 | `~/.ssh/` | A key generated inside cannot be recovered: copy it out, or plan to revoke and regenerate it |
-| `~/.config/gcloud/` | Both logins are redoable in minutes ([GCP onboarding](../../packs/gcp/docs/onboarding.md)) |
+| `~/.config/gcloud/` | Both logins are redoable in minutes ([GCP onboarding](../../src/distro/packs/oh_my_cloud/docs/onboarding.md)) |
 | `~/.config/zsh/gmake/.env.global` | A handful of lines; `gmake env_global_enable` recreates them from the samples the instance carries |
-| `~/.config/packs/python/cheatsheets/templates.tsv` | Only for rows you added inside the instance: `add_pack` copied the file there — move the line into the pack to keep it |
+| `~/.config/packs/oh_my_py/cheatsheets/templates.tsv` | Only for rows you added inside the instance: `add_pack` copied the file there — move the line into the pack to keep it |
 
 `archive` is the way out: it writes the whole file system to a folder you can
 restore from later.

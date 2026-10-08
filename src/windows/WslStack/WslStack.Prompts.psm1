@@ -372,7 +372,7 @@ function Resolve-PackSelection {
     }
 }
 
-# The packs a build ticks before the user does: the zsh pack, which carries
+# The packs a build ticks before the user does: the oh_my_shell pack, which carries
 # the settings every visible pack requires - and only where its family is the
 # recipe's own. The family is handed in (Get-BuildRecipeFamily reads it off
 # the recipe; "" when nothing is known), and a shell pack of another family
@@ -381,8 +381,8 @@ function Resolve-PackSelection {
 function Get-BuildDefaultPacks {
     param([WslPackCatalog]$Catalog, [string]$Family = "debian")
 
-    $Shell = $Catalog.GetPack('zsh')
-    if ($Shell -and $Shell.Offered -and $Shell.Family -eq $Family) { return @('zsh') }
+    $Shell = $Catalog.GetPack('oh_my_shell')
+    if ($Shell -and $Shell.Offered -and $Shell.Family -eq $Family) { return @('oh_my_shell') }
     return @()
 }
 

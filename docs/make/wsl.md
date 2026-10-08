@@ -43,7 +43,7 @@ opening it:
 | :--- | :--- |
 | a symlink (to `/mnt/wsl/resolv.conf`) | WSL's own: written again at every start, so an edit goes with the next one. A change that must stay needs `generateResolvConf = false` in `/etc/wsl.conf` — and a file of your own in place of the symlink. |
 | absent | nothing resolves until one exists. WSL writes its own again at the next start, unless the setting above is in place. |
-| a real file | yours, or openresolv's — the web pack's tunnel writes it at each mount, while it is up. |
+| a real file | yours, or openresolv's — the oh_my_web pack's tunnel writes it at each mount, while it is up. |
 
 `/mnt/wsl` is a tmpfs shared by every distro of the WSL virtual machine, so
 while the file is a symlink, an edit through it is a change the neighbours see

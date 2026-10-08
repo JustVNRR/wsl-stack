@@ -31,8 +31,8 @@
 #   2, v, (empty)   a second claimant installed -> only the ticked one leaves
 #   v               an invisible pack among the pre-checked ones: ONE answer,
 #                   because it has no box and nothing else was ticked
-#   3, v            a visible pack unticked under a standing claimant - refused
-#   1, 3, v, (empty) both unticked -> the same answer goes through
+#   1, v            a visible pack unticked under a standing claimant - refused
+#   1, 2, v, (empty) both unticked -> the same answer goes through
 #   1, v, (empty)   the debian family: only the debian-family pack is shown
 #   1, v, (empty)   the fedora family: only the fedora-family pack is shown
 #
@@ -171,9 +171,9 @@ Write-Output "--- The refusal: a pack a standing pack requires does not leave --
 # there would shift every answer; this root has its runs to itself.
 $PacksRoot2 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-guard-" + [Guid]::NewGuid().ToString("N"))
 $Declarations2 = @(
-    @{ Name = "zsh";    Description = "The shell" },
-    @{ Name = "python"; Description = "Python toolchain"; Requires = "zsh" },
-    @{ Name = "web";    Description = "Web tooling";      Requires = "zsh" }
+    @{ Name = "oh_my_shell";    Description = "The shell" },
+    @{ Name = "python"; Description = "Python toolchain"; Requires = "oh_my_shell" },
+    @{ Name = "web";    Description = "Web tooling";      Requires = "oh_my_shell" }
 )
 foreach ($Declaration in $Declarations2) {
     $Folder = Join-Path $PacksRoot2 $Declaration.Name
@@ -187,37 +187,37 @@ $Guarded = Get-PackCatalog -Root $PacksRoot2
 # The resolver reports what cannot leave, with the packs that hold it - and
 # the two directions at once: a standing claimant holds, one leaving with it
 # does not.
-$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh", "python") -Kept @("python")
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("oh_my_shell", "python") -Kept @("python")
 Check "a visible pack unticked under a standing claimant is a conflict" `
-    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "zsh/python"
+    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "oh_my_shell/python"
 Check "  ... and the rest of the selection still comes back" `
-    ("$($R.ToRemove -join ',')/$($R.ToAdd.Count)") "zsh/0"
+    ("$($R.ToRemove -join ',')/$($R.ToAdd.Count)") "oh_my_shell/0"
 
-$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh", "python") -Kept @()
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("oh_my_shell", "python") -Kept @()
 Check "both unticked -> both leave, nothing holds" ("$($R.Conflicts.Count)") "0"
 
-$R = Resolve-PackSelection -Catalog $Guarded -Installed @("zsh") -Kept @("web")
+$R = Resolve-PackSelection -Catalog $Guarded -Installed @("oh_my_shell") -Kept @("web")
 Check "a claimant just arriving holds it too" `
-    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "zsh/web"
+    ("$($R.Conflicts.Name)/$($R.Conflicts.Blockers -join ',')") "oh_my_shell/web"
 
 # The rule under the guard: a visible pack is NEVER taken along by the
 # cascade - only an invisible one leaves with the pack nothing requires any
 # more. Both sides of that line, on the same departure.
 Check "a visible pack is never cascaded out" `
-    (($Guarded.ResolveRemoval(@("zsh", "python"), @("python"), @())) -join ",") "python"
+    (($Guarded.ResolveRemoval(@("oh_my_shell", "python"), @("python"), @())) -join ",") "python"
 Check "  ... where an invisible one follows its last claimant" `
     (($Catalog.ResolveRemoval(@("python", "devops"), @("python"), @())) -join ",") "python,devops"
 
 # The console's own refusal: the unticked box under a standing claimant
 # stops the question where it is instead of applying the rest of it.
-$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("zsh", "python")
+$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("oh_my_shell", "python")
 Check "the console refuses the answer" ($null -eq $Selection) "True"
 
 # ... and the same answer with the claimant unticked as well goes through:
 # the guard refuses a broken removal, never a removal.
-$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("zsh", "python")
+$Selection = Select-Packs -Title "T" -Catalog $Guarded -Installed @("oh_my_shell", "python")
 Check "both unticked -> the run goes through" `
-    ((($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") + " / " + ($Selection.ToRemove -join ",")) " / zsh,python"
+    ((($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") + " / " + ($Selection.ToRemove -join ",")) " / oh_my_shell,python"
 
 Write-Output ""
 Write-Output "--- The family: a pack is only offered where its apt lives ---"
@@ -231,7 +231,7 @@ $PacksRoot3 = Join-Path ([System.IO.Path]::GetTempPath()) ("packs-select-family-
 $Declarations3 = @(
     @{ Name = "alpha"; Description = "A Debian-family pack" },
     @{ Name = "beta";  Description = "A Fedora-family pack"; Family = "fedora" },
-    @{ Name = "zsh";   Description = "A Fedora-family shell"; Family = "fedora" }
+    @{ Name = "oh_my_shell";   Description = "A Fedora-family shell"; Family = "fedora" }
 )
 foreach ($Declaration in $Declarations3) {
     $Folder = Join-Path $PacksRoot3 $Declaration.Name
@@ -247,13 +247,13 @@ Check "a declared family is read" ($Familied.GetPack("beta").Family) "fedora"
 Check "the debian surface shows only the debian pack" `
     (($Familied.OfferedFor("debian").Name) -join ",") "alpha"
 Check "  ... and the fedora one the other" `
-    (($Familied.OfferedFor("fedora").Name) -join ",") "beta,zsh"
+    (($Familied.OfferedFor("fedora").Name) -join ",") "beta,oh_my_shell"
 Check "a machine that cannot say filters nothing" `
-    (($Familied.OfferedFor("").Name) -join ",") "alpha,beta,zsh"
+    (($Familied.OfferedFor("").Name) -join ",") "alpha,beta,oh_my_shell"
 
 # The build's default box: the shell pack every visible pack requires, and
 # only where its family is the build's own - a built image is Debian.
-Check "the build ticks the shell pack" ((Get-BuildDefaultPacks -Catalog $Guarded) -join ",") "zsh"
+Check "the build ticks the shell pack" ((Get-BuildDefaultPacks -Catalog $Guarded) -join ",") "oh_my_shell"
 Check "  ... and nothing when the shell is another family" ((Get-BuildDefaultPacks -Catalog $Familied) -join ",") ""
 Check "  ... or when the catalog carries no shell" ((Get-BuildDefaultPacks -Catalog $Catalog) -join ",") ""
 

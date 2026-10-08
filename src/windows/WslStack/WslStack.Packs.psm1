@@ -384,7 +384,7 @@ function Invoke-PackApply {
             Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code) -ErrorLog $ErrorLog
 
             # Exit code 2 is the pack's way of saying it asked a question and the
-            # answer was no - the claude pack asks before adding a second copy of a
+            # answer was no - the oh_my_code pack asks before adding a second copy of a
             # program that is already installed on Windows. Its folder goes back out,
             # because the folder is what the menu reads and a pack with no tool
             # behind it is a menu that lies; but nothing failed, and the run goes on:
