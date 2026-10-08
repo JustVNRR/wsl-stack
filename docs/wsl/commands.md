@@ -27,6 +27,7 @@ WSL Stack
     duplicate    copy an instance under another name
     shrink       reclaim the space an instance has freed
     wslconfig    open the Windows-wide WSL settings
+    migrate      move the fleet to another folder
   up/down to move, Enter to choose, Escape to cancel
 ```
 
@@ -65,6 +66,7 @@ read, the colours a console has always had are used.
 | [`.\wsl.ps1 duplicate`](#duplicate) | copy an instance under another name |
 | [`.\wsl.ps1 shrink`](#shrink) | reclaim the space an instance has freed |
 | [`.\wsl.ps1 wslconfig`](#wslconfig) | open the Windows-wide WSL settings |
+| [`.\wsl.ps1 migrate`](#migrate) | move the fleet to another folder |
 
 ## Which WSL instances are ours
 
@@ -82,8 +84,13 @@ D:\WSL\ubuntu-template\
 
 ## Where things live
 
-One working folder, and nothing to decide: `D:\WSL` when the D: drive exists,
-`%USERPROFILE%\WSL` otherwise.
+One working folder, decided once and remembered: the choice is kept in
+`%LOCALAPPDATA%\wsl-stack\root.txt`. The first time, it is the folder the
+registered instances already live under when there is exactly one, then
+`D:\WSL` when the D: drive exists, `%USERPROFILE%\WSL` otherwise. A remembered
+folder that is gone is never silently replaced: when the instances still sit
+under one existing folder, that one is taken up again and said out loud; with
+nowhere to point at, the run stops and says so.
 
 ```text
 D:\WSL\
@@ -147,13 +154,15 @@ bash). Unticked, the user-name field and the row grey out with it, they are
 what the onboarding brings. The **Dockerfile** and the **onboarding shell**
 rows open on the repository's own file; the **Docker image** row lists what
 was uploaded under `assets\dockerimages\` (the repository ships none). Each
-row carries an upload button and a trash beside it, putting yours under
-`assets\dockerfiles\`, `assets\firstboots\` or `assets\dockerimages\` (same
-file uploaded again, same slot - the fonts' own convention; each uploaded row
-carries the date it arrived, so two versions of one name are told apart; a
-Dockerfile brings its `.dockerignore` along); the trash removes the selected
-uploaded file — a confirmation first, its red CONFIRM — and the repository's
-own rows have none to press - a name that already exists
+row carries an upload button, a download beside it and a trash at its end:
+the upload puts yours under `assets\dockerfiles\`, `assets\firstboots\` or
+`assets\dockerimages\` (same file uploaded again, same slot - the fonts' own
+convention; each uploaded row carries the date it arrived, so two versions of
+one name are told apart; a Dockerfile brings its `.dockerignore` along); the
+download saves the selected file wherever you point it, the repository's own
+rows included; the trash removes the selected uploaded file — a confirmation
+first, its red CONFIRM — and the repository's own rows have none to press -
+a name that already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
@@ -162,7 +171,16 @@ itself the moment the run ends; the refresh, which rereads the fleet by
 hand; and the gear, the window's own
 face - the font, its size and its colour theme, dark and light versions
 shipped (assets\colours) - with the sun and the moon beside it, switching
-the current theme's version on the spot.
+the current theme's version on the spot. A theme is one `.xaml` file under
+`assets\colours\`, its file name the theme's name: the row carries upload,
+download and a trash - the upload drops a file in (refused if it will not
+load as a resource dictionary, the red CONFIRM replacing a name already
+taken), the download hands the selected file out as a model to edit
+("Default" offers `theme.xaml`, the chart itself), the trash takes the
+selected theme's file off the disk. A **Root folder** row sits above it all:
+the working folder in a greyed box, an edit button opening it; changing it —
+after the red CONFIRM — archives the whole fleet and moves it there
+(`migrate`), the window closing behind the run's own console.
 Nothing here exists only in the window: it is a keystroke-free way in, not a
 second engine.
 
@@ -951,4 +969,25 @@ application to use the first time if none is set for `.wslconfig`.
 A change here is read when the WSL machine starts. `.\wsl.ps1 restart` does not
 do that — it restarts one instance. Stop the machine with `wsl --shutdown`,
 then open an instance again.
+
+---
+
+## `migrate`
+
+Moves the whole fleet to another folder — another disk, typically. The
+registry is never touched: each instance is archived first (the tar and its
+look, the `archive` command's own), then unregistered right away — the space
+frees as it goes, the old disk never overflows — and when nothing is left but
+the archives folder, that folder travels to the target. The working folder
+follows, once every instance made it and nowhere earlier. The instances come
+back on the target side with `.\wsl.ps1 restore`.
+
+```powershell
+.\wsl.ps1 migrate
+.\wsl.ps1 migrate -Target E:\WSL
+```
+
+The target is the only question. Across volumes the copies land on the target
+and the originals stay — delete them yourself once the fleet is restored and
+verified.
 

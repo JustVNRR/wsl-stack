@@ -204,7 +204,7 @@ $Out = (& pwsh -NoProfile -File $Entry bogus 2>&1 | Out-String)
 Check "a word nobody knows says so, and lists" `
     ($Out.Contains("[ABORT] Invalid command 'bogus'. Available commands:")) "True"
 Check "  ... and the table is whole" `
-    (@("list", "build", "start", "stop", "restart", "shell", "add_pack", "remove_pack", "manage_packs", "theme", "unregister", "archive", "restore", "duplicate", "shrink", "wslconfig") |
+    (@("list", "build", "start", "stop", "restart", "shell", "add_pack", "remove_pack", "manage_packs", "theme", "unregister", "archive", "restore", "duplicate", "shrink", "wslconfig", "migrate") |
         Where-Object { $Out -notmatch "\b$_\b" }).Count "0"
 Check "  ... and the code says failure" $LASTEXITCODE "1"
 

@@ -119,7 +119,8 @@ $Menu = [WslMenu]::new("WSL Stack").
     Add("restore",      "rebuild an instance from an archive",      $Gesture).
     Add("duplicate",    "copy an instance under another name",      $Gesture).
     Add("shrink",       "reclaim the space an instance has freed",  $Gesture).
-    Add("wslconfig",    "open the Windows-wide WSL settings",       $Gesture)
+    Add("wslconfig",    "open the Windows-wide WSL settings",       $Gesture).
+    Add("migrate",      "move the fleet to another folder",         $Gesture)
 
 # With a word, the command line routes it; bare, the repository asks its first
 # question - which command - and it is a question like the ones inside the

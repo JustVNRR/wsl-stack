@@ -53,11 +53,79 @@ using module .\WslPack.psm1
 using module .\WslPackCatalog.psm1
 
 class WslInstanceManager {
-    # The one working folder, no guessing: D:\WSL when D: exists, the user's
-    # profile otherwise. The rule lived in six scripts; it lives here once.
-    static [string] Root() {
-        if (Test-Path "D:\") { return "D:\WSL" }
-        return "$env:USERPROFILE\WSL"
+    # The working folder, decided once and kept: %LOCALAPPDATA%\wsl-stack\
+    # root.txt remembers the choice. First decision only: the folder our
+    # registered instances already live under, when there is exactly one,
+    # then D:\WSL when D: exists, the profile's WSL otherwise. A remembered
+    # folder that is gone is never silently replaced - two homes is how data
+    # seems lost: when the instances still sit under one existing folder,
+    # that one is taken up again (the Note says it); with nowhere to point
+    # at, it throws.
+    static [object] Root() {
+        $File = [WslInstanceManager]::RootFile()
+        $Saved = ""
+        if ($File -and (Test-Path $File)) {
+            $Line = Get-Content -LiteralPath $File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($Line) { $Saved = $Line.Trim().TrimEnd('\') }
+        }
+        if ($Saved -and (Test-Path $Saved)) { return [PSCustomObject]@{ Root = $Saved; Note = "" } }
+
+        $Homes = [WslInstanceManager]::RootHomes()
+
+        if (-not $Saved) {
+            $Decided = if ($Homes.Count -eq 1) { $Homes[0] }
+                       elseif (Test-Path "D:\") { "D:\WSL" }
+                       else { "$env:USERPROFILE\WSL" }
+            [WslInstanceManager]::SaveRoot($File, $Decided)
+            return [PSCustomObject]@{ Root = $Decided; Note = "" }
+        }
+
+        if ($Homes.Count -eq 1) {
+            [WslInstanceManager]::SaveRoot($File, $Homes[0])
+            return [PSCustomObject]@{
+                Root = $Homes[0]
+                Note = "The working folder '$Saved' is gone - taking up '$($Homes[0])' again, where your instances are."
+            }
+        }
+
+        throw "The working folder '$Saved' is gone, and no existing folder holds your instances."
+    }
+
+    # The choice written for the next runs: the command that moves the fleet
+    # says where home went. Here, so the memory file's shape stays one
+    # place's business.
+    static [void] SetRoot([string]$Root) {
+        [WslInstanceManager]::SaveRoot([WslInstanceManager]::RootFile(), $Root.TrimEnd('\'))
+    }
+
+    # The memory file, and the writing of it. Outside the working folder by
+    # necessity - the folder cannot be asked where it is. Without
+    # %LOCALAPPDATA% (the sandboxes some suites run in) there is no memory:
+    # the rule decides every run.
+    hidden static [string] RootFile() {
+        if (-not $env:LOCALAPPDATA) { return "" }
+        return (Join-Path $env:LOCALAPPDATA "wsl-stack\root.txt")
+    }
+
+    hidden static [void] SaveRoot([string]$File, [string]$Root) {
+        if (-not $File) { return }
+        $null = New-Item -ItemType Directory -Path (Split-Path -Path $File -Parent) -Force
+        Set-Content -LiteralPath $File -Value $Root -Encoding utf8NoBOM
+    }
+
+    # Where our instances say home is: the parents of our registered ones
+    # whose folder still sits there - a folder on a drive that is gone has no
+    # vote - reduced to the distinct ones. One answer means home; none or
+    # several say nothing.
+    hidden static [string[]] RootHomes() {
+        $Homes = [System.Collections.Generic.List[string]]::new()
+        foreach ($Instance in [WslInstance]::GetAll()) {
+            if (-not (Test-Path $Instance.Path)) { continue }
+            if (-not (Test-TemplateInstance -Folder $Instance.Path)) { continue }
+            $Parent = Split-Path -Path $Instance.Path -Parent
+            if (@($Homes | Where-Object { $_ -eq $Parent }).Count -eq 0) { $Homes.Add($Parent) }
+        }
+        return @($Homes)
     }
 
     [string]$InstancesRoot

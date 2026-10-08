@@ -39,13 +39,26 @@ using module ..\WslModel\WslModel.psd1
 # so there is one string to remember in the whole project.
 $MarkerName = ".wsl-stack"
 
-# The engine, made the one way: D:\WSL when D: exists, the profile otherwise -
-# the rule Root() carries. A factory, so that a runspace of its own - the
+# The engine, made the one way. A factory, so that a runspace of its own - the
 # window's background jobs - can build a manager without naming the class:
 # a fresh runspace resolves no type literal, however its module was imported
-# (measured: "Unable to find type [WslInstanceManager]", silently).
+# (measured: "Unable to find type [WslInstanceManager]", silently). The
+# working folder's own resolution (Root) may take up home elsewhere - said
+# here, once - or find nowhere to stand: said and stopped here, the model
+# never talking to anybody.
 function New-InstanceManager {
-    return [WslInstanceManager]::new([WslInstanceManager]::Root())
+    try {
+        $Choice = [WslInstanceManager]::Root()
+    } catch {
+        Write-Host ""
+        Write-Host "[ABORT] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)
+        exit 1
+    }
+    if ($Choice.Note) {
+        Write-Host ""
+        Write-Host "  $($Choice.Note)" -ForegroundColor (Get-MessageColour warning)
+    }
+    return [WslInstanceManager]::new($Choice.Root)
 }
 
 # Is this folder an instance of ours? A folder name proves nothing - it is the

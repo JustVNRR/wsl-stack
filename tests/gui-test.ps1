@@ -82,7 +82,8 @@ $pins = @(
     @{ File = "JobRunner.ps1";   Pattern = 'Archive\(\$inst, \$ArchiveFirst, "tar\.gz"\)';        What = "Archive(inst, name, tar.gz)" },
     @{ File = "JobRunner.ps1";   Pattern = 'Duplicate\(\$inst, \$ArchiveFirst\)';                 What = "Duplicate(inst, name)" },
     @{ File = "EditRunner.ps1";  Pattern = 'ManagePacks\(\$inst, \$toAdd, \$toRemove, ""\)';      What = 'ManagePacks(inst, add, remove, "")' },
-    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Image \$Image -Manager \$mgr'; What = "build.ps1 with its named arguments" }
+    @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Image \$Image -Manager \$mgr'; What = "build.ps1 with its named arguments" },
+    @{ File = "MigrateRunner.ps1"; Pattern = '& \$Entry migrate -Target \$Target'; What = "the migrate command with its target" }
 )
 foreach ($pin in $pins) {
     $runnerPath = Join-Path $GuiRoot "Runners\$($pin.File)"
@@ -117,6 +118,21 @@ if (-not $ordered) {
     $bad = 1
 }
 Write-Host "the build form's positional chain: pinned."
+
+# 3c. The migrate's answers ride the same road into MigrateRunner: the target
+# first, the module, the entry - and both ends are pinned like the build's.
+$migrateParamLine = 'param([string]$Target, [string]$Module, [string]$Entry)'
+$migrateRunnerPath = Join-Path $GuiRoot "Runners\MigrateRunner.ps1"
+if ([IO.File]::ReadAllText($migrateRunnerPath) -notmatch [regex]::Escape($migrateParamLine)) {
+    Write-Host "::error file=$migrateRunnerPath::the param line (order included) is not the one gui.ps1 feeds"
+    $bad = 1
+}
+$chain = '"`"$newRoot`"", "`"$ModulePath`"", "`"$Entry`""'
+if ($guiSrc.IndexOf($chain, [StringComparison]::Ordinal) -lt 0) {
+    Write-Host "::error file=$guiPath::the migrate ArgumentList lost a field or its order"
+    $bad = 1
+}
+Write-Host "the migrate chain: pinned."
 
 # 4. The colour sets: well-formed, and every key they tell - the Dark and
 #    Light block names excepted - exists in the theme. A misspelled one is

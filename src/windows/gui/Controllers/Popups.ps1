@@ -506,6 +506,34 @@ function Copy-GuiBuildRecipe {
     return $target
 }
 
+# The download beside the upload hands the selected file out: copied wherever
+# the user points. A slot's file is offered back under the name it was
+# uploaded as, the slot's hash dropped; any other row under its own file
+# name. Every row's business, the repository's own included, unlike the
+# trash's. The Enter that closed the dialog is eaten like after an upload's:
+# it would land on the form and press the default button.
+function Save-GuiFile {
+    param($Row, $Owner)
+
+    # An uploaded row's file sits in a slot named after the file it arrived
+    # as (<base>-<hash>; the file inside is canonical): the slot says the
+    # name to offer back, its own file's extension kept. The repository's
+    # own rows offer their own name.
+    $proposed = [IO.Path]::GetFileName($Row.Path)
+    if ($Row.Uploaded) {
+        $base = (Split-Path -Path (Split-Path -Path $Row.Path -Parent) -Leaf) -replace '-[0-9a-f]{8}$', ''
+        $proposed = "$base$([IO.Path]::GetExtension($Row.Path))"
+    }
+    $dialog = New-Object Microsoft.Win32.SaveFileDialog
+    $dialog.Title = "Save '$proposed'"
+    $dialog.FileName = $proposed
+    $dialog.Filter = "All files (*.*)|*.*"
+    $picked = $dialog.ShowDialog($Owner)
+    $script:EatEnter = $true
+    if ($picked -ne $true) { return }
+    try { Copy-Item -LiteralPath $Row.Path -Destination $dialog.FileName -Force } catch { return }
+}
+
 # -----------------------------------------------------------------------------
 # A NEW INSTANCE - THE ADD FORM, WINDOW-SIDE
 # -----------------------------------------------------------------------------
@@ -514,8 +542,8 @@ function Copy-GuiBuildRecipe {
 # Windows account's cleaned form prefilled, both checked live (the red line
 # under the box saying what is wrong), the build's recipe - a toggle between a
 # Dockerfile and an uploaded Docker image, the first_boot beside them, each a
-# list opening on the repository's own files, an upload button and a trash
-# apiece - and the packs, the same checklist as the editor's. Returns
+# list opening on the repository's own files, an upload and a download button
+# and a trash apiece - and the packs, the same checklist as the editor's. Returns
 # { Name; User; Dockerfile; FirstBoot; Image; Packs }, with whichever of
 # Dockerfile and Image the toggle did not choose left empty - or $null when
 # cancelled; the run itself then gets a console window of its own, because it
@@ -589,8 +617,9 @@ function Show-AddInstance {
 
     # The build's recipe: three lists - the Dockerfile's and the first_boot's,
     # each opening on the repository's own file, and the images' (none of the
-    # repository's: it ships none) - an upload button and a trash beside
-    # each, and a toggle above choosing the road: a Dockerfile, or an image.
+    # repository's: it ships none) - an upload and a download button and a
+    # trash beside each, and a toggle above choosing the road: a Dockerfile,
+    # or an image.
     # Lists, not arrays, for the reason the font picker's is one: the
     # handlers below append by method, and a scriptblock's `+=` would assign
     # a local copy (measured there).
@@ -694,10 +723,15 @@ function Show-AddInstance {
         $btnFirstBootDelete.IsEnabled = [bool]$bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Uploaded
         $btnDockerImageDelete.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) -and [bool]$imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)].Uploaded
     }
+    # The download stands on a selected file: the Dockerfile and first_boot
+    # lists always open on one, an empty image list has none to hand out.
+    $btnDockerImageDownload = $form.FindName("BtnDockerImageDownload")
+    $UpdateDownload = { $btnDockerImageDownload.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) }
     $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash; & $RefreshChecklist })
     $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash })
-    $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash; & $RefreshChecklist })
+    $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash; & $UpdateDownload; & $RefreshChecklist })
     & $UpdateTrash
+    & $UpdateDownload
 
     $form.FindName("BtnDockerfileDelete").Add_Click({
         $row = $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)]
@@ -794,6 +828,18 @@ function Show-AddInstance {
         $imageChoices.Add($row)
         $null = $cmbDockerImage.Items.Add("$($row.Name)")
         $cmbDockerImage.SelectedIndex = $cmbDockerImage.Items.Count - 1
+    })
+
+    $form.FindName("BtnDockerfileDownload").Add_Click({
+        Save-GuiFile -Owner $form -Row $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)]
+    })
+    $form.FindName("BtnFirstBootDownload").Add_Click({
+        Save-GuiFile -Owner $form -Row $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)]
+    })
+    $form.FindName("BtnDockerImageDownload").Add_Click({
+        if ($cmbDockerImage.SelectedIndex -ge 0) {
+            Save-GuiFile -Owner $form -Row $imageChoices[$cmbDockerImage.SelectedIndex]
+        }
     })
 
     $script:AddResult = $null
@@ -943,7 +989,7 @@ function Show-Appearance {
     $pairRows = @()
     foreach ($row in @($Pairs)) {
         $field = "$row" -split "`t"
-        $here = if ($Recipe -and $Recipe.Top -eq $field[1] -and $Recipe.Bottom -eq $field[2]) { "  (current)" } else { "" }
+        $here = if ($Recipe -and $Recipe.Top -eq $field[1] -and $Recipe.Bottom -eq $field[2]) { "  ✓" } else { "" }
         $pairRows += [PSCustomObject]@{ Name = $field[0]; Top = $field[1]; Bottom = $field[2]; TextColor = $field[3] }
         $null = $lstPairs.Items.Add("$($field[0])$here")
     }
@@ -966,7 +1012,7 @@ function Show-Appearance {
     $lstFonts = $form.FindName("LstFonts")
     $fontIndex = 0
     for ($i = 0; $i -lt $Fonts.Count; $i++) {
-        $here = if ($Fonts[$i].Name -eq $CurrentFont) { "  (current)" } else { "" }
+        $here = if ($Fonts[$i].Name -eq $CurrentFont) { "  ✓" } else { "" }
         if ($Fonts[$i].Name -eq $CurrentFont) { $fontIndex = $i }
         $null = $lstFonts.Items.Add("$($Fonts[$i].Name)$here")
     }
@@ -976,7 +1022,7 @@ function Show-Appearance {
     $schemeNames = @($Schemes.Keys | Sort-Object)
     $schemeIndex = 0
     for ($i = 0; $i -lt $schemeNames.Count; $i++) {
-        $here = if ($schemeNames[$i] -eq $CurrentScheme) { "  (current)" } else { "" }
+        $here = if ($schemeNames[$i] -eq $CurrentScheme) { "  ✓" } else { "" }
         if ($schemeNames[$i] -eq $CurrentScheme) { $schemeIndex = $i }
         $null = $lstSchemes.Items.Add("$($schemeNames[$i])$here")
     }
@@ -1242,15 +1288,25 @@ function Show-DuplicatePrompt {
 # repository's own font folder, beside VT323, and the family it carries
 # joins the list, selected - the icon's own manners, one seat over.
 function Show-GuiSettings {
-    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize, [string]$CurrentColourSet)
+    param([string]$AssetsDir, [string]$CurrentFamily, [int]$CurrentSize, [string]$CurrentColourSet, [string]$CurrentRoot)
 
     [xml]$settingsXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\GuiSettings.xaml"))
 
     $form = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($settingsXaml))
     $form.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+    # The upload glyph is Font Awesome, handed over like the add form's.
+    if ($GuiFonts.IconFont) { $form.Resources["IconFace"] = $GuiFonts.IconFont }
 
     Set-WindowPhosphorFrame -Win $form -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
     $form.FindName("TxtLead").Text = "Appearance"
+    # The working folder: shown as it stands, greyed, until the edit button
+    # opens it - the move itself is the apply's business, confirmed there.
+    $txtRoot = $form.FindName("TxtRoot")
+    $txtRoot.Text = $CurrentRoot
+    $form.FindName("BtnGuiRootEdit").Add_Click({
+        $txtRoot.IsEnabled = $true
+        $txtRoot.Focus()
+    })
 
     # The list: the folders first, then the machine's usable fonts - the
     # console's own detection, which draws glyphs, so it is asked now and
@@ -1284,7 +1340,7 @@ function Show-GuiSettings {
     $lstFonts = $form.FindName("LstGuiFonts")
     $fontIndex = 0
     for ($i = 0; $i -lt $choiceRows.Count; $i++) {
-        $here = if ($choiceRows[$i].Name -eq $CurrentFamily) { "  (current)" } else { "" }
+        $here = if ($choiceRows[$i].Name -eq $CurrentFamily) { "  ✓" } else { "" }
         if ($choiceRows[$i].Name -eq $CurrentFamily) { $fontIndex = $i }
         $null = $lstFonts.Items.Add("$($choiceRows[$i].Name)$here")
     }
@@ -1296,7 +1352,7 @@ function Show-GuiSettings {
     if ($sizes -notcontains $CurrentSize) { $sizes = @($CurrentSize) + $sizes }
     $sizeIndex = 0
     for ($i = 0; $i -lt $sizes.Count; $i++) {
-        $here = if ($sizes[$i] -eq $CurrentSize) { "  (current)" } else { "" }
+        $here = if ($sizes[$i] -eq $CurrentSize) { "  ✓" } else { "" }
         if ($sizes[$i] -eq $CurrentSize) { $sizeIndex = $i }
         $null = $lstSizes.Items.Add("$($sizes[$i])$here")
     }
@@ -1307,16 +1363,36 @@ function Show-GuiSettings {
     # them. A name the folder no longer holds is kept at the top, marked:
     # the select never lies about what the windows wear.
     $lstColours = $form.FindName("LstGuiColours")
-    $setNames = @(Get-GuiColourSets -AssetsDir $AssetsDir)
-    if (-not $CurrentColourSet -or $setNames -notcontains $CurrentColourSet) { $setNames = @($CurrentColourSet) + $setNames }
+    # Both lists' width - a multiple of the worn size, so it follows the
+    # font size where a fixed pixel width would not.
+    $comboWidth = 7 * $GuiFonts.UiSize
+    $lstFonts.Width = $comboWidth
+    $lstColours.Width = $comboWidth
+    # A List, not an array: the upload and the trash below mutate it by
+    # method - a scriptblock's `+=` would assign a local copy (the fonts'
+    # own reason).
+    $setNames = [System.Collections.Generic.List[object]]::new()
+    $found = @(Get-GuiColourSets -AssetsDir $AssetsDir)
+    if (-not $CurrentColourSet -or $found -notcontains $CurrentColourSet) { $setNames.Add($CurrentColourSet) }
+    foreach ($setName in $found) { $setNames.Add($setName) }
     $setIndex = 0
     for ($i = 0; $i -lt $setNames.Count; $i++) {
         $label = if ($setNames[$i]) { $setNames[$i] } else { "Default" }
-        $here = if ($setNames[$i] -eq $CurrentColourSet) { "  (current)" } else { "" }
+        $here = if ($setNames[$i] -eq $CurrentColourSet) { "  ✓" } else { "" }
         if ($setNames[$i] -eq $CurrentColourSet) { $setIndex = $i }
         $null = $lstColours.Items.Add("$label$here")
     }
     $lstColours.SelectedIndex = $setIndex
+
+    # The theme's trash: greyed on "Default" - no file to take off the disk.
+    $txtThemeError = $form.FindName("TxtThemeError")
+    $btnThemeDelete = $form.FindName("BtnGuiThemeDelete")
+    $UpdateThemeTrash = {
+        $at = $lstColours.SelectedIndex
+        $btnThemeDelete.IsEnabled = ($at -ge 0) -and [bool]$setNames[$at]
+    }
+    $lstColours.Add_SelectionChanged({ & $UpdateThemeTrash })
+    & $UpdateThemeTrash
 
     # The file dialog's Enter lands on the owner once it closes, and the
     # default button answers it - the popup closed applying the old choice
@@ -1369,17 +1445,72 @@ function Show-GuiSettings {
         $lstFonts.SelectedIndex = $lstFonts.Items.Count - 1
     })
 
+    # The theme's three buttons: a .xaml dropped into the colours folder IS a
+    # theme, its file name the theme's name. One that will not load as a
+    # resource dictionary is refused, said on the red line; a name already
+    # taken passes the red CONFIRM and the file replaces it in place; the
+    # trash takes the selected theme's file off the disk - the shipped three
+    # included, the confirmation on guard; "Default" is no file at all, so
+    # the download offers the chart itself, the model to edit.
+    $coloursRoot = Join-Path $AssetsDir "colours"
+    $form.FindName("BtnGuiThemeUpload").Add_Click({
+        $dialog = New-Object Microsoft.Win32.OpenFileDialog
+        $dialog.Title = "A theme file for the windows"
+        $dialog.Filter = "Themes (*.xaml)|*.xaml"
+        $picked = $dialog.ShowDialog($form)
+        $script:EatEnter = $true
+        if ($picked -ne $true) { return }
+        $name = [IO.Path]::GetFileNameWithoutExtension($dialog.FileName)
+        $loads = $false
+        try {
+            $theme = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($dialog.FileName)))
+            $loads = $theme -is [System.Windows.ResourceDictionary]
+        } catch { }
+        $txtThemeError.Text = if ($loads -and $name) { "" } else { "The chosen file is not a theme." }
+        $txtThemeError.Visibility = if ($txtThemeError.Text) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        if ($txtThemeError.Text) { return }
+        $existing = -1
+        for ($i = 0; $i -lt $setNames.Count; $i++) { if ("$($setNames[$i])" -eq "$name") { $existing = $i; break } }
+        if ($existing -ge 0 -and -not (Show-GuiConfirm -Owner $form -Title "Replace theme" -Question "Replace the theme '$name' with the chosen file?")) { return }
+        Copy-Item -LiteralPath $dialog.FileName -Destination (Join-Path $coloursRoot "$name.xaml") -Force
+        if ($existing -lt 0) {
+            $setNames.Add($name)
+            $null = $lstColours.Items.Add("$name  (just uploaded)")
+            $existing = $setNames.Count - 1
+        }
+        $lstColours.SelectedIndex = $existing
+    })
+    $form.FindName("BtnGuiThemeDownload").Add_Click({
+        $at = $lstColours.SelectedIndex
+        if ($at -lt 0) { return }
+        $name = $setNames[$at]
+        $file = if ($name) { Join-Path $coloursRoot "$name.xaml" } else { Join-Path $GuiRoot "Theme\theme.xaml" }
+        Save-GuiFile -Owner $form -Row ([PSCustomObject]@{ Path = $file; Uploaded = $false })
+    })
+    $form.FindName("BtnGuiThemeDelete").Add_Click({
+        $at = $lstColours.SelectedIndex
+        if ($at -lt 0) { return }
+        $name = $setNames[$at]
+        if (-not $name) { return }
+        if (-not (Show-GuiConfirm -Owner $form -Title "Delete theme" -Question "Remove the theme '$name'?")) { return }
+        Remove-Item -LiteralPath (Join-Path $coloursRoot "$name.xaml") -Force -ErrorAction SilentlyContinue
+        $setNames.RemoveAt($at)
+        $lstColours.Items.RemoveAt($at)
+        $lstColours.SelectedIndex = [Math]::Min($at, $lstColours.Items.Count - 1)
+        & $UpdateThemeTrash
+    })
+
     $script:GuiSettingsResult = $null
     $form.FindName("BtnGuiCancel").Add_Click({ $script:GuiSettingsResult = $null; $form.Close() })
     $form.FindName("BtnGuiApply").Add_Click({
         $choice = $choiceRows[[Math]::Max(0, $lstFonts.SelectedIndex)]
         $size = $sizes[[Math]::Max(0, $lstSizes.SelectedIndex)]
-        $set = $setNames[[Math]::Max(0, $lstColours.SelectedIndex)]
-        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size; ColourSet = $set }
+        $set = if ($lstColours.SelectedIndex -ge 0) { $setNames[$lstColours.SelectedIndex] } else { "" }
+        $script:GuiSettingsResult = [PSCustomObject]@{ Name = $choice.Name; Family = $choice.Family; Folder = $choice.Folder; Size = [int]$size; ColourSet = $set; Root = $txtRoot.Text.Trim() }
         $form.Close()
     })
 
-    Set-WindowFitToContent -Win $form -Shrink
+    Set-WindowFitToContent -Win $form -Shrink -Cap 640
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:GuiSettingsResult
 }

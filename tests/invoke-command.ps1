@@ -21,5 +21,7 @@ $ErrorActionPreference = "Stop"
 Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
 $LASTEXITCODE = 0
-& $Script -Manager ([WslInstanceManager]::new([WslInstanceManager]::Root()))
+# The manager, made the way the entry makes it - Root answers a choice (and
+# may say it took up home elsewhere), not the bare path any more.
+& $Script -Manager (New-InstanceManager)
 exit $LASTEXITCODE

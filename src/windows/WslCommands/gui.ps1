@@ -122,7 +122,7 @@ $btnSettings.Add_Click({
         $worn = "$($GuiFonts.UiFont.FamilyNames.Values | Select-Object -First 1)"
         if (-not $worn) { $worn = "$($GuiFonts.UiFont.Source)" -replace '^\./#', '' }
     }
-    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize -CurrentColourSet $GuiSettings.ColourSet
+    $look = Show-GuiSettings -AssetsDir $AssetsDir -CurrentFamily $worn -CurrentSize $GuiSettings.FontSize -CurrentColourSet $GuiSettings.ColourSet -CurrentRoot $Manager.InstancesRoot
     if ($null -eq $look) { return }
     # A folder face's file must be on disk right now - the filesystem is the
     # truth. NOT a rendered glyph: rendering resolves the family NAME through
@@ -153,6 +153,24 @@ $btnSettings.Add_Click({
     & $LoadFleet
     $setName = if ($look.ColourSet) { $look.ColourSet } else { "default" }
     & $SetStatus "Window face: '$($look.Name)' at $($look.Size) pt, theme '$setName'. Popups follow on their next open."
+
+    # The working folder, when it was changed: the whole fleet follows, by the
+    # migrate command in a console of its own - the console IS the log - and
+    # the window closes behind it. Nothing moves on one Enter: the red CONFIRM
+    # explains first. The console waits for a key and reopens this manager.
+    $newRoot = "$($look.Root)".Trim().Trim('"').TrimEnd('\')
+    if ($newRoot -and ($newRoot -ne $Manager.InstancesRoot.TrimEnd('\'))) {
+        if (Show-GuiConfirm -Owner $window -Title "Move the fleet" -Question "All existing instances will be archived and moved to '$newRoot'. Continue?") {
+            $RunnerPath = Join-Path $PSScriptRoot "..\gui\Runners\MigrateRunner.ps1"
+            $ModulePath = Join-Path $PSScriptRoot "..\WslStack\WslStack.psd1"
+            $Entry = Join-Path $PSScriptRoot "..\..\..\wsl.ps1"
+            Start-Process pwsh -ArgumentList @(
+                "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
+                "`"$newRoot`"", "`"$ModulePath`"", "`"$Entry`""
+            )
+            $window.Close()
+        }
+    }
 })
 
 # The same theme's other version, on the spot: the chart's copy is swapped

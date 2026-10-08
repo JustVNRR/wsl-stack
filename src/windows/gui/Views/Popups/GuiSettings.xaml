@@ -1,20 +1,44 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Width="560" SizeToContent="Height" MaxHeight="760"
+        Title="Settings" Width="560" SizeToContent="Height" MaxHeight="760" MinWidth="400"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"
         FontFamily="Segoe UI" FontSize="13">
     <StackPanel Margin="18">
-        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold"/>
-        <TextBlock Margin="0,12,0,0" Text="Font family:"/>
+        <TextBlock Text="Root folder" FontWeight="SemiBold"/>
+        <Grid Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox Name="TxtRoot" IsEnabled="False" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+            <Button Name="BtnGuiRootEdit" Grid.Column="1" Content="&#xF044;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Edit the working folder"/>
+        </Grid>
+        <TextBlock Name="TxtLead" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,12,0,0"/>
+        <Grid Margin="0,12,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Font"/>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,0">
+                <ComboBox Name="LstGuiFonts" MaxWidth="420"/>
+                <Button Name="BtnGuiFontUpload" Content="&#xF093;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Upload a font file..."/>
+            </StackPanel>
+            <ComboBox Name="LstGuiSizes" Grid.Row="1" Grid.Column="1" Margin="16,6,0,0"/>
+        </Grid>
+        <TextBlock Margin="0,10,0,0" Text="Theme"/>
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-            <ComboBox Name="LstGuiFonts" Width="300"/>
-            <Button Name="BtnGuiFontUpload" Content="Upload a font file..." Margin="8,0,0,0"/>
+            <ComboBox Name="LstGuiColours" MaxWidth="420"/>
+            <Button Name="BtnGuiThemeUpload" Content="&#xF093;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Upload a theme file..."/>
+            <Button Name="BtnGuiThemeDownload" Content="&#xF019;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" ToolTip="Save the selected theme..."/>
+            <Button Name="BtnGuiThemeDelete" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected theme"/>
         </StackPanel>
-        <TextBlock Margin="0,10,0,0" Text="Font size:"/>
-        <ComboBox Name="LstGuiSizes" Margin="0,6,0,0" Width="120" HorizontalAlignment="Left"/>
-        <TextBlock Margin="0,10,0,0" Text="Theme:"/>
-        <ComboBox Name="LstGuiColours" Margin="0,6,0,0" Width="200" HorizontalAlignment="Left"/>
+        <TextBlock Name="TxtThemeError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="BtnGuiCancel" Content="Cancel" Width="80" Margin="0,0,8,0" IsCancel="True"
                     Style="{DynamicResource BtnCancel}"/>
