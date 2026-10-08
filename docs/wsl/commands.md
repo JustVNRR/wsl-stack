@@ -906,8 +906,12 @@ It then asks for the name of the new instance and imports it into
 you the command to run first — **it deletes nothing on its own**.
 
 The icon, the font, the colour scheme and Docker Desktop's knowledge of the
-instance come back with it, from the values stored next to the tar. If the font
-is no longer installed on Windows, the script says so rather than failing.
+instance come back with it, from the values stored next to the tar. When the
+archive says Docker Desktop knew it, the console asks whether to add it back —
+that restarts Docker. **From the window**, the restore runs as a job with no
+window to answer in, so Docker is left alone and the report says so — its
+settings can take the name later. If the font is no longer installed on
+Windows, the script says so rather than failing.
 
 **The archive is kept**: restoring copies it into a new instance, it does not
 consume it.
@@ -931,7 +935,9 @@ If the source is running, it has to be stopped for the copy — the script asks
 first, and starts it again afterwards when it was the one that stopped it.
 
 The copy lands in `D:\WSL\<name>` and comes out dressed like its source, icon,
-font and colours included. It needs **twice the disk's size** free at peak: the
+font and colours included. Docker Desktop's list follows the restore's rule:
+the console asks before adding the copy, the window's job leaves Docker alone
+and says so. It needs **twice the disk's size** free at peak: the
 temporary archive and the copy exist at the same time. The script checks and
 shows the numbers before starting.
 

@@ -23,9 +23,12 @@ try {
     if ($Verb -eq "restore") {
         # No instance to find: the row was an archive. -ArchiveFirst carries
         # the archive folder here, and -Name the name the new instance takes.
+        # Headless: this job has no window to answer Docker's question in - it
+        # is never asked here, Docker is left alone, and the ending says so.
         Write-Stamp "restoring"
-        $r = $mgr.RestoreFromArchive($ArchiveFirst, $Name)
-        Write-Stamp ("RESULT OK " + $Name + ": restored from '" + (Split-Path $ArchiveFirst -Leaf) + "'")
+        $r = $mgr.RestoreFromArchive($ArchiveFirst, $Name, $true)
+        $docker = if ("$($r.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
+        Write-Stamp ("RESULT OK " + $Name + ": restored from '" + (Split-Path $ArchiveFirst -Leaf) + "'" + $docker)
     } elseif ($Verb -eq "delete") {
         # No instance to find here either: the archive's own folder goes.
         Write-Stamp "deleting the archive"
@@ -69,12 +72,13 @@ try {
                 throw ("Not enough room on {0}: needed {1}, free {2}." -f $cost.DriveLetter, (Format-Size $cost.NeededBytes), (Format-Size $cost.FreeBytes))
             }
             Write-Stamp "copying"
-            $r = $mgr.Duplicate($inst, $ArchiveFirst)
+            $r = $mgr.Duplicate($inst, $ArchiveFirst, $true)
             if ($wasRunning) {
                 $inst.Start()
                 Write-Stamp "started again"
             }
-            Write-Stamp ("RESULT OK " + $ArchiveFirst + ": duplicated from '" + $Name + "'")
+            $docker = if ("$($r.Instance.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
+            Write-Stamp ("RESULT OK " + $ArchiveFirst + ": duplicated from '" + $Name + "'" + $docker)
         } elseif ($Verb -eq "compact") {
             # The gate may have asked for the archive first: the copy is
             # written before the disk is touched, under the instance's own

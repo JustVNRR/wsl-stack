@@ -73,11 +73,12 @@ if ($Cost.FreeBytes -lt $Cost.NeededBytes) {
 
 # 3. Copy: the source is only read. The temporary image is removed by the
 # engine's own copy, in all cases - it is worth twice the disk, and leaving it
-# would eat the room just checked for.
+# would eat the room just checked for. Headless is false: this road has a
+# console, so Docker's question is asked here.
 try {
     Write-Host "==> 1. Reading the source (the source itself is not modified)..." -ForegroundColor (Get-MessageColour info)
     Write-Host "==> 2. Registering '$NewDistroName' from it..." -ForegroundColor (Get-MessageColour info)
-    $Report = $Manager.Duplicate($Source, $NewDistroName)
+    $Report = $Manager.Duplicate($Source, $NewDistroName, $false)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)

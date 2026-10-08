@@ -91,7 +91,8 @@ if (Test-Path $InstallPath) {
 
 # 4. Import. Version 2, like build.ps1: a tar does not carry the version it
 # came from, and WSL 1 is not what this repository builds. The import, the
-# marker, the look and Docker's entry are the engine's.
+# marker, the look and Docker's entry are the engine's - Headless is false:
+# this road has a console, so Docker's question is asked here.
 $ChosenTar = Get-ChildItem -Path $Chosen.FullName -Filter "*.tar*" -File |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
@@ -102,7 +103,7 @@ Write-Host "  * Install folder   : $InstallPath" -ForegroundColor (Get-MessageCo
 Write-Host ""
 
 try {
-    $null = $Manager.RestoreFromArchive($Chosen.FullName, $Name)
+    $null = $Manager.RestoreFromArchive($Chosen.FullName, $Name, $false)
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor (Get-MessageColour error)

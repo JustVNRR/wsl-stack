@@ -556,7 +556,7 @@ function ConvertTo-WslTheme {
 # Give an instance back the look it had. Either from an archive folder, or from
 # an appearance object captured a moment ago (duplicate.ps1, shrink.ps1).
 function Set-InstanceState {
-    param([string]$Name, [string]$InstallPath, [string]$Folder, [PSCustomObject]$Appearance)
+    param([string]$Name, [string]$InstallPath, [string]$Folder, [PSCustomObject]$Appearance, [bool]$Headless)
 
     if ($Folder) {
         $File = Join-Path $Folder "instance.json"
@@ -609,28 +609,35 @@ function Set-InstanceState {
     # only when it starts: if the archive says it knew the original, the new one
     # is put back - the restart is the price, hence the [y/N] question.
     if ($Appearance.Docker -eq "yes" -and (Get-DockerState -Name $Name) -eq "no") {
-        Write-Host ""
-        # [y/N], not [Y/n]: this lands in the middle of a restore or a copy,
-        # where the restart stops containers for a reason the user may not care
-        # about.
-        if (Confirm-YesNo "Add '$Name' to Docker Desktop? (it restarts Docker)" -DefaultNo) {
-            try {
-                Set-DockerState -Name $Name
-                $PreviousEAP = $ErrorActionPreference
-                $ErrorActionPreference = "Continue"
-                $null = docker desktop restart *> $null
-                $RestartCode = $LASTEXITCODE
-                $ErrorActionPreference = $PreviousEAP
-                if ($RestartCode -eq 0) {
-                    Write-Host "  * Docker Desktop   : added, and restarted to pick it up" -ForegroundColor (Get-MessageColour success)
-                } else {
-                    Write-Host "  * Docker Desktop   : added - restart it for it to notice" -ForegroundColor (Get-MessageColour hint)
-                }
-            } catch {
-                Write-Host "  * Docker Desktop   : could not be updated ($($_.Exception.Message))" -ForegroundColor (Get-MessageColour warning)
-            }
+        if ($Headless) {
+            # No window to answer in: the window's jobs run hidden (JobRunner),
+            # and the question blocked one for good - the work was already done
+            # (measured). Docker is left alone; the caller's report says so.
+            Write-Host "  * Docker Desktop   : not added - no window to answer its question" -ForegroundColor (Get-MessageColour muted)
         } else {
-            Write-Host "  * Docker Desktop   : not added - its settings can take it later" -ForegroundColor (Get-MessageColour muted)
+            Write-Host ""
+            # [y/N], not [Y/n]: this lands in the middle of a restore or a copy,
+            # where the restart stops containers for a reason the user may not
+            # care about.
+            if (Confirm-YesNo "Add '$Name' to Docker Desktop? (it restarts Docker)" -DefaultNo) {
+                try {
+                    Set-DockerState -Name $Name
+                    $PreviousEAP = $ErrorActionPreference
+                    $ErrorActionPreference = "Continue"
+                    $null = docker desktop restart *> $null
+                    $RestartCode = $LASTEXITCODE
+                    $ErrorActionPreference = $PreviousEAP
+                    if ($RestartCode -eq 0) {
+                        Write-Host "  * Docker Desktop   : added, and restarted to pick it up" -ForegroundColor (Get-MessageColour success)
+                    } else {
+                        Write-Host "  * Docker Desktop   : added - restart it for it to notice" -ForegroundColor (Get-MessageColour hint)
+                    }
+                } catch {
+                    Write-Host "  * Docker Desktop   : could not be updated ($($_.Exception.Message))" -ForegroundColor (Get-MessageColour warning)
+                }
+            } else {
+                Write-Host "  * Docker Desktop   : not added - its settings can take it later" -ForegroundColor (Get-MessageColour muted)
+            }
         }
     }
 }

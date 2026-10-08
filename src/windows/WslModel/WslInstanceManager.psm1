@@ -587,7 +587,7 @@ class WslInstanceManager {
     # does not carry the look; it sits next to it, and State re-applies it.
     # Version 2, like build: a tar does not carry the version it came from,
     # and WSL 1 is not what this repository builds.
-    [WslInstance] RestoreFromArchive([string]$ArchiveDir, [string]$Name) {
+    [WslInstance] RestoreFromArchive([string]$ArchiveDir, [string]$Name, [bool]$Headless) {
         if (-not $this.IsNameUsable($Name)) {
             throw "'$Name' is not usable as an instance name (letters, digits, '.', '_' and '-' only)."
         }
@@ -607,8 +607,10 @@ class WslInstanceManager {
         $null = [WslInstance]::Restore($ArchiveDir, $Name, $InstallPath)
 
         # The look and Docker's entry, which a tar carries neither of - the
-        # marker was written by Restore, right after the import.
-        Set-InstanceState -Name $Name -InstallPath $InstallPath -Folder $ArchiveDir
+        # marker was written by Restore, right after the import. Headless
+        # rides along: a caller with no console to answer Docker's question
+        # in (the window's hidden job) has it left alone, said in its report.
+        Set-InstanceState -Name $Name -InstallPath $InstallPath -Folder $ArchiveDir -Headless $Headless
         $this.Refresh()
         return $this.FindByName($Name)
     }
@@ -640,7 +642,7 @@ class WslInstanceManager {
     # own, with the look captured before the export and re-applied after.
     # Stopping the source first, and starting it again after, is the
     # interface's doing: it is the one that asked the question.
-    [object] Duplicate([WslInstance]$Instance, [string]$Name) {
+    [object] Duplicate([WslInstance]$Instance, [string]$Name, [bool]$Headless) {
         if (-not $this.IsNameUsable($Name)) {
             throw "'$Name' is not usable as an instance name (letters, digits, '.', '_' and '-' only)."
         }
@@ -663,8 +665,9 @@ class WslInstanceManager {
 
         # The copy has its own profile and its own guid: the look is re-applied
         # from the values captured before the export - Docker's entry too,
-        # keyed by name.
-        Set-InstanceState -Name $Name -InstallPath $FullDestination -Appearance $Copy.Look
+        # keyed by name, and Headless like the restore's: a hidden job cannot
+        # answer Docker's question, so it is not asked there.
+        Set-InstanceState -Name $Name -InstallPath $FullDestination -Appearance $Copy.Look -Headless $Headless
         $this.Refresh()
 
         return [PSCustomObject]@{ Instance = $this.FindByName($Name); InstallPath = $FullDestination; CopyBytes = $CopyBytes }

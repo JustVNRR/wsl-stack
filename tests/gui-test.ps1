@@ -77,10 +77,10 @@ foreach ($f in $runners) {
 }
 
 $pins = @(
-    @{ File = "JobRunner.ps1";   Pattern = 'RestoreFromArchive\(\$ArchiveFirst, \$Name\)';        What = "RestoreFromArchive(archive, name)" },
+    @{ File = "JobRunner.ps1";   Pattern = 'RestoreFromArchive\(\$ArchiveFirst, \$Name, \$true\)';        What = "RestoreFromArchive(archive, name)" },
     @{ File = "JobRunner.ps1";   Pattern = 'DeleteArchive\(\$Name\)';                             What = "DeleteArchive(name)" },
     @{ File = "JobRunner.ps1";   Pattern = 'Archive\(\$inst, \$ArchiveFirst, "tar\.gz"\)';        What = "Archive(inst, name, tar.gz)" },
-    @{ File = "JobRunner.ps1";   Pattern = 'Duplicate\(\$inst, \$ArchiveFirst\)';                 What = "Duplicate(inst, name)" },
+    @{ File = "JobRunner.ps1";   Pattern = 'Duplicate\(\$inst, \$ArchiveFirst, \$true\)';                 What = "Duplicate(inst, name)" },
     @{ File = "EditRunner.ps1";  Pattern = 'ManagePacks\(\$inst, \$toAdd, \$toRemove, ""\)';      What = 'ManagePacks(inst, add, remove, "")' },
     @{ File = "BuildRunner.ps1"; Pattern = '& \$BuildScript -Name \$Name -User \$User -Packs \$Packs -Dockerfile \$Dockerfile -FirstBoot \$FirstBoot -Image \$Image -Manager \$mgr'; What = "build.ps1 with its named arguments" },
     @{ File = "MigrateRunner.ps1"; Pattern = '& \$Entry migrate -Target \$Target'; What = "the migrate command with its target" }
