@@ -697,7 +697,7 @@ Theme of 'ubuntu-ml-dev'
   up/down to move, Enter to choose, Escape to cancel
 ```
 
-### `icon`
+### `theme_icon`
 
 Draws the icon of an instance, or puts an image of yours in its place. The
 script the build calls does the drawing, so the letters and the colours follow
@@ -741,7 +741,7 @@ the recipe alone.
 The icon travels with the instance: `archive` takes the file and the picture,
 `restore` and `duplicate` put both back.
 
-### `font`
+### `theme_font`
 
 Sets what the whole terminal is written in, for one instance.
 
@@ -770,7 +770,7 @@ A console writes every row in the font *it* is set to, so no list can show a fon
 in itself. The preview is the choice: the profile changes, and the next tab is
 written in it.
 
-### `color`
+### `theme_color`
 
 Sets the colours of the whole terminal, for one instance.
 

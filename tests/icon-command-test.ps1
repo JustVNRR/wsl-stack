@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 # For Get-Distros and the marker test: the list the command itself builds.
 Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
-$IconScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\icon.ps1"
+$IconScript = Join-Path $PSScriptRoot "..\src\windows\WslCommands\theme_icon.ps1"
 # Child processes follow the engine this suite runs under, so a pass under 7
 # tests the scripts under 7.
 $Engine = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }

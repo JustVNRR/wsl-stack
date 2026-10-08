@@ -18,17 +18,19 @@ param (
 
 $ErrorActionPreference = "Stop"
 
+# The word the menu shows stays short; the file behind it carries the theme_
+# prefix, like the command one can type by hand.
 $Choices = @(
-    @{ Name = "icon";  About = "the tile in the tab" },
-    @{ Name = "font";  About = "what the whole terminal is written in" },
-    @{ Name = "color"; About = "the background, the text, and sixteen colours" }
+    @{ Name = "icon";  File = "theme_icon";  About = "the tile in the tab" },
+    @{ Name = "font";  File = "theme_font";  About = "what the whole terminal is written in" },
+    @{ Name = "color"; File = "theme_color"; About = "the background, the text, and sixteen colours" }
 )
 
 foreach ($Choice in $Choices) {
-    $Script = Join-Path $PSScriptRoot "$($Choice.Name).ps1"
+    $Script = Join-Path $PSScriptRoot "$($Choice.File).ps1"
     if (-not (Test-Path $Script)) {
         Write-Host ""
-        Write-Host "[ABORT] scripts\WslCommands\$($Choice.Name).ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
+        Write-Host "[ABORT] scripts\WslCommands\$($Choice.File).ps1 is missing - the scripts\ folder is incomplete." -ForegroundColor (Get-MessageColour error)
         exit 1
     }
 }
@@ -65,7 +67,7 @@ while ($true) {
 
         # The command named takes the screen and clears it itself, the way it came in.
         # Hands both -DistroName and the shared -Manager over to the child command.
-        & (Join-Path $PSScriptRoot "$($Chosen.Name).ps1") -DistroName $DistroName -Manager $Manager
+        & (Join-Path $PSScriptRoot "$($Chosen.File).ps1") -DistroName $DistroName -Manager $Manager
         $Visited = $true
     }
 }
