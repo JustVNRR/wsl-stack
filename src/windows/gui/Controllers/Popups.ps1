@@ -122,6 +122,52 @@ function Show-GuiRootMove {
     return $script:RootMoveResult
 }
 
+# One pack copied under a name of its own: the new name and description
+# asked - the red line under the fields for a name that cannot be used,
+# taken or malformed. Answers the chosen @{ Name; Description }, or $null
+# when cancelled.
+function Show-GuiPackDuplicate {
+    param([string]$SourceName, [string]$SourceDescription, [string[]]$Taken, [System.Windows.Window]$Owner)
+
+    [xml]$dupXaml = [System.IO.File]::ReadAllText((Join-Path $GuiRoot "Views\Popups\PackDuplicate.xaml"))
+
+    $dup = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new($dupXaml))
+    $dup.Resources.MergedDictionaries.Add((Get-ThemeDictionary))
+
+    Set-WindowPhosphorFrame -Win $dup -UiFont $GuiFonts.UiFont -UiFontSize $GuiFonts.UiSize
+    $dup.FindName("TxtLead").Text = "Duplicate the pack '$SourceName'"
+    $dup.FindName("TxtDupName").Text = "$SourceName-copy"
+    $dup.FindName("TxtDupDescription").Text = $SourceDescription
+    $txtDupError = $dup.FindName("TxtDupError")
+
+    $script:PackDupResult = $null
+    $dup.FindName("BtnDupCancel").Add_Click({ $dup.Close() })
+    $dup.FindName("BtnDupOk").Add_Click({
+        $chosenName = $dup.FindName("TxtDupName").Text.Trim()
+        $problem = ""
+        if (-not (Test-InstanceName $chosenName)) {
+            $problem = "Letters, digits, '.', '_' and '-' only, starting with a letter or a digit."
+        } elseif (@($Taken | Where-Object { $_ -eq $chosenName }).Count -gt 0) {
+            $problem = "A pack named '$chosenName' already exists."
+        }
+        if ($problem) {
+            $txtDupError.Text = $problem
+            $txtDupError.Visibility = [System.Windows.Visibility]::Visible
+            return
+        }
+        $script:PackDupResult = [PSCustomObject]@{
+            Name = $chosenName
+            Description = $dup.FindName("TxtDupDescription").Text.Trim()
+        }
+        $dup.Close()
+    })
+
+    Set-WindowFitToContent -Win $dup
+    if ($Owner) { $dup.Owner = $Owner }
+    $null = $dup.ShowDialog()
+    return $script:PackDupResult
+}
+
 # -----------------------------------------------------------------------------
 # THE TRASH, ONE ROW AT A TIME - THE REMOVAL GATE, WINDOW-SIDE
 # -----------------------------------------------------------------------------
@@ -1460,7 +1506,7 @@ function Show-GuiSettings {
         # their next open" starts with this one.
         $form.Resources.MergedDictionaries[0] = (Get-ThemeDictionary)
         Set-WindowPhosphorFrame -Win $form -UiFont $choice.Family -UiFontSize $size
-        Set-WindowFitToContent -Win $form -Shrink -Cap 640
+        Set-WindowFitToContent -Win $form -Shrink -Cap 700
     }
     $lstFonts.Add_SelectionChanged({ & $ApplySelection })
     $lstSizes.Add_SelectionChanged({ & $ApplySelection })
@@ -1595,18 +1641,27 @@ function Show-GuiSettings {
     $script:CatalogueChanged = $false
     $txtCatalogueError = $form.FindName("TxtCatalogueError")
     $btnPackEdit = $form.FindName("BtnGuiPackEdit")
+    $btnPackDuplicate = $form.FindName("BtnGuiPackDuplicate")
     $btnPackDelete = $form.FindName("BtnGuiPackDelete")
     $lstPacks = $form.FindName("LstGuiPacks")
     $lstPacks.Width = $comboWidth
     $packRows = [System.Collections.Generic.List[object]]::new()
-    foreach ($Pack in @($Catalog.AvailablePacks | Sort-Object Name)) {
-        $packRows.Add($Pack)
-        $null = $lstPacks.Items.Add("$($Pack.Name) ($($Pack.Family))")
+    # The list, drawn from a fresh catalogue on demand: a pack made under the
+    # duplicate button is a row without reopening the window.
+    $RefreshPacks = {
+        $packRows.Clear()
+        $lstPacks.Items.Clear()
+        foreach ($Pack in @((Get-PackCatalog).AvailablePacks | Sort-Object Name)) {
+            $packRows.Add($Pack)
+            $null = $lstPacks.Items.Add("$($Pack.Name) ($($Pack.Family))")
+        }
     }
+    & $RefreshPacks
     if ($lstPacks.Items.Count -gt 0) { $lstPacks.SelectedIndex = 0 }
     $UpdatePacks = {
         $has = $lstPacks.SelectedIndex -ge 0
         $btnPackEdit.IsEnabled = $has
+        $btnPackDuplicate.IsEnabled = $has
         $btnPackDelete.IsEnabled = $has
     }
     $lstPacks.Add_SelectionChanged({ & $UpdatePacks })
@@ -1621,6 +1676,50 @@ function Show-GuiSettings {
             $txtCatalogueError.Text = "The folder did not open: $($_.Exception.Message)"
             $txtCatalogueError.Visibility = [System.Windows.Visibility]::Visible
         }
+    })
+    $form.FindName("BtnGuiPackDuplicate").Add_Click({
+        $at = $lstPacks.SelectedIndex
+        if ($at -lt 0) { return }
+        $Pack = $packRows[$at]
+        $Names = @($packRows | ForEach-Object { $_.Name })
+        $Answer = Show-GuiPackDuplicate -Owner $form -SourceName $Pack.Name -SourceDescription $Pack.Description -Taken $Names
+        if (-not $Answer) { return }
+
+        # The copy: the folder under its new name - the folder name IS the
+        # pack's name - and the description rewritten in its conf, the only
+        # file a pack is named in. The requires and the family ride along;
+        # nothing else needs changing for the two to live side by side.
+        $target = Join-Path (Split-Path -Path $Pack.Path -Parent) $Answer.Name
+        try {
+            Copy-Item -LiteralPath $Pack.Path -Destination $target -Recurse -ErrorAction Stop
+            $conf = Join-Path $target "pack.conf"
+            $rewritten = @()
+            $found = $false
+            foreach ($line in @(Get-Content -LiteralPath $conf)) {
+                if ($line -match '^\s*PACK_DESCRIPTION\s*:=') {
+                    $found = $true
+                    $rewritten += "PACK_DESCRIPTION := $($Answer.Description)"
+                } else {
+                    $rewritten += $line
+                }
+            }
+            if (-not $found) { $rewritten += "PACK_DESCRIPTION := $($Answer.Description)" }
+            Set-Content -LiteralPath $conf -Value $rewritten -Encoding utf8NoBOM
+        } catch {
+            $txtCatalogueError.Text = "The pack was not duplicated: $($_.Exception.Message)"
+            $txtCatalogueError.Visibility = [System.Windows.Visibility]::Visible
+            return
+        }
+
+        # The row on the spot, selected; the manager's catalogue follows on
+        # CLOSE, like the other catalogue changes.
+        & $RefreshPacks
+        $copyAt = 0
+        for ($i = 0; $i -lt $packRows.Count; $i++) {
+            if ($packRows[$i].Name -eq $Answer.Name) { $copyAt = $i; break }
+        }
+        $lstPacks.SelectedIndex = $copyAt
+        $script:CatalogueChanged = $true
     })
     $form.FindName("BtnGuiPackDelete").Add_Click({
         $at = $lstPacks.SelectedIndex
@@ -1682,7 +1781,7 @@ function Show-GuiSettings {
         $form.Close()
     })
 
-    Set-WindowFitToContent -Win $form -Shrink -Cap 640
+    Set-WindowFitToContent -Win $form -Shrink -Cap 700
     Show-PopupExclusive $window { $null = $form.ShowDialog() }
     return $script:GuiSettingsResult
 }

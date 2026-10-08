@@ -186,9 +186,10 @@ a box, Cancel or the red CONFIRM. A confirmed folder archives the whole fleet
 and moves it there (`migrate`), the window closing behind the run's own
 console. A **Catalogue**
 section lists the packs of `assets\packs\`: the edit button opens the selected
-pack's folder as Windows opens folders, the trash removes it whole — the red
-CONFIRM first, naming the packs that depend on it when any do — and the base
-set comes back by deleting `assets\packs\`.
+pack's folder as Windows opens folders, a duplicate copying it under a new
+name (the copy's description rewritten in its `pack.conf`), the trash removes
+it whole — the red CONFIRM first, naming the packs that depend on it when any
+do — and the base set comes back by deleting `assets\packs\`.
 Nothing here exists only in the window: it is a keystroke-free way in, not a
 second engine.
 

@@ -1,0 +1,21 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="WSL Stack" Width="480" SizeToContent="Height" MaxHeight="760"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"
+        FontFamily="Segoe UI" FontSize="13">
+    <StackPanel Margin="18">
+        <TextBlock Name="TxtLead" Margin="0,10,0,0" TextWrapping="Wrap" FontWeight="SemiBold"/>
+        <TextBlock Margin="0,10,0,0" Text="Name:"/>
+        <TextBox Name="TxtDupName" Margin="0,4,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+        <TextBlock Margin="0,10,0,0" Text="Description:"/>
+        <TextBox Name="TxtDupDescription" Margin="0,4,0,0" Background="{DynamicResource AppInputBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}" BorderBrush="{DynamicResource AppBorderBrush}" Padding="4"/>
+        <TextBlock Name="TxtDupError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Name="BtnDupCancel" Content="Cancel" Width="80" Height="28" Margin="0,0,8,0" IsCancel="True"
+                    Style="{DynamicResource BtnCancel}"/>
+            <Button Name="BtnDupOk" Content="APPLY" Width="90" Height="28" IsDefault="True"
+                    Style="{DynamicResource BtnApply}"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

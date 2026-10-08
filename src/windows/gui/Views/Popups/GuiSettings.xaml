@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Width="560" SizeToContent="Height" MaxHeight="760" MinWidth="400"
+        Title="Settings" Width="560" SizeToContent="Height" MaxHeight="760" MinWidth="300"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource AppForegroundBrush}"
         FontFamily="Segoe UI" FontSize="13">
@@ -44,6 +44,7 @@
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <ComboBox Name="LstGuiPacks" MaxWidth="420"/>
             <Button Name="BtnGuiPackEdit" Content="&#xF044;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Open the selected pack's folder"/>
+            <Button Name="BtnGuiPackDuplicate" Content="&#xF0C5;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Duplicate the selected pack under a new name"/>
             <Button Name="BtnGuiPackDelete" Content="&#xF1F8;" FontFamily="{DynamicResource IconFace}" Width="34" Margin="8,0,0,0" IsEnabled="False" ToolTip="Delete the selected pack"/>
         </StackPanel>
         <TextBlock Name="TxtCatalogueError" Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{DynamicResource AppDangerBrush}" Visibility="Collapsed"/>
