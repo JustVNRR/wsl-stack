@@ -170,7 +170,9 @@ Two distinct trees: the **repository** you clone and version, and the **distro**
 the build produces. The `src/` folder holds both sides: the instance
 administration (`src/windows/` — the entry, the module, the commands), and the
 distro's recipe and baggage — the build recipe (`src/distro/build/`) and the
-packs (`src/distro/packs/` — read at runtime by the console, one at a time).
+packs (`src/distro/packs/`), both seeded into the writable `assets\` folder
+on the first run — from there they are read, and are yours to edit or
+delete.
 The image carries the tools; the packs carry the settings, the `zsh` pack
 first of all: its `config/` folder is what fills `~/.config/zsh`.
 

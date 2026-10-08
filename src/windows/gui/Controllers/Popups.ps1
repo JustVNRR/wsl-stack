@@ -545,20 +545,19 @@ function Show-PackEditor {
 # -----------------------------------------------------------------------------
 # THE BUILD'S RECIPE - THE FORM'S LISTS AND UPLOADS, WINDOW-SIDE
 # -----------------------------------------------------------------------------
-# The lists themselves - what the repository offers and what was uploaded -
-# come from the module's Get-BuildRecipes: the build's console road offers
-# the same ones, one scan for both. An upload lands in a slot of its own
-# under the assets, named <file>-<sha1-8> and holding the file under its
-# plain name (Dockerfile, first_boot.sh) - or under the name it arrived
-# with, for an image - the fonts' own convention (the upload button in
-# Show-GuiSettings): the same file uploaded again lands in the same slot,
-# and a changed file takes a path no reader has seen.
+# The lists come from the module's Get-BuildRecipes - one scan of the
+# assets for the console road and the window alike, the repository's own
+# seeded among them. An upload lands in a slot of its own under the assets,
+# named <file>-<sha1-8> and holding the file under its plain name
+# (Dockerfile, first_boot.sh) - or under the name it arrived with, for an
+# image - the fonts' own convention (the upload button in Show-GuiSettings):
+# the same file uploaded again lands in the same slot, and a changed file
+# takes a path no reader has seen.
 
-# One uploaded file's slot, folder and all, gone: the trash beside each list
-# deletes the row it stands on. The guard is the row's own mark - the
-# repository's own files are never slots of their own. The dropdown goes
-# back to the first row - the default one, for the lists that have one - and
-# an empty image list leaves it with nothing selected.
+# One recipe's slot, folder and all, gone: the trash beside each list
+# deletes the row it stands on - every row is a slot of the assets now, the
+# repository's own seeded ones included. The dropdown goes back to the first
+# row the list still has.
 function Remove-GuiBuildRecipe {
     param($Row, $Choices, $Combo)
 
@@ -570,7 +569,7 @@ function Remove-GuiBuildRecipe {
         $Choices.RemoveAt($index)
         $Combo.Items.RemoveAt($index)
     }
-    $Combo.SelectedIndex = 0
+    if ($Combo.Items.Count -gt 0) { $Combo.SelectedIndex = 0 }
 }
 
 # One uploaded recipe file into its slot, answering where it landed. A
@@ -597,17 +596,16 @@ function Copy-GuiBuildRecipe {
 
 # The download beside the upload hands the selected file out: copied wherever
 # the user points. A slot's file is offered back under the name it was
-# uploaded as, the slot's hash dropped; any other row under its own file
-# name. Every row's business, the repository's own included, unlike the
-# trash's. The Enter that closed the dialog is eaten like after an upload's:
-# it would land on the form and press the default button.
+# uploaded as, the slot's hash dropped. Every row's business, the
+# repository's own included. The Enter that closed the dialog is eaten like
+# after an upload's: it would land on the form and press the default button.
 function Save-GuiFile {
     param($Row, $Owner)
 
-    # An uploaded row's file sits in a slot named after the file it arrived
-    # as (<base>-<hash>; the file inside is canonical): the slot says the
-    # name to offer back, its own file's extension kept. The repository's
-    # own rows offer their own name.
+    # A row's file sits in a slot named after the file it arrived as
+    # (<base>-<hash>; the file inside is canonical): the slot says the name
+    # to offer back, its own file's extension kept. The seeded rows' slots
+    # carry no hash - the strip leaves their plain name.
     $proposed = [IO.Path]::GetFileName($Row.Path)
     if ($Row.Uploaded) {
         $base = (Split-Path -Path (Split-Path -Path $Row.Path -Parent) -Leaf) -replace '-[0-9a-f]{8}$', ''
@@ -631,8 +629,8 @@ function Save-GuiFile {
 # Windows account's cleaned form prefilled, both checked live (the red line
 # under the box saying what is wrong), the build's recipe - a toggle between a
 # Dockerfile and an uploaded Docker image, the first_boot beside them, each a
-# list opening on the repository's own files, an upload and a download button
-# and a trash apiece - and the packs, the same checklist as the editor's. Returns
+# list opening on its first row, an upload and a download button and a trash
+# apiece - and the packs, the same checklist as the editor's. Returns
 # { Name; User; Dockerfile; FirstBoot; Image; Packs }, with whichever of
 # Dockerfile and Image the toggle did not choose left empty - or $null when
 # cancelled; the run itself then gets a console window of its own, because it
@@ -705,7 +703,7 @@ function Show-AddInstance {
     & $CheckUser
 
     # The build's recipe: three lists - the Dockerfile's and the first_boot's,
-    # each opening on the repository's own file, and the images' (none of the
+    # each opening on the list's first row, and the images' (none of the
     # repository's: it ships none) - an upload and a download button and a
     # trash beside each, and a toggle above choosing the road: a Dockerfile,
     # or an image.
@@ -731,8 +729,9 @@ function Show-AddInstance {
         $imageChoices.Add($choice)
         $null = $cmbDockerImage.Items.Add("$($choice.Name)")
     }
-    $cmbDockerfile.SelectedIndex = 0
-    $cmbFirstBoot.SelectedIndex = 0
+    # A list the user emptied of its rows opens with nothing selected.
+    if ($cmbDockerfile.Items.Count -gt 0) { $cmbDockerfile.SelectedIndex = 0 }
+    if ($cmbFirstBoot.Items.Count -gt 0) { $cmbFirstBoot.SelectedIndex = 0 }
     if ($cmbDockerImage.Items.Count -gt 0) { $cmbDockerImage.SelectedIndex = 0 }
 
     # The toggle: one road or the other, and only its row shows - the checked
@@ -798,12 +797,11 @@ function Show-AddInstance {
     $chkRunFirstBoot.Add_Checked({ & $UpdateOnboarding })
     $chkRunFirstBoot.Add_Unchecked({ & $UpdateOnboarding })
 
-    # The trash beside each list: it deletes the SELECTED uploaded file,
-    # asking first (the red CONFIRM) - greyed on the repository's own rows,
-    # which are not the form's to take away, and with no image chosen there
-    # is nothing to press either. (A trash inside the dropdown itself would
-    # be a WPF item template; beside the list it is the same gesture with
-    # less rope.)
+    # The trash beside each list: it deletes the SELECTED file, asking first
+    # (the red CONFIRM) - greyed when the list stands with nothing selected,
+    # an emptied list having nothing to press. (A trash inside the dropdown
+    # itself would be a WPF item template; beside the list it is the same
+    # gesture with less rope.)
     $btnDockerfileDelete = $form.FindName("BtnDockerfileDelete")
     $btnFirstBootDelete = $form.FindName("BtnFirstBootDelete")
     $btnDockerImageDelete = $form.FindName("BtnDockerImageDelete")
@@ -812,12 +810,18 @@ function Show-AddInstance {
         $btnFirstBootDelete.IsEnabled = [bool]$bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Uploaded
         $btnDockerImageDelete.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) -and [bool]$imageChoices[[Math]::Max(0, $cmbDockerImage.SelectedIndex)].Uploaded
     }
-    # The download stands on a selected file: the Dockerfile and first_boot
-    # lists always open on one, an empty image list has none to hand out.
+    # The download stands on a selected file: a list emptied of its rows has
+    # none to hand out.
+    $btnDockerfileDownload = $form.FindName("BtnDockerfileDownload")
+    $btnFirstBootDownload = $form.FindName("BtnFirstBootDownload")
     $btnDockerImageDownload = $form.FindName("BtnDockerImageDownload")
-    $UpdateDownload = { $btnDockerImageDownload.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0) }
-    $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash; & $RefreshChecklist })
-    $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash })
+    $UpdateDownload = {
+        $btnDockerfileDownload.IsEnabled = ($cmbDockerfile.SelectedIndex -ge 0)
+        $btnFirstBootDownload.IsEnabled = ($cmbFirstBoot.SelectedIndex -ge 0)
+        $btnDockerImageDownload.IsEnabled = ($cmbDockerImage.SelectedIndex -ge 0)
+    }
+    $cmbDockerfile.Add_SelectionChanged({ & $UpdateTrash; & $UpdateDownload; & $RefreshChecklist })
+    $cmbFirstBoot.Add_SelectionChanged({ & $UpdateTrash; & $UpdateDownload })
     $cmbDockerImage.Add_SelectionChanged({ & $UpdateTrash; & $UpdateDownload; & $RefreshChecklist })
     & $UpdateTrash
     & $UpdateDownload

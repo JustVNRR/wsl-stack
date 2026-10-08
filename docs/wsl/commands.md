@@ -152,17 +152,20 @@ the **Onboarding:** row - ticked for a Dockerfile, unticked for an image, an
 uploaded one being presumed complete as it is (or foreign, alpine having no
 bash). Unticked, the user-name field and the row grey out with it, they are
 what the onboarding brings. The **Dockerfile** and the **onboarding shell**
-rows open on the repository's own file; the **Docker image** row lists what
-was uploaded under `assets\dockerimages\` (the repository ships none). Each
-row carries an upload button, a download beside it and a trash at its end:
+rows open on their list's first row - the repository's own among them,
+editable and deletable like any other; the **Docker image** row lists what
+was uploaded under `assets\dockerimages\` (the repository ships none). Those
+two are seeded into the assets on the first run - a missing folder is filled
+from `src\distro\build\` - and they come back by deleting the folder. Each
+row carries an upload button, a
+download beside it and a trash at its end:
 the upload puts yours under `assets\dockerfiles\`, `assets\firstboots\` or
 `assets\dockerimages\` (same file uploaded again, same slot - the fonts' own
-convention; each uploaded row carries the date it arrived, so two versions of
+convention; each row carries the date it arrived, so two versions of
 one name are told apart; a Dockerfile brings its `.dockerignore` along); the
-download saves the selected file wherever you point it, the repository's own
-rows included; the trash removes the selected uploaded file — a confirmation
-first, its red CONFIRM — and the repository's own rows have none to press -
-a name that already exists
+download saves the selected file wherever you point it; the trash removes
+the selected file — a confirmation first, its red CONFIRM - a name that
+already exists
 refused right there, and a Docker that is not running offered its start
 right over the form - whose run then opens a console window of its own
 (Docker's questions included, since only it can ask them), ending by
@@ -243,9 +246,9 @@ included; the build's console closes with the run.
 It asks for the name, for the folder, for the user the instance will open as,
 and — when this checkout carries packs — which of them the instance should
 start with. Options name the **recipe** — a Dockerfile, *or* an uploaded
-Docker image, plus the first_boot — and without them the repository's own
-files are used (the window's form, `gui`, offers the same as lists behind a
-toggle):
+Docker image, plus the first_boot — and without them the first recipe under
+`assets\dockerfiles\` is used, the repository's own (the window's form,
+`gui`, offers the same as lists behind a toggle):
 
 ```powershell
 .\wsl.ps1 build -Dockerfile <path> -FirstBoot <path>
@@ -286,9 +289,9 @@ archive carries): a copy, an archive and a restore keep it, so what an
 instance was built with is never guessed.
 
 In console, when at least one image has been uploaded, the build asks
-**Build from** before anything else: the repository's Dockerfile, or one of
-the images — the window answers that question with its toggle and is asked
-nothing twice.
+**Build from** before anything else: the Dockerfiles under
+`assets\dockerfiles\`, or one of the images — the window answers that
+question with its toggle and is asked nothing twice.
 
 ```text
 ==> Creating a new instance

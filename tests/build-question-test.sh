@@ -21,8 +21,8 @@
 #   - a recipe path that is not a file stops the run before anything is asked
 #   - an option the build knows binds by name, one it does not is refused
 #   - the onboarding is asked with the rest (Y on an empty answer) and the
-#     shell list follows it - the default first - and on 'n' nothing of the
-#     onboarding is asked, the account question included
+#     shell list follows it - the repository's own first - and on 'n' nothing
+#     of the onboarding is asked, the account question included
 #   - nothing is left behind: no instance, no tar, no folder, exit code 1
 #
 # Usage: bash tests/build-question-test.sh
@@ -44,10 +44,11 @@ Failures=0
 Out=$(mktemp)
 # Where the checkout stands before the runs: they write nothing, and this is
 # what says so - whether the tree is clean or carries work in progress. The
-# packs seed is the one write a run is meant to make (the first import fills
-# assets\packs from src\distro\packs), so it is left out of the picture.
+# seeds are the writes a run is meant to make (the first import fills
+# assets\packs, assets\dockerfiles and assets\firstboots from src), so they
+# are left out of the picture.
 tree_state() {
-    git -C "$RepoTemplate" status --short | grep -v 'assets/packs' || true
+    git -C "$RepoTemplate" status --short | grep -vE 'assets/(packs|dockerfiles|firstboots)' || true
 }
 Before=$(tree_state)
 

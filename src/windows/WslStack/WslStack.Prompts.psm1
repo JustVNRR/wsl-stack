@@ -16,6 +16,34 @@
 # instance falling through silently, while a -File run resolved).
 using module ..\WslModel\WslModel.psd1
 
+# The recipes are DATA, like the packs: the build's lists read the assets -
+# assets\dockerfiles and assets\firstboots - seeded once from the
+# repository's own src\distro\build when a folder is missing. The seed slots
+# carry the source files' plain names (Dockerfile, first_boot), hash-less:
+# they sort ahead of the same-named uploads, so a fresh checkout opens on
+# them. Deleting a recipe is for good; deleting the folder brings the pair
+# back.
+$RecipesRepoRoot = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
+$SeedRecipes = @(
+    @{ Kind = "dockerfiles"; Source = "src\distro\build\Dockerfile"; FileName = "Dockerfile"; Slot = "Dockerfile"; Sibling = "Dockerfile.dockerignore" }
+    @{ Kind = "firstboots"; Source = "src\distro\build\first_boot.sh"; FileName = "first_boot.sh"; Slot = "first_boot"; Sibling = "" }
+)
+foreach ($Seed in $SeedRecipes) {
+    $SeedRoot = Join-Path $RecipesRepoRoot "assets\$($Seed.Kind)"
+    if (Test-Path $SeedRoot) { continue }
+    $SeedSource = Join-Path $RecipesRepoRoot $Seed.Source
+    if (-not (Test-Path $SeedSource)) { continue }
+    $SeedSlot = Join-Path $SeedRoot $Seed.Slot
+    $null = New-Item -ItemType Directory -Path $SeedSlot -Force
+    Copy-Item -LiteralPath $SeedSource -Destination (Join-Path $SeedSlot $Seed.FileName) -Force
+    # The Dockerfile's ignore file rides along, under the very name a builder
+    # reads beside a `-f` Dockerfile.
+    if ($Seed.Sibling) {
+        $SeedBeside = Join-Path (Split-Path $SeedSource -Parent) $Seed.Sibling
+        if (Test-Path $SeedBeside) { Copy-Item -LiteralPath $SeedBeside -Destination (Join-Path $SeedSlot $Seed.Sibling) -Force }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # THE PIECES EVERY QUESTION SHARES
 # ---------------------------------------------------------------------------
@@ -548,33 +576,19 @@ function Resolve-DefaultUser {
     return $UserName
 }
 
-# The files a build may start from: the repository's own Dockerfile and
-# first_boot - the defaults - then whatever was uploaded under the assets:
-# Dockerfiles in assets\dockerfiles\<name>-<hash>\Dockerfile, first boots in
-# assets\firstboots\<name>-<hash>\first_boot.sh, images in
-# assets\dockerimages\<name>-<hash>\ under the name they arrived with. One
-# row per file: Name (what a list shows), Path (what the build takes),
-# Uploaded (what the form's trash reads - the repository's own rows are not
-# its to take away). The images carry no default row: the repository ships
-# none.
+# The files a build may start from: whatever the assets carry - Dockerfiles
+# in assets\dockerfiles\<name>\Dockerfile, first boots in
+# assets\firstboots\<name>\first_boot.sh, images in assets\dockerimages\
+# under the name they arrived with. The repository's own Dockerfile and
+# first_boot are seeded among them (see above): one source for the console's
+# lists and the window's. One row per file: Name (what a list shows), Path
+# (what the build takes), Uploaded (what the form's trash reads).
 function Get-BuildRecipes {
     param([string]$AssetsDir)
 
-    $repo = Split-Path -Path $AssetsDir -Parent
     $dockerfiles = [System.Collections.Generic.List[object]]::new()
     $firstboots = [System.Collections.Generic.List[object]]::new()
     $images = [System.Collections.Generic.List[object]]::new()
-
-    $dockerfiles.Add([PSCustomObject]@{
-        Name     = "Dockerfile (default)"
-        Path     = (Join-Path $repo "src\distro\build\Dockerfile")
-        Uploaded = $false
-    })
-    $firstboots.Add([PSCustomObject]@{
-        Name     = "first_boot.sh (default)"
-        Path     = (Join-Path $repo "src\distro\build\first_boot.sh")
-        Uploaded = $false
-    })
 
     # A slot counts only when its file is there - a folder half-copied is not
     # a recipe, and neither is one whose file was deleted since.
@@ -622,10 +636,9 @@ function Get-BuildRecipes {
     return [PSCustomObject]@{ Dockerfiles = $dockerfiles; FirstBoots = $firstboots; Images = $images }
 }
 
-# What an uploaded file's row shows: its plain name and the day and minute
-# it arrived. Two versions of one name - an iterated Dockerfile - are told
-# apart by their dates, and the one just uploaded carries today's. The
-# repository's own rows carry their "(default)" name instead.
+# What a recipe's row shows: its plain name and the day and minute it
+# arrived. Two versions of one name - an iterated Dockerfile - are told
+# apart by their dates, and the one just added carries today's.
 function Format-BuildRecipeName {
     param([string]$BaseName, [string]$Path)
 

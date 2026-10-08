@@ -20,10 +20,11 @@ param (
 
     # The build's recipe, when one was chosen - the window's lists, or the
     # command line. -Dockerfile and -Image are the two roads and exclude each
-    # other; absent both, the repository's own Dockerfile is used. -FirstBoot
-    # is common to both roads: the onboarding script. Absent (a bare command
-    # line), it is asked for; PRESENT but empty (the window's unticked box),
-    # it means none - the image is used as it is, account included.
+    # other; absent both, the first recipe under 'assets\dockerfiles' is
+    # used. -FirstBoot is common to both roads: the onboarding script. Absent
+    # (a bare command line), it is asked for; PRESENT but empty (the window's
+    # unticked box), it means none - the image is used as it is, account
+    # included.
     [string]$Dockerfile,
     [string]$Image,
     [string]$FirstBoot,
@@ -323,16 +324,44 @@ if ($Image -and $Dockerfile) {
     Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
     exit 1
 }
-if (-not $Image -and -not $Dockerfile) { $Dockerfile = Join-Path $RepoRoot "src/distro/build/Dockerfile" }
+if (-not $Image -and -not $Dockerfile) {
+    $RecipeRows = Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")
+    $DockerfileRows = @($RecipeRows.Dockerfiles)
+    if ($DockerfileRows.Count -gt 0) {
+        # The list's first row: the repository's own, seeded there.
+        $Dockerfile = $DockerfileRows[0].Path
+    } elseif ($PSBoundParameters.ContainsKey('Dockerfile') -or @($RecipeRows.Images).Count -eq 0) {
+        # Nothing to fall back on: the window already chose its road, or
+        # there is no image to ask about either.
+        Write-Host ""
+        Write-Host "[ABORT] No Dockerfile under 'assets\dockerfiles'." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Upload one, or delete that folder to get the repository's own back." -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
+    }
+    # Nothing chosen here with images around, on a bare command line: the
+    # road question below offers both, and refuses an empty Dockerfile list
+    # itself.
+}
 # The onboarding: absent from the command line (the console road), it
-# defaults to the repository's own script - asked about below. Present but
-# empty (the window's unticked box), it means none.
+# defaults to the first script under the assets - asked about below. None
+# there at all, it is said and skipped. Present but empty (the window's
+# unticked box), it means none.
 $FirstBootAsked = -not $PSBoundParameters.ContainsKey('FirstBoot')
-if ($FirstBootAsked) { $FirstBoot = Join-Path $RepoRoot "src/distro/build/first_boot.sh" }
+if ($FirstBootAsked) {
+    $BootRows = @((Get-BuildRecipes -AssetsDir (Join-Path $RepoRoot "assets")).FirstBoots)
+    if ($BootRows.Count -eq 0) {
+        Write-Host "  No onboarding shell under 'assets\firstboots' - the instance will be built without one." -ForegroundColor (Get-MessageColour muted)
+        $FirstBoot = ""
+    } else {
+        $FirstBoot = $BootRows[0].Path
+    }
+}
+# An empty Dockerfile here is the one the road question below will fill.
 $ToCheck = @()
 if ($FirstBoot) { $ToCheck += @{ What = "first_boot"; Path = $FirstBoot } }
 if ($Image) { $ToCheck += @{ What = "Docker image"; Path = $Image } }
-else { $ToCheck += @{ What = "Dockerfile"; Path = $Dockerfile } }
+elseif ($Dockerfile) { $ToCheck += @{ What = "Dockerfile"; Path = $Dockerfile } }
 foreach ($Named in $ToCheck) {
     if (-not (Test-Path -Path $Named.Path -PathType Leaf)) {
         Write-Host ""
@@ -437,6 +466,13 @@ if (-not $PSBoundParameters.ContainsKey('Dockerfile') -and -not $PSBoundParamete
             $Image = $Picked.Path
             $Dockerfile = ""
         } else {
+            if (@($Recipes.Dockerfiles).Count -eq 0) {
+                Write-Host ""
+                Write-Host "[ABORT] No Dockerfile under 'assets\dockerfiles'." -ForegroundColor (Get-MessageColour error)
+                Write-Host "        Upload one, or delete that folder to get the repository's own back." -ForegroundColor (Get-MessageColour hint)
+                Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+                exit 1
+            }
             $Picked = Select-FromList -Title "Dockerfile" -Items $Recipes.Dockerfiles -Label { param($Row) $Row.Name }
             if ($null -eq $Picked) { Stop-Cancelled }
             $Dockerfile = $Picked.Path
