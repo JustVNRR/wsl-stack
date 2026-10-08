@@ -61,15 +61,15 @@ jobs:
       - name: The colour codes stay in their files
         run: |
           # A message names a kind, and a code is written once per world:
-          # src/distro/packs/zsh/config/lib/colours.sh for the shell,
-          # src/distro/packs/zsh/config/gmake/make/colours.mk for
+          # src/distro/packs/oh_my_shell/config/lib/colours.sh for the shell,
+          # src/distro/packs/oh_my_shell/config/gmake/make/colours.mk for
           # make. The claude status line is the exception - shared byte for
           # byte with the Windows copy. Anywhere else, a call site went back to
           # writing the code itself, and a comment cannot notice that.
           bad=0
           while IFS= read -r hit; do
             case "$hit" in
-              ./src/distro/packs/zsh/config/lib/colours.sh:* | ./src/distro/packs/zsh/config/gmake/make/colours.mk:* | ./src/distro/packs/claude/bin/statusline.sh:*) ;;
+              ./src/distro/packs/oh_my_shell/config/lib/colours.sh:* | ./src/distro/packs/oh_my_shell/config/gmake/make/colours.mk:* | ./src/distro/packs/oh_my_code/bin/statusline.sh:*) ;;
               *)
                 echo "::error::a colour code outside the colour files: $hit"
                 bad=1
@@ -85,7 +85,7 @@ jobs:
           # The menu is what the repository carries: the shell's targets and
           # every pack's, since packs/ is right there. The steps below compare
           # the cheatsheets against it.
-          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR="$PWD/src/distro/packs" help |
+          make -f src/distro/packs/oh_my_shell/config/gmake/Makefile PACKS_DIR="$PWD/src/distro/packs" help |
             sed 's/\x1b\[[0-9;]*m//g' > help.txt
           missing=0
           for target in test test-fast test-functional test-gcp \
@@ -106,7 +106,7 @@ jobs:
           # whole switch, so PACKS_DIR at an empty one is the same thing - no
           # gate to force, nothing to keep in step by hand.
           mkdir -p /tmp/no-packs
-          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/no-packs help |
+          make -f src/distro/packs/oh_my_shell/config/gmake/Makefile PACKS_DIR=/tmp/no-packs help |
             sed 's/\x1b\[[0-9;]*m//g' > help-bare.txt
           bad=0
           if grep -qE '^  (gcp_auth_cli|cloudrun_deploy|vm_create|bigquery_show|gcs_list_buckets)[[:space:]]' help-bare.txt; then
@@ -120,8 +120,8 @@ jobs:
             bad=1
           fi
           # A pack's targets go with its folder, scaffolding as much as python:
-          # lint and the test lanes live in src/distro/packs/python/make/*.mk, the
-          # three *_project targets in src/distro/packs/scaffold/make/*.mk - and
+          # lint and the test lanes live in src/distro/packs/oh_my_py/make/*.mk, the
+          # three *_project targets in src/distro/packs/hide_my_scaff/make/*.mk - and
           # scaffold comes with python, so a bare instance has neither.
           if grep -qE '^  (lint|lint-py|lint-sh|lint-format|test|test-fast|test-functional|test-gcp|copier_project|cruft_project|ccds_project)[[:space:]]' help-bare.txt; then
             echo "::error::a scaffolding or python pack target is in the menu without the pack's folder"
@@ -161,7 +161,7 @@ jobs:
           bad=0
           for macro in check_vars confirm_action merge_env_samples; do
             if grep -rln "^define $macro$" src/distro/packs/*/make/*.mk 2>/dev/null | grep -q .; then
-              echo "::error::a pack defines $macro - the shell defines it in src/distro/packs/zsh/config/gmake/make/"
+              echo "::error::a pack defines $macro - the shell defines it in src/distro/packs/oh_my_shell/config/gmake/make/"
               bad=1
             fi
           done
@@ -176,14 +176,14 @@ jobs:
           mkdir -p /tmp/packs-list/asked /tmp/packs-list/hidden
           printf 'PACK_DESCRIPTION := The one the user chose\n' > /tmp/packs-list/asked/pack.conf
           printf 'PACK_DESCRIPTION := The one nobody chooses\nPACK_VISIBLE := no\n' > /tmp/packs-list/hidden/pack.conf
-          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list.txt
+          make -f src/distro/packs/oh_my_shell/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list.txt
           bad=0
           grep -q "asked" list.txt || { echo "::error::packs_list dropped a pack the user chose"; bad=1; }
           grep -q "hidden" list.txt && { echo "::error::packs_list listed a pack marked PACK_VISIBLE := no"; bad=1; }
           # And the other state, when a removal stopped half way: a dependency
           # left alone. It says so rather than print the header over nothing.
           rm -rf /tmp/packs-list/asked
-          make -f src/distro/packs/zsh/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list-only.txt
+          make -f src/distro/packs/oh_my_shell/config/gmake/Makefile PACKS_DIR=/tmp/packs-list packs_list > list-only.txt
           grep -q "These packs are dependencies" list-only.txt || {
             echo "::error::packs_list does not say what is left when only a dependency is installed"
             bad=1
@@ -213,7 +213,7 @@ jobs:
           missing=0
           # A module is fully documented when: its doc page exists, the README
           # index links it, and the README tree lists the .mk file
-          for mk in src/distro/packs/zsh/config/gmake/make/*.mk; do
+          for mk in src/distro/packs/oh_my_shell/config/gmake/make/*.mk; do
             name=$(basename "$mk" .mk)
             [ -f "docs/make/${name}.md" ] || {
               echo "::error::module '${name}' has no doc page (docs/make/${name}.md)"
@@ -231,7 +231,7 @@ jobs:
           # No orphan doc pages either
           for doc in docs/make/*.md; do
             name=$(basename "$doc" .md)
-            [ -f "src/distro/packs/zsh/config/gmake/make/${name}.mk" ] || {
+            [ -f "src/distro/packs/oh_my_shell/config/gmake/make/${name}.mk" ] || {
               echo "::error::orphan doc page: ${doc} has no matching module"
               missing=1
             }
