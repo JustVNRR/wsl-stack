@@ -1,7 +1,7 @@
 # The window's files, where they live now: every .xaml under scripts/gui must
 # be well-formed XML, every resource reference - in the theme and in the
 # windows - must name a key the theme itself defines (or one the code sets),
-# the colour sets under assets\colours must be well-formed and tell only keys
+# the colour sets under assets\themes must be well-formed and tell only keys
 # the theme knows, every control a controller looks up by FindName must exist
 # in some window's markup, and the three runners must parse and keep calling
 # the engine's ways - the build form's positional chain pinned at both ends.
@@ -138,7 +138,7 @@ Write-Host "the migrate chain: pinned."
 #    Light block names excepted - exists in the theme. A misspelled one is
 #    ignored in silence and keeps the default, near impossible to notice
 #    by eye.
-$setsRoot = Join-Path $PSScriptRoot "..\assets\colours"
+$setsRoot = Join-Path $PSScriptRoot "..\assets\themes"
 $setFiles = if (Test-Path $setsRoot) { @(Get-ChildItem $setsRoot -Filter *.xaml) } else { @() }
 foreach ($f in $setFiles) {
     try {

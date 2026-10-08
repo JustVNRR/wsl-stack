@@ -173,9 +173,9 @@ opening the fresh instance in its own window — the fleet list rereads
 itself the moment the run ends; the refresh, which rereads the fleet by
 hand; and the gear, the window's own
 face - the font, its size and its colour theme, dark and light versions
-shipped (assets\colours) - with the sun and the moon beside it, switching
+shipped (assets\themes) - with the sun and the moon beside it, switching
 the current theme's version on the spot. A theme is one `.xaml` file under
-`assets\colours\`, its file name the theme's name: the row carries upload,
+`assets\themes\`, its file name the theme's name: the row carries upload,
 download, an edit button and a trash - the upload drops a file in (refused if
 it will not load as a resource dictionary, the red CONFIRM replacing a name
 already taken), the download hands the selected file out as a model to edit

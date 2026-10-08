@@ -327,7 +327,7 @@ first of all: its `config/` folder is what fills `~/.config/zsh`.
 │   │                        #   (one door per command), the instance, the
 │   │                        #   packs, the theme, the state
 ├── assets/
-│   ├── colours/             # The window's themes, dark and light versions
+│   ├── themes/             # The window's themes, dark and light versions
 │   │   ├── phosphor.xaml    #   in one file each; the settings window lists
 │   │   ├── amber.xaml       #   them, the header's sun/moon switches version
 │   │   └── ice.xaml

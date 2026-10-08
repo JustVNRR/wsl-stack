@@ -1457,7 +1457,7 @@ function Show-GuiSettings {
     }
     $lstSizes.SelectedIndex = $sizeIndex
 
-    # The themes: the little files under assets\colours - each carries its
+    # The themes: the little files under assets\themes - each carries its
     # dark and light versions, and the header's sun/moon switches between
     # them. A name the folder no longer holds is kept at the top, marked:
     # the select never lies about what the windows wear.
@@ -1567,14 +1567,14 @@ function Show-GuiSettings {
         $lstFonts.SelectedIndex = $lstFonts.Items.Count - 1
     })
 
-    # The theme's three buttons: a .xaml dropped into the colours folder IS a
+    # The theme's three buttons: a .xaml dropped into the themes folder IS a
     # theme, its file name the theme's name. One that will not load as a
     # resource dictionary is refused, said on the red line; a name already
     # taken passes the red CONFIRM and the file replaces it in place; the
     # trash takes the selected theme's file off the disk - the shipped three
     # included, the confirmation on guard; "Default" is no file at all, so
     # the download offers the chart itself, the model to edit.
-    $coloursRoot = Join-Path $AssetsDir "colours"
+    $themesRoot = Join-Path $AssetsDir "themes"
     $form.FindName("BtnGuiThemeUpload").Add_Click({
         $dialog = New-Object Microsoft.Win32.OpenFileDialog
         $dialog.Title = "A theme file for the windows"
@@ -1594,7 +1594,7 @@ function Show-GuiSettings {
         $existing = -1
         for ($i = 0; $i -lt $setNames.Count; $i++) { if ("$($setNames[$i])" -eq "$name") { $existing = $i; break } }
         if ($existing -ge 0 -and -not (Show-GuiConfirm -Owner $form -Title "Replace theme" -Question "Replace the theme '$name' with the chosen file?")) { return }
-        Copy-Item -LiteralPath $dialog.FileName -Destination (Join-Path $coloursRoot "$name.xaml") -Force
+        Copy-Item -LiteralPath $dialog.FileName -Destination (Join-Path $themesRoot "$name.xaml") -Force
         if ($existing -lt 0) {
             $setNames.Add($name)
             $null = $lstColours.Items.Add("$name  (just uploaded)")
@@ -1606,7 +1606,7 @@ function Show-GuiSettings {
         $at = $lstColours.SelectedIndex
         if ($at -lt 0) { return }
         $name = $setNames[$at]
-        $file = if ($name) { Join-Path $coloursRoot "$name.xaml" } else { Join-Path $GuiRoot "Theme\theme.xaml" }
+        $file = if ($name) { Join-Path $themesRoot "$name.xaml" } else { Join-Path $GuiRoot "Theme\theme.xaml" }
         Save-GuiFile -Owner $form -Row ([PSCustomObject]@{ Path = $file; Uploaded = $false })
     })
     $form.FindName("BtnGuiThemeDelete").Add_Click({
@@ -1615,7 +1615,7 @@ function Show-GuiSettings {
         $name = $setNames[$at]
         if (-not $name) { return }
         if (-not (Show-GuiConfirm -Owner $form -Title "Delete theme" -Question "Remove the theme '$name'?")) { return }
-        Remove-Item -LiteralPath (Join-Path $coloursRoot "$name.xaml") -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $themesRoot "$name.xaml") -Force -ErrorAction SilentlyContinue
         $setNames.RemoveAt($at)
         $lstColours.Items.RemoveAt($at)
         $lstColours.SelectedIndex = [Math]::Min($at, $lstColours.Items.Count - 1)
@@ -1630,7 +1630,7 @@ function Show-GuiSettings {
         # application, or the picker once when none is set. A refusal is said
         # on the red line instead of killing the window.
         try {
-            Invoke-Item -LiteralPath (Join-Path $coloursRoot "$name.xaml") -ErrorAction Stop
+            Invoke-Item -LiteralPath (Join-Path $themesRoot "$name.xaml") -ErrorAction Stop
         } catch {
             $txtThemeError.Text = "The file did not open: $($_.Exception.Message)"
             $txtThemeError.Visibility = [System.Windows.Visibility]::Visible

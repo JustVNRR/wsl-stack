@@ -64,7 +64,7 @@ function Get-ThemeDictionary {
     # The name is taken for its file name alone - a stale name (the file
     # since deleted) leaves the defaults standing.
     if ($script:GuiSettings -and $script:GuiSettings.ColourSet) {
-        $SetPath = Join-Path $script:AssetsDir ("colours\" + [IO.Path]::GetFileNameWithoutExtension($script:GuiSettings.ColourSet) + ".xaml")
+        $SetPath = Join-Path $script:AssetsDir ("themes\" + [IO.Path]::GetFileNameWithoutExtension($script:GuiSettings.ColourSet) + ".xaml")
         if (Test-Path $SetPath) {
             try {
                 $set = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($SetPath)))
@@ -266,13 +266,13 @@ function Get-GuiFontChoices {
     return @($families | Sort-Object Name)
 }
 
-# The themes the window may wear: the little files under assets\colours,
+# The themes the window may wear: the little files under assets\themes,
 # by file name - each carries its dark and light versions. The chart in
 # theme.xaml is the fallback. One file dropped there is one more theme.
 function Get-GuiColourSets {
     param([string]$AssetsDir)
 
-    $root = Join-Path $AssetsDir "colours"
+    $root = Join-Path $AssetsDir "themes"
     if (-not (Test-Path $root)) { return @() }
     return @(Get-ChildItem $root -File -Filter *.xaml | Sort-Object Name | ForEach-Object { $_.BaseName })
 }
@@ -284,7 +284,7 @@ function Test-GuiThemeHasLight {
     param([string]$AssetsDir, [string]$Name)
 
     if (-not $Name) { return $false }
-    $path = Join-Path $AssetsDir ("colours\" + [IO.Path]::GetFileNameWithoutExtension($Name) + ".xaml")
+    $path = Join-Path $AssetsDir ("themes\" + [IO.Path]::GetFileNameWithoutExtension($Name) + ".xaml")
     if (-not (Test-Path $path)) { return $false }
     try {
         $theme = [Windows.Markup.XamlReader]::Load([System.Xml.XmlNodeReader]::new([xml][System.IO.File]::ReadAllText($path)))
