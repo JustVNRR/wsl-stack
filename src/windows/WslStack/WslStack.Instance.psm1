@@ -330,9 +330,53 @@ function Get-RegisteredDistros {
     return @($Found)
 }
 
-# The file as the instance has it, or $null when it has none yet. A file that
-# cannot be read is not a reason to stop: it is treated as absent, and the next
-# write replaces it.
+# The file as every reader should see it: today's shape - a Recipe block with
+# the look inside - whatever the file's age. A flat one (written before the
+# recipe existed, or before the look moved in) is read into the shape key by
+# key; what it does not carry stays unknown, and the repository's own files
+# remain the build's default.
+function ConvertTo-CurrentLookFile {
+    param([PSCustomObject]$Look)
+
+    if (-not $Look) { return $null }
+    $Names = $Look.PSObject.Properties.Name
+    if ($Names -contains "Recipe") { return $Look }
+
+    $Recipe = [ordered]@{
+        BuildType = "Unknown"
+        BuildPath = ""
+        FirstBoot = ""
+        # The file exists: a making ran, and it wrote this.
+        Status    = "Ok"
+        Messages  = @()
+        Look      = [ordered]@{}
+    }
+    if (($Names -contains "Dockerfile") -and $Look.Dockerfile) {
+        $Recipe.BuildType = "Dockerfile"
+        $Recipe.BuildPath = $Look.Dockerfile
+    } elseif (($Names -contains "DockerImage") -and $Look.DockerImage) {
+        $Recipe.BuildType = "Image"
+        $Recipe.BuildPath = $Look.DockerImage
+    }
+    if (($Names -contains "FirstBoot") -and $Look.FirstBoot) { $Recipe.FirstBoot = $Look.FirstBoot }
+    foreach ($Key in @("Font", "ColorScheme", "IconFrom", "IconText", "IconTop", "IconBottom", "IconTextColor")) {
+        if ($Names -contains $Key) { $Recipe.Look[$Key] = $Look.$Key }
+    }
+    # A plain object, the shape ConvertFrom-Json gives: readers test its
+    # properties by name, and a dictionary does not answer that test.
+    $Recipe.Look = [PSCustomObject]$Recipe.Look
+
+    $Current = [ordered]@{
+        Name   = $Look.Name
+        Recipe = [PSCustomObject]$Recipe
+    }
+    if ($Names -contains "Docker") { $Current.Docker = $Look.Docker }
+    return [PSCustomObject]$Current
+}
+
+# The file as the instance has it, in today's shape, or $null when it has none
+# yet. A file that cannot be read is not a reason to stop: it is treated as
+# absent, and the next write replaces it.
 function Get-InstanceLook {
     param([string]$Name)
 
@@ -340,80 +384,96 @@ function Get-InstanceLook {
     if (-not $Folder) { return $null }
     $File = Join-Path $Folder "instance.json"
     if (-not (Test-Path $File)) { return $null }
-    try { return (Get-Content $File -Raw | ConvertFrom-Json) } catch { return $null }
+    try { return (ConvertTo-CurrentLookFile (Get-Content $File -Raw | ConvertFrom-Json)) } catch { return $null }
 }
 
-# What an icon is made of, read off a look: a table of parameters, ready for the
-# drawing script. Empty when the look carries no recipe - an image of your own is
-# not a drawing, and an instance built before any of this existed has none.
+# The recipe an instance keeps, as the object it is - born empty (Pending)
+# when there is no file yet or the file carries none. The look comes with it;
+# a file whose look is all blanks leaves it out, so the caller's own default
+# stands.
+function Get-InstanceRecipe {
+    param([string]$Name)
+
+    $File = Get-InstanceLook -Name $Name
+    if (-not $File) { return [WslRecipe]::new() }
+
+    $Recipe = [WslRecipe]::new()
+    try { $Recipe.BuildType = [WslBuildType]$File.Recipe.BuildType } catch { }
+    try { $Recipe.Status = [WslRecipeStatus]$File.Recipe.Status } catch { }
+    $Recipe.BuildPath = "$($File.Recipe.BuildPath)"
+    $Recipe.FirstBoot = "$($File.Recipe.FirstBoot)"
+    $Recipe.Messages  = @($File.Recipe.Messages)
+
+    if ($File.Recipe.Look -and ($File.Recipe.Look.PSObject.Properties.Name -contains "Font")) {
+        $Recipe.Look = ConvertTo-WslTheme -Look $File.Recipe.Look -Name $Name
+    }
+    return $Recipe
+}
+
+# What an icon is made of, read off a recipe's look: a table of parameters,
+# ready for the drawing script. Empty when the look carries no recipe - an
+# image of your own is not a drawing, and an instance built before any of this
+# existed has none. A raw object handed in is read in today's shape too (one
+# from an old archive is flat).
 function Get-IconRecipe {
     param([PSCustomObject]$Look, [string]$Name)
 
     if (-not $Look -and $Name) { $Look = Get-InstanceLook -Name $Name }
+    if ($Look) { $Look = ConvertTo-CurrentLookFile $Look }
     if (-not $Look) { return @{} }
-    if (-not ($Look.PSObject.Properties.Name -contains "IconText")) { return @{} }
+    $RecipeLook = $Look.Recipe.Look
+    if (-not $RecipeLook -or -not ($RecipeLook.PSObject.Properties.Name -contains "IconText")) { return @{} }
     return @{
-        Text      = $Look.IconText
-        Top       = $Look.IconTop
-        Bottom    = $Look.IconBottom
-        TextColor = $Look.IconTextColor
+        Text      = $RecipeLook.IconText
+        Top       = $RecipeLook.IconTop
+        Bottom    = $RecipeLook.IconBottom
+        TextColor = $RecipeLook.IconTextColor
     }
 }
 
-# The look, the icon's recipe beside it, in the order the file is written. The
-# theme says what it looks like - this machine now, unless a restore or a copy
-# hands over the theme an archive held - and Docker is answered the same way.
-# The icon path is always the instance's own: the picture is copied into its
-# folder either way.
-function New-InstanceLook {
+# The instance's file as the writing takes it: the name, Docker, and the
+# recipe - the road, the path, the onboarding, the status and the messages,
+# the look inside. Pure: it reads nothing and decides nothing - whoever calls
+# it holds the whole state already (WslInstance.Save does).
+function ConvertTo-InstanceFile {
     param(
         [string]$Name,
-        [WslTheme]$Theme,
-        [hashtable]$Icon = @{},
-        [string]$Docker,
-        # The build's recipe, when the caller knows it - a build records the
-        # files it used. Absent, whatever the instance's own file already
-        # carries is kept: a font or colour change must not erase it.
-        [string]$Dockerfile,
-        [string]$Image,
-        [string]$FirstBoot
+        [WslRecipe]$Recipe,
+        [string]$Docker
     )
 
-    if (-not $Theme) { $Theme = Get-InstanceAppearance -Name $Name }
-    if (-not $Docker) { $Docker = Get-DockerState -Name $Name }
-    if (-not $Dockerfile -or -not $Image -or -not $FirstBoot) {
-        $Existing = Get-InstanceLook -Name $Name
-        if ($Existing) {
-            if (-not $Dockerfile -and $Existing.Dockerfile) { $Dockerfile = $Existing.Dockerfile }
-            if (-not $Image -and $Existing.DockerImage) { $Image = $Existing.DockerImage }
-            if (-not $FirstBoot -and $Existing.FirstBoot) { $FirstBoot = $Existing.FirstBoot }
+    $Block = [ordered]@{
+        Font        = $Recipe.Look.FontName
+        ColorScheme = $Recipe.Look.ColorScheme
+        IconFrom    = $Recipe.Look.IconPath
+    }
+    if ($Recipe.Look.IconText) {
+        $Block.IconText      = $Recipe.Look.IconText
+        $Block.IconTop       = $Recipe.Look.IconTop
+        $Block.IconBottom    = $Recipe.Look.IconBottom
+        $Block.IconTextColor = $Recipe.Look.IconTextColor
+    }
+
+    $Current = [ordered]@{
+        Name   = $Name
+        Recipe = [PSCustomObject]@{
+            BuildType = "$($Recipe.BuildType)"
+            BuildPath = "$($Recipe.BuildPath)"
+            FirstBoot = "$($Recipe.FirstBoot)"
+            Status    = "$($Recipe.Status)"
+            Messages  = @($Recipe.Messages)
+            Look      = [PSCustomObject]$Block
         }
     }
-
-    $Look = [ordered]@{
-        Name        = $Name
-        Font        = $Theme.FontName
-        ColorScheme = $Theme.ColorScheme
-        IconFrom    = $Theme.IconPath
-    }
-    if ($Icon.Text) {
-        $Look.IconText      = $Icon.Text
-        $Look.IconTop       = $Icon.Top
-        $Look.IconBottom    = $Icon.Bottom
-        $Look.IconTextColor = $Icon.TextColor
-    }
-    if ($Docker) { $Look.Docker = $Docker }
-    if ($Dockerfile) { $Look.Dockerfile = $Dockerfile }
-    if ($Image) { $Look.DockerImage = $Image }
-    if ($FirstBoot) { $Look.FirstBoot = $FirstBoot }
-    return [PSCustomObject]$Look
+    if ($Docker) { $Current.Docker = $Docker }
+    return [PSCustomObject]$Current
 }
 
-# Write it where it belongs: in the instance's own folder.
-function Set-InstanceLook {
-    param([string]$InstallPath, [PSCustomObject]$Look)
+# Write it where it belongs: in the instance's own folder, or an archive's.
+function Set-InstanceFile {
+    param([string]$InstallPath, [PSCustomObject]$Content)
 
-    $Look | ConvertTo-Json | Set-Content -Path (Join-Path $InstallPath "instance.json") -Encoding Utf8
+    $Content | ConvertTo-Json | Set-Content -Path (Join-Path $InstallPath "instance.json") -Encoding Utf8
 }
 
 # Ask Windows Terminal to re-read its profiles without closing anything, by
@@ -538,14 +598,16 @@ function Get-InstanceAppearance {
     return $Theme
 }
 
-# A look as a file keeps it - the instance's own, or an archive's - seen as the
-# theme it holds. The recipe comes along, so a redraw after a restore starts
-# from the letters it was drawn with.
+# A look as the file keeps it - the Recipe block's own, an instance's or an
+# archive's - seen as the theme it holds. The name whose title travels is the
+# file's, so a restored instance keeps the tab title it was archived under.
+# The icon's recipe comes along, so a redraw after a restore starts from the
+# letters it was drawn with.
 function ConvertTo-WslTheme {
-    param([PSCustomObject]$Look)
+    param([PSCustomObject]$Look, [string]$Name)
 
     if (-not $Look) { return $null }
-    $Theme = [WslTheme]::new($Look.IconFrom, $Look.ColorScheme, $Look.Font, $Look.Name)
+    $Theme = [WslTheme]::new($Look.IconFrom, $Look.ColorScheme, $Look.Font, $Name)
     $Theme.IconText      = $Look.IconText
     $Theme.IconTop       = $Look.IconTop
     $Theme.IconBottom    = $Look.IconBottom
@@ -553,10 +615,11 @@ function ConvertTo-WslTheme {
     return $Theme
 }
 
-# Give an instance back the look it had. Either from an archive folder, or from
-# an appearance object captured a moment ago (duplicate.ps1, shrink.ps1).
+# Give an instance back its state of composition: the look applied, and its
+# own file written. From an archive folder, or from a recipe captured a
+# moment ago (the window's copy, the console's duplicate).
 function Set-InstanceState {
-    param([string]$Name, [string]$InstallPath, [string]$Folder, [PSCustomObject]$Appearance, [bool]$Headless)
+    param([string]$Name, [string]$InstallPath, [string]$Folder, [WslRecipe]$Recipe, [string]$Docker, [bool]$Headless)
 
     if ($Folder) {
         $File = Join-Path $Folder "instance.json"
@@ -566,8 +629,20 @@ function Set-InstanceState {
             Write-Host "  * Look             : the archive carries no instance.json - not re-applied" -ForegroundColor (Get-MessageColour warning)
             return
         }
-        try { $Appearance = Get-Content $File -Raw | ConvertFrom-Json } catch { return }
+        try { $Archive = ConvertTo-CurrentLookFile (Get-Content $File -Raw | ConvertFrom-Json) } catch { return }
         $IconInArchive = Join-Path $Folder "terminal-icon.png"
+
+        # The archive is the source: Docker's answer and the recipe, rebuilt
+        # from its file - a value it cannot read falls back on the class's own
+        # default (Unknown, Pending).
+        $Docker = "$($Archive.Docker)"
+        $Recipe = [WslRecipe]::new()
+        try { $Recipe.BuildType = [WslBuildType]$Archive.Recipe.BuildType } catch { }
+        try { $Recipe.Status = [WslRecipeStatus]$Archive.Recipe.Status } catch { }
+        $Recipe.BuildPath = "$($Archive.Recipe.BuildPath)"
+        $Recipe.FirstBoot = "$($Archive.Recipe.FirstBoot)"
+        $Recipe.Messages  = @($Archive.Recipe.Messages)
+        $Recipe.Look      = ConvertTo-WslTheme -Look $Archive.Recipe.Look -Name $Archive.Name
     }
 
     # The guid WSL just gave the instance: its own fragment, written on import
@@ -578,37 +653,36 @@ function Set-InstanceState {
         return
     }
 
+    # A source without a readable look - a file that carried none: what
+    # Windows shows for the fresh instance stands in.
+    if (-not $Recipe.Look) { $Recipe.Look = Get-InstanceAppearance -Name $Name }
+
     $IconPath = Join-Path $InstallPath "terminal-icon.png"
     if ($IconInArchive -and (Test-Path $IconInArchive)) {
         Copy-Item -Path $IconInArchive -Destination $IconPath -Force
-    } elseif ($Appearance.IconFrom -and (Test-Path $Appearance.IconFrom)) {
-        Copy-Item -Path $Appearance.IconFrom -Destination $IconPath -Force
+    } elseif ($Recipe.Look.IconPath -and (Test-Path $Recipe.Look.IconPath)) {
+        Copy-Item -Path $Recipe.Look.IconPath -Destination $IconPath -Force
     }
 
-    # The instance keeps its own copy of the file - the same shape, under its own
-    # name, the icon pointing at its own folder. The recipe comes with it, or a
-    # later change of letters or colours would start again from the name - and
-    # so does the build's recipe (the Dockerfile, the image and the
-    # first_boot the archive names), when it carried one.
-    $Theme = ConvertTo-WslTheme $Appearance
-    $Theme.IconPath = $IconPath
+    # The instance keeps its own copy of the file - the same shape, under its
+    # own name, the icon pointing at its own folder. The icon's recipe comes
+    # with it, or a later change of letters or colours would start again from
+    # the name - and so does the recipe the archive named, when it carried one.
+    $Recipe.Look.IconPath = $IconPath
+    Set-InstanceFile -InstallPath $InstallPath -Content (ConvertTo-InstanceFile -Name $Name -Recipe $Recipe -Docker $Docker)
 
-    Set-InstanceLook -InstallPath $InstallPath -Look (New-InstanceLook -Name $Name `
-        -Theme $Theme -Docker $Appearance.Docker -Icon (Get-IconRecipe -Look $Appearance) `
-        -Dockerfile $Appearance.Dockerfile -Image $Appearance.DockerImage -FirstBoot $Appearance.FirstBoot)
+    Set-InstanceFragment -Name $Name -Guid $Guid -Theme $Recipe.Look
+    Write-Host "  * Look             : font '$($Recipe.Look.FontName)', colours '$($Recipe.Look.ColorScheme)', icon re-applied" -ForegroundColor (Get-MessageColour success)
 
-    Set-InstanceFragment -Name $Name -Guid $Guid -Theme $Theme
-    Write-Host "  * Look             : font '$($Appearance.Font)', colours '$($Appearance.ColorScheme)', icon re-applied" -ForegroundColor (Get-MessageColour success)
-
-    if (-not (Test-FontInstalled $Appearance.Font)) {
-        Write-Host "                       Not installed on Windows: '$($Appearance.Font)'." -ForegroundColor (Get-MessageColour warning)
+    if (-not (Test-FontInstalled $Recipe.Look.FontName)) {
+        Write-Host "                       Not installed on Windows: '$($Recipe.Look.FontName)'." -ForegroundColor (Get-MessageColour warning)
         Write-Host "                       The prompt will show boxes until it is installed." -ForegroundColor (Get-MessageColour warning)
     }
 
     # Docker Desktop records the distros it knows by name, and reads that file
     # only when it starts: if the archive says it knew the original, the new one
     # is put back - the restart is the price, hence the [y/N] question.
-    if ($Appearance.Docker -eq "yes" -and (Get-DockerState -Name $Name) -eq "no") {
+    if ($Docker -eq "yes" -and (Get-DockerState -Name $Name) -eq "no") {
         if ($Headless) {
             # No window to answer in: the window's jobs run hidden (JobRunner),
             # and the question blocked one for good - the work was already done

@@ -667,7 +667,7 @@ class WslInstanceManager {
         # from the values captured before the export - Docker's entry too,
         # keyed by name, and Headless like the restore's: a hidden job cannot
         # answer Docker's question, so it is not asked there.
-        Set-InstanceState -Name $Name -InstallPath $FullDestination -Appearance $Copy.Look -Headless $Headless
+        Set-InstanceState -Name $Name -InstallPath $FullDestination -Recipe $Copy.Recipe -Docker $Copy.Docker -Headless $Headless
         $this.Refresh()
 
         return [PSCustomObject]@{ Instance = $this.FindByName($Name); InstallPath = $FullDestination; CopyBytes = $CopyBytes }
@@ -717,8 +717,8 @@ class WslInstanceManager {
 
     # The drawn recipe comes back from the instance - the drawing settles the
     # parts the recipe left open.
-    [object] SetIcon([WslInstance]$Instance, [object]$Recipe) {
-        return $Instance.SetIcon($Recipe)
+    [object] SetIcon([WslInstance]$Instance, [object]$Drawing) {
+        return $Instance.SetIcon($Drawing)
     }
 
     [WslInstance] SetIconImage([WslInstance]$Instance, [string]$Source) {

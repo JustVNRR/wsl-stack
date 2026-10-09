@@ -27,7 +27,7 @@ try {
         # is never asked here, Docker is left alone, and the ending says so.
         Write-Stamp "restoring"
         $r = $mgr.RestoreFromArchive($ArchiveFirst, $Name, $true)
-        $docker = if ("$($r.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
+        $docker = if ("$($r.Recipe.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
         Write-Stamp ("RESULT OK " + $Name + ": restored from '" + (Split-Path $ArchiveFirst -Leaf) + "'" + $docker)
     } elseif ($Verb -eq "delete") {
         # No instance to find here either: the archive's own folder goes.
@@ -77,7 +77,7 @@ try {
                 $inst.Start()
                 Write-Stamp "started again"
             }
-            $docker = if ("$($r.Instance.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
+            $docker = if ("$($r.Instance.Recipe.Look.Docker)" -eq "yes") { " - Docker Desktop not touched (no window to answer its question)" } else { "" }
             Write-Stamp ("RESULT OK " + $ArchiveFirst + ": duplicated from '" + $Name + "'" + $docker)
         } elseif ($Verb -eq "compact") {
             # The gate may have asked for the archive first: the copy is

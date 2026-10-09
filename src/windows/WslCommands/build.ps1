@@ -673,12 +673,13 @@ try {
     $Instance = $Manager.CreateNew($DistroName, $TarPath, $UserName, [WslTheme]::Default($DistroName), $WasRegistered)
     $Deployment.DistroRegistered = $true
 
-    # The recipe rides with the instance from its birth: the look file the
-    # profile step writes (step 7) carries it, and an archive or a copy keeps
-    # it from there. Dockerfile and image are the two roads; only the one
-    # taken is recorded.
-    if ($Image) { $Instance.DockerImage = $Image } else { $Instance.Dockerfile = $Dockerfile }
-    $Instance.FirstBoot = $FirstBoot
+    # The recipe rides with the instance from its birth: the file the profile
+    # step writes (step 7) carries it, and an archive or a copy keeps it from
+    # there. The road taken, the path and the onboarding - the verdict on the
+    # making is the profile step's to write, with the look's news.
+    $Instance.Recipe.BuildType = if ($Image) { [WslBuildType]::Image } else { [WslBuildType]::Dockerfile }
+    $Instance.Recipe.BuildPath = if ($Image) { $Image } else { $Dockerfile }
+    $Instance.Recipe.FirstBoot = $FirstBoot
 
     if ($FirstBoot) {
         # The recipe's other half, in place before step 6 runs it: the image

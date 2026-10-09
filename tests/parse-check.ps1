@@ -12,7 +12,7 @@
 
 $bad = 0
 
-$ClassOrder = @("WslState.psm1", "WslTheme.psm1", "WslPack.psm1", "WslInstance.psm1", "WslPackCatalog.psm1", "WslInstanceManager.psm1")
+$ClassOrder = @("WslState.psm1", "WslTheme.psm1", "WslRecipe.psm1", "WslPack.psm1", "WslInstance.psm1", "WslPackCatalog.psm1", "WslInstanceManager.psm1")
 $ClassesDir = Join-Path $PSScriptRoot "..\src\windows\WslModel"
 $ClassPaths = @()
 foreach ($ClassLib in $ClassOrder) {

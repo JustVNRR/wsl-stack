@@ -1,7 +1,7 @@
 # ==============================================================================
 # THE MODEL, AS A MODULE: ONE CLASS PER FILE, THE ORDER THEY MUST BE READ
 # ==============================================================================
-# What a consumer pulls by `using module .\WslModel\WslModel.psd1`: the six
+# What a consumer pulls by `using module .\WslModel\WslModel.psd1`: the seven
 # classes, given to the consuming file at parse time - every function, filter
 # and parameter that names one finds it, whoever called whom (measured). Each
 # class file pulls what it names itself, so this list's order is the reading
@@ -15,6 +15,7 @@
     NestedModules = @(
         'WslState.psm1'
         'WslTheme.psm1'
+        'WslRecipe.psm1'
         'WslPack.psm1'
         'WslInstance.psm1'
         'WslPackCatalog.psm1'

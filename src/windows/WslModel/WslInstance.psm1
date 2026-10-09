@@ -9,6 +9,7 @@
 # itself, never a neighbour's.
 using module .\WslState.psm1
 using module .\WslTheme.psm1
+using module .\WslRecipe.psm1
 using module .\WslPack.psm1
 
 class WslInstance {
@@ -21,29 +22,23 @@ class WslInstance {
     [int]$Version = 2
 
     # Archive tracking: an archive is a folder under <root>\archives - the tar
-    # inside, and the look (instance.json, terminal-icon.png) beside it.
+    # inside, and the instance's own file beside it (instance.json - look and
+    # recipe - with terminal-icon.png).
     [bool]$HasArchive = $false
     [string]$ArchivePath
 
     [WslState]$State = [WslState]::Unknown
-
-    [WslTheme]$Look
 
     # The packs the instance carries, by name: inside an instance a pack is its
     # folder - what it requires and whether it is ever offered come from the
     # catalog, the rule the commands have always followed.
     [string[]]$InstalledPacks = @()
 
-    # The recipe the instance was built with: the Dockerfile the image came
-    # from - or the uploaded Docker image it was loaded from, whichever road
-    # the build took - and the first_boot its account was made by, full paths
-    # as they were on this machine. They ride with the look (instance.json):
-    # a build records them, an archive and a copy carry them along. Empty -
-    # an instance from before the fields, or an archive that carried none -
-    # means unknown, and the repository's own files are the build's default.
-    [string]$Dockerfile
-    [string]$DockerImage
-    [string]$FirstBoot
+    # The recipe it was made with - where the image came from, the onboarding
+    # shell, the look, and how the making went. Born empty and Pending: the
+    # build fills it, the profile step writes it out with the look
+    # (instance.json), and an archive or a copy carries it along.
+    [WslRecipe]$Recipe = [WslRecipe]::new()
 
     # The empty constructor only: an instance is built property by property,
     # never by a constructor that asks wsl.exe for the state - that question
@@ -54,9 +49,7 @@ class WslInstance {
     # whose description is the theme's own. Whoever shows it decides where
     # and when; one Write-Host is enough.
     [string] ToString() {
-        # Not named $Look: that is this class's own member (and PowerShell does
-        # not tell the two cases apart).
-        $LookLine = if ($this.Look) { "$($this.Look)" } else { "-" }
+        $LookLine = if ($this.Recipe.Look) { "$($this.Recipe.Look)" } else { "-" }
         $PacksLine = if ($this.InstalledPacks.Count -eq 0) { "none" } else { $this.InstalledPacks -join ", " }
         $Lines = @(
             "  * Distribution Name : $($this.Name)",
@@ -211,13 +204,15 @@ class WslInstance {
 
     # Copies the instance under another name: the export to a temporary tar,
     # the import at THIS instance's version, the marker, and a fresh capture
-    # of the look for the caller to re-apply once the copy exists. The caller
-    # stops the source first - stopping is a decision, and decisions belong to
-    # the commands. Returns the copy's folder and that look.
+    # of the recipe - look and Docker's answer - for the caller to re-apply
+    # once the copy exists. The caller stops the source first - stopping is a
+    # decision, and decisions belong to the commands. Returns the copy's
+    # folder, that recipe and that answer.
     [PSCustomObject] Duplicate([string]$newName) {
-        # Not named $Look: that is the instance's own member (and PowerShell
-        # does not tell the two cases apart).
-        $LookFile = New-InstanceLook -Name $this.Name -Icon (Get-IconRecipe -Name $this.Name)
+        # What Windows shows now, captured before the export; the icon's
+        # recipe rides along (KeepIconRecipe).
+        $this.Recipe.Look = $this.KeepIconRecipe((Get-InstanceAppearance -Name $this.Name))
+        $Docker = Get-DockerState -Name $this.Name
 
         $targetRoot = Split-Path $this.Path -Parent
         $newPath = Join-Path $targetRoot $newName
@@ -235,7 +230,7 @@ class WslInstance {
 
         # Ours from here on, whatever happens next.
         New-InstanceMarker -Folder $newPath -By "duplicate"
-        return [PSCustomObject]@{ Path = $newPath; Look = $LookFile }
+        return [PSCustomObject]@{ Path = $newPath; Recipe = $this.Recipe; Docker = $Docker }
     }
 
     # Writes the instance to <root>\archives\<name>: the tar
@@ -278,11 +273,13 @@ class WslInstance {
         $Appearance = Get-InstanceAppearance -Name $this.Name
         # The same file the instance keeps in its own folder, refreshed: what
         # this machine has right now, and the icon's recipe as the instance
-        # noted it. Not named $Look: that is the instance's own member.
-        $LookFile = New-InstanceLook -Name $this.Name -Icon (Get-IconRecipe -Name $this.Name)
+        # noted it. Written into the archive's folder - the instance's own
+        # file is not touched.
+        $this.Recipe.Look = $this.KeepIconRecipe($Appearance)
+        $Content = ConvertTo-InstanceFile -Name $this.Name -Recipe $this.Recipe -Docker (Get-DockerState -Name $this.Name)
 
         if (-not (Test-Path $folder)) { New-Item -ItemType Directory -Path $folder -Force | Out-Null }
-        $LookFile | ConvertTo-Json | Set-Content -Path (Join-Path $folder "instance.json") -Encoding Utf8
+        Set-InstanceFile -InstallPath $folder -Content $Content
 
         $IconCopied = $false
         if ($Appearance.IconPath) {
@@ -294,7 +291,7 @@ class WslInstance {
             Font        = $Appearance.FontName
             ColorScheme = $Appearance.ColorScheme
             IconCopied  = $IconCopied
-            Docker      = $LookFile.Docker
+            Docker      = $Content.Docker
         }
     }
 
@@ -369,6 +366,28 @@ class WslInstance {
     # INSTANCE METHODS: Terminal Appearance
     # =========================================================================
 
+    # Writes the instance's own file - its state of composition: the recipe,
+    # the look inside, Docker's answer. The one place that knows the file's
+    # shape.
+    [void] Save() {
+        if (-not $this.Recipe.Look) { $this.Recipe.Look = [WslTheme]::Default($this.Name) }
+        Set-InstanceFile -InstallPath $this.Path -Content (ConvertTo-InstanceFile -Name $this.Name `
+            -Recipe $this.Recipe -Docker (Get-DockerState -Name $this.Name))
+    }
+
+    # The icon's recipe carried from the instance's own look onto the one
+    # Windows shows now - a font or colour change must not eat the tile; that
+    # was a real defect once.
+    hidden [WslTheme] KeepIconRecipe([WslTheme]$Now) {
+        if ($this.Recipe.Look) {
+            $Now.IconText      = $this.Recipe.Look.IconText
+            $Now.IconTop       = $this.Recipe.Look.IconTop
+            $Now.IconBottom    = $this.Recipe.Look.IconBottom
+            $Now.IconTextColor = $this.Recipe.Look.IconTextColor
+        }
+        return $Now
+    }
+
     # Makes the look live on the Windows side: the font it names (fetched when
     # missing, best effort), the icon drawn from the instance's own name, the
     # fragment Windows Terminal reads under the guid WSL gave the instance,
@@ -377,18 +396,18 @@ class WslInstance {
     # Answers whether a profile could be applied at all, with the odd news
     # worth a line.
     [object] ApplyTerminalProfile() {
-        if (-not $this.Look) { $this.Look = [WslTheme]::Default($this.Name) }
+        if (-not $this.Recipe.Look) { $this.Recipe.Look = [WslTheme]::Default($this.Name) }
 
         $Warnings = @()
 
         # The font the look names: Windows must have it before the fragment
         # points at it.
-        if ($this.Look.FontMissing()) {
+        if ($this.Recipe.Look.FontMissing()) {
             # The repository's own copy when it has one - the download is the
             # fallback, not the road.
-            $FontStatus = $this.Look.EnsureFont((Get-BundledFont -FileName "MesloLGS NF Regular.ttf"))
+            $FontStatus = $this.Recipe.Look.EnsureFont((Get-BundledFont -FileName "MesloLGS NF Regular.ttf"))
             if ($FontStatus.State -ne "installed") {
-                $Warnings += "the font '$($this.Look.FontName)' would not install: $($FontStatus.Error)"
+                $Warnings += "the font '$($this.Recipe.Look.FontName)' would not install: $($FontStatus.Error)"
             }
         }
 
@@ -397,7 +416,6 @@ class WslInstance {
         # the fragment below drops the icon line.
         $IconPath = Join-Path $this.Path "terminal-icon.png"
         $IconDrawn = $false
-        $Icon = @{}
         try {
             # -What: the letters and colours read back into the instance's file,
             # so a later change of one keeps the other. -Quiet: nothing said
@@ -406,7 +424,10 @@ class WslInstance {
             $IconScript = Join-Path $PSScriptRoot "..\make-icon.ps1"
             $Drawn = & $IconScript -Name $this.Name -Out $IconPath -Quiet -What | ConvertFrom-Json
             $IconDrawn = $true
-            $Icon = @{ Text = $Drawn.Text; Top = $Drawn.Top; Bottom = $Drawn.Bottom; TextColor = $Drawn.TextColor }
+            $this.Recipe.Look.IconText      = $Drawn.Text
+            $this.Recipe.Look.IconTop       = $Drawn.Top
+            $this.Recipe.Look.IconBottom    = $Drawn.Bottom
+            $this.Recipe.Look.IconTextColor = $Drawn.TextColor
         } catch {
             Remove-Item $IconPath -Force -ErrorAction SilentlyContinue
             $Warnings += "no icon ($($_.Exception.Message))"
@@ -433,20 +454,21 @@ class WslInstance {
         if ($Fragments.Guid) {
             # No icon drawn, no icon line: Terminal shows its own. The look is
             # the instance's own, completed with the icon just drawn.
-            $this.Look.IconPath = $(if ($IconDrawn) { $IconPath } else { "" })
-            Set-InstanceFragment -Name $this.Name -Guid $Fragments.Guid -Theme $this.Look
+            $this.Recipe.Look.IconPath = $(if ($IconDrawn) { $IconPath } else { "" })
+            Set-InstanceFragment -Name $this.Name -Guid $Fragments.Guid -Theme $this.Recipe.Look
             $Applied = $true
         } else {
             $Warnings += "no WSL fragment for '$($this.Name)' - the profile was not applied"
         }
 
-        # What this instance looks like, in its own folder - the file an
-        # archive carries. Written here, the fragment in place, so the font and
-        # colours it reads are the ones just applied, icon recipe included.
-        # The build's recipe (Dockerfile or image, first_boot) is written
-        # with it.
-        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
-            -Icon $Icon -Dockerfile $this.Dockerfile -Image $this.DockerImage -FirstBoot $this.FirstBoot)
+        # The file an archive carries, written here, the fragment in place, so
+        # the font and colours it reads are the ones just applied, icon recipe
+        # included. The recipe rides in it - the road, the path, the
+        # onboarding - and the verdict on the making: Ok, or Warning when the
+        # look had news.
+        $this.Recipe.Status   = if ($Warnings.Count -gt 0) { [WslRecipeStatus]::Warning } else { [WslRecipeStatus]::Ok }
+        $this.Recipe.Messages = @($Warnings)
+        $this.Save()
 
         # Asked to look again, so the new profile appears without closing
         # anything.
@@ -466,11 +488,11 @@ class WslInstance {
         if (-not $Guid) {
             throw "Windows Terminal has no profile for '$($this.Name)' - the font cannot be applied."
         }
-        $Theme = Get-InstanceAppearance -Name $this.Name
+        $Theme = $this.KeepIconRecipe((Get-InstanceAppearance -Name $this.Name))
         $Theme.FontName = $FontName
         Set-InstanceFragment -Name $this.Name -Guid $Guid -Theme $Theme
-        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
-            -Icon (Get-IconRecipe -Name $this.Name))
+        $this.Recipe.Look = $Theme
+        $this.Save()
     }
 
     [void] SetColourScheme([string]$SchemeName) {
@@ -478,11 +500,11 @@ class WslInstance {
         if (-not $Guid) {
             throw "Windows Terminal has no profile for '$($this.Name)' - the colours cannot be applied."
         }
-        $Theme = Get-InstanceAppearance -Name $this.Name
+        $Theme = $this.KeepIconRecipe((Get-InstanceAppearance -Name $this.Name))
         $Theme.ColorScheme = $SchemeName
         Set-InstanceFragment -Name $this.Name -Guid $Guid -Theme $Theme
-        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name `
-            -Icon (Get-IconRecipe -Name $this.Name))
+        $this.Recipe.Look = $Theme
+        $this.Save()
     }
 
     # The recipe is drawn to the instance's own icon file
@@ -490,27 +512,34 @@ class WslInstance {
     # class method is the class file's folder - scripts\WslModel - so the
     # drawing script is two levels up, in assets. The drawn recipe comes
     # back whole: the drawing settles the parts the recipe left open.
-    [object] SetIcon([object]$Recipe) {
+    [object] SetIcon([object]$Drawing) {
         $IconPath = Join-Path $this.Path "terminal-icon.png"
-        # Key by key, not a table merge: "Name" travels in the recipe too, and
+        # Key by key, not a table merge: "Name" travels in the drawing too, and
         # a hashtable += over a key already there throws - a plain drawing must
         # not die on that.
         $Draw = @{ Name = $this.Name }
-        if ($Recipe) {
-            foreach ($Key in @($Recipe.Keys)) {
-                if ("$Key" -ne "Name") { $Draw[$Key] = $Recipe[$Key] }
+        if ($Drawing) {
+            foreach ($Key in @($Drawing.Keys)) {
+                if ("$Key" -ne "Name") { $Draw[$Key] = $Drawing[$Key] }
             }
         }
         $Drawn = & (Join-Path $PSScriptRoot "..\make-icon.ps1") @Draw -Out $IconPath -Quiet -What | ConvertFrom-Json
 
-        $Icon = @{
+        # The drawn recipe replaces the old one whole - the look around it is
+        # what Windows shows now.
+        $this.Recipe.Look = Get-InstanceAppearance -Name $this.Name
+        $this.Recipe.Look.IconText      = $Drawn.Text
+        $this.Recipe.Look.IconTop       = $Drawn.Top
+        $this.Recipe.Look.IconBottom    = $Drawn.Bottom
+        $this.Recipe.Look.IconTextColor = $Drawn.TextColor
+        $this.Save()
+
+        return @{
             Text      = $Drawn.Text
             Top       = $Drawn.Top
             Bottom    = $Drawn.Bottom
             TextColor = $Drawn.TextColor
         }
-        Set-InstanceLook -InstallPath $this.Path -Look (New-InstanceLook -Name $this.Name -Icon $Icon)
-        return $Icon
     }
 
     # A file replaces the picture; the drawing behind it (the recipe) stays,
@@ -589,7 +618,7 @@ class WslInstance {
         $instance.Name        = $name
         $instance.Path        = $installPath
         $instance.DefaultUser = $user
-        $instance.Look        = $look
+        $instance.Recipe.Look = $look
         return $instance
     }
 
@@ -632,9 +661,11 @@ class WslInstance {
         return ($all | Where-Object { $_.Name -eq $name } | Select-Object -First 1)
     }
 
-    # Every registered instance: name, folder, WSL version (1 or 2). The empty
-    # constructor on purpose - the four-argument one asks wsl.exe about the
-    # state, and asking once per instance is not this call's business.
+    # Every registered instance: name, folder, WSL version (1 or 2), and its
+    # recipe - off its own file, born empty (Pending) when there is none: an
+    # instance always carries its state. The empty constructor on purpose -
+    # the four-argument one asks wsl.exe about the state, and asking once per
+    # instance is not this call's business.
     static [WslInstance[]] GetAll() {
         $found = @()
         $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss"
@@ -647,6 +678,7 @@ class WslInstance {
                 $instance.Name = $props.DistributionName
                 $instance.Path = ($props.BasePath -replace '^\\\\\?\\', '').TrimEnd('\')
                 if ($props.Version) { $instance.Version = [int]$props.Version }
+                $instance.Recipe = Get-InstanceRecipe -Name $instance.Name
                 $found += $instance
             }
         }

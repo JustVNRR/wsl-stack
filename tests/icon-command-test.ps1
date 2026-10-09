@@ -106,9 +106,9 @@ try {
     $Saved = Get-Recipe
     Check "the instance's own file is written" (Test-Path $Recipe) $true
     Check "and says whose it is" $Saved.Name $FakeName
-    Check "with the look it was built with" $Saved.Font "MesloLGS NF"
-    Check "the letters of the name" $Saved.IconText "IC"
-    $Auto = "$($Saved.IconTop) $($Saved.IconBottom) $($Saved.IconTextColor)"
+    Check "with the look it was built with" $Saved.Recipe.Look.Font "MesloLGS NF"
+    Check "the letters of the name" $Saved.Recipe.Look.IconText "IC"
+    $Auto = "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom) $($Saved.Recipe.Look.IconTextColor)"
 
     # 2. Escape is not a change: the icon is redrawn, the note says the same
     $Before = (Get-FileHash $IconPath).Hash
@@ -118,22 +118,22 @@ try {
     # 3. Other letters: they are the ones drawn, the colours stay
     $null = Invoke-Icons @("$Pick", "2", "xyz")
     $Saved = Get-Recipe
-    Check "other letters, typed and capitalised" $Saved.IconText "XYZ"
-    Check "other letters, the colours stay" "$($Saved.IconTop) $($Saved.IconBottom) $($Saved.IconTextColor)" $Auto
+    Check "other letters, typed and capitalised" $Saved.Recipe.Look.IconText "XYZ"
+    Check "other letters, the colours stay" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom) $($Saved.Recipe.Look.IconTextColor)" $Auto
 
     # 4. Other letters, answered with Enter: the question offers the letters the
     # icon has now, and taking that answer changes nothing
     $Out = Invoke-Icons @("$Pick", "2", "")
     $Saved = Get-Recipe
     Check "text: the letters are offered in the question" (@($Out | Where-Object { "$_".Contains("[XYZ]") }).Count -gt 0) $true
-    Check "text: Enter keeps them" $Saved.IconText "XYZ"
+    Check "text: Enter keeps them" $Saved.Recipe.Look.IconText "XYZ"
 
     # 5. Other colours: the pair is the one picked, the letters stay, and each
     # pair is shown with those letters on it
     $Out = Invoke-Icons @("$Pick", "3", "2")
     $Saved = Get-Recipe
-    Check "other colours, the letters stay" $Saved.IconText "XYZ"
-    Check "other colours, the pair picked is on" "$($Saved.IconTop) $($Saved.IconBottom)" "#3B82F6 #2563EB"
+    Check "other colours, the letters stay" $Saved.Recipe.Look.IconText "XYZ"
+    Check "other colours, the pair picked is on" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom)" "#3B82F6 #2563EB"
     Check "and every pair shows the letters" (@($Out | Where-Object { "$_".Contains("XYZ  orange") }).Count -gt 0) $true
     Check "and the pair in use was marked in the list" (@($Out | Where-Object { "$_" -like "*(current)*" }).Count -gt 0) $true
 
@@ -144,19 +144,19 @@ try {
     $null = Invoke-Icons @("$Pick", "4", $Mine)
     Check "an image of my own is copied in place" (Get-FileHash $IconPath).Hash (Get-FileHash $Mine).Hash
     $Saved = Get-Recipe
-    Check "and the recipe is kept" $Saved.IconText "XYZ"
+    Check "and the recipe is kept" $Saved.Recipe.Look.IconText "XYZ"
 
     # 7. Changing your mind after an image: the letters come back from the recipe,
     # not from the name
     $null = Invoke-Icons @("$Pick", "3", "1")
     $Saved = Get-Recipe
-    Check "colours again after an image: the letters are the ones drawn" $Saved.IconText "XYZ"
-    Check "and the pair is the one picked" "$($Saved.IconTop) $($Saved.IconBottom)" "#CF7040 #B95E30"
+    Check "colours again after an image: the letters are the ones drawn" $Saved.Recipe.Look.IconText "XYZ"
+    Check "and the pair is the one picked" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom)" "#CF7040 #B95E30"
 
     # 8. The automatic one is the one that starts over from the name
     $null = Invoke-Icons @("$Pick", "1")
     $Saved = Get-Recipe
-    Check "the automatic one starts over from the name" $Saved.IconText "IC"
+    Check "the automatic one starts over from the name" $Saved.Recipe.Look.IconText "IC"
 
     # 9. What an archive carries: that same file, refreshed from the machine,
     # recipe inside - and the picture beside it
@@ -166,15 +166,15 @@ try {
     Check "an archive carries the instance's file" (Test-Path (Join-Path $Archive "instance.json")) $true
     Check "and its picture" (Test-Path (Join-Path $Archive "terminal-icon.png")) $true
     $Kept = Get-Content (Join-Path $Archive "instance.json") -Raw | ConvertFrom-Json
-    Check "with the recipe inside it" $Kept.IconText "IC"
+    Check "with the recipe inside it" $Kept.Recipe.Look.IconText "IC"
     Check "under the instance's own name" $Kept.Name $FakeName
 
     # 10. Two changes in one visit: the menu comes back after the first one, and
     # the second keeps what the first did - the letters AND the colours.
     $null = Invoke-Icons @("$Pick", "2", "abc", "3", "2")
     $Saved = Get-Recipe
-    Check "two changes in one run: the letters are the typed ones" $Saved.IconText "ABC"
-    Check "two changes in one run: and the colours are the picked ones" "$($Saved.IconTop) $($Saved.IconBottom)" "#3B82F6 #2563EB"
+    Check "two changes in one run: the letters are the typed ones" $Saved.Recipe.Look.IconText "ABC"
+    Check "two changes in one run: and the colours are the picked ones" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom)" "#3B82F6 #2563EB"
 
     # 11. The way in: the instance is asked once, the menu holds both commands,
     # and it is drawn again once the command it handed over to is done. Answers:

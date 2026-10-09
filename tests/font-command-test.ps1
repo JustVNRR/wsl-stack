@@ -114,14 +114,20 @@ try {
 
     # The recipe a drawing left behind: a font change must keep it - one change
     # keeps the others, and the icon command starts from these letters later.
-    # The build's recipe (Dockerfile, first_boot) is written with it and must
-    # survive the same changes.
-    Set-InstanceLook -InstallPath $FakeFolder -Look (New-InstanceLook -Name $FakeName `
-        -Icon @{ Text = "FT"; Top = "#111111"; Bottom = "#222222"; TextColor = "#FFFFFF" } `
-        -Dockerfile "D:\wsl-stack\src\distro\build\Dockerfile" `
-        -FirstBoot "D:\wsl-stack\src\distro\build\onboarding.sh")
+    # The build's recipe is written with it and must survive the same changes.
+    $BuildRecipe = [WslRecipe]::new()
+    $BuildRecipe.BuildType = [WslBuildType]::Dockerfile
+    $BuildRecipe.BuildPath = "D:\wsl-stack\src\distro\build\Dockerfile"
+    $BuildRecipe.FirstBoot = "D:\wsl-stack\src\distro\build\onboarding.sh"
+    $BuildRecipe.Status    = [WslRecipeStatus]::Ok
+    $BuildRecipe.Look = [WslTheme]::Default($FakeName)
+    $BuildRecipe.Look.IconText      = "FT"
+    $BuildRecipe.Look.IconTop       = "#111111"
+    $BuildRecipe.Look.IconBottom    = "#222222"
+    $BuildRecipe.Look.IconTextColor = "#FFFFFF"
+    Set-InstanceFile -InstallPath $FakeFolder -Content (ConvertTo-InstanceFile -Name $FakeName -Recipe $BuildRecipe -Docker "unknown")
     $Reciped = Get-Content $Recipe -Raw | ConvertFrom-Json
-    Check "the build recipe is written with the look" "$($Reciped.Dockerfile)/$($Reciped.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\onboarding.sh"
+    Check "the build recipe is written with the look" "$($Reciped.Recipe.BuildPath)/$($Reciped.Recipe.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\onboarding.sh"
 
     $All = @(Get-Distros | Where-Object { Test-TemplateInstance -Folder $_.Path } | Sort-Object Name)
     $Pick = [array]::IndexOf(@($All.Name), $FakeName) + 1
@@ -161,11 +167,11 @@ try {
     Check "  ... and the look around it is kept" ($Written.profiles[0].PSObject.Properties.Name -contains "colorScheme") $true
 
     $Saved = Get-Content $Recipe -Raw | ConvertFrom-Json
-    Check "and into the instance's own file" $Saved.Font "$Want"
+    Check "and into the instance's own file" $Saved.Recipe.Look.Font "$Want"
     Check "which is still the instance's" $Saved.Name $FakeName
-    Check "and the icon's recipe survives the change" $Saved.IconText "FT"
-    Check "  ... colours and all" "$($Saved.IconTop) $($Saved.IconBottom) $($Saved.IconTextColor)" "#111111 #222222 #FFFFFF"
-    Check "and so does the build recipe" "$($Saved.Dockerfile)/$($Saved.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\onboarding.sh"
+    Check "and the icon's recipe survives the change" $Saved.Recipe.Look.IconText "FT"
+    Check "  ... colours and all" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom) $($Saved.Recipe.Look.IconTextColor)" "#111111 #222222 #FFFFFF"
+    Check "and so does the build recipe" "$($Saved.Recipe.BuildPath)/$($Saved.Recipe.FirstBoot)" "D:\wsl-stack\src\distro\build\Dockerfile/D:\wsl-stack\src\distro\build\onboarding.sh"
 
     # 3. The way in: the menu asks which instance, hands over, and is drawn
     # again when done. Answers: the instance, "font", Escape on the list, Escape

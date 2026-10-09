@@ -120,8 +120,14 @@ try {
 
     # The recipe a drawing left behind: a colour change must keep it too - one
     # change keeps the others, and the icon command starts from these letters.
-    Set-InstanceLook -InstallPath $FakeFolder -Look (New-InstanceLook -Name $FakeName -Icon @{
-        Text = "CT"; Top = "#111111"; Bottom = "#222222"; TextColor = "#FFFFFF" })
+    $SeededLook = [WslTheme]::Default($FakeName)
+    $SeededLook.IconText      = "CT"
+    $SeededLook.IconTop       = "#111111"
+    $SeededLook.IconBottom    = "#222222"
+    $SeededLook.IconTextColor = "#FFFFFF"
+    $SeededRecipe = [WslRecipe]::new()
+    $SeededRecipe.Look = $SeededLook
+    Set-InstanceFile -InstallPath $FakeFolder -Content (ConvertTo-InstanceFile -Name $FakeName -Recipe $SeededRecipe -Docker "unknown")
 
     $All = @(Get-Distros | Where-Object { Test-TemplateInstance -Folder $_.Path } | Sort-Object Name)
     $Pick = [array]::IndexOf(@($All.Name), $FakeName) + 1
@@ -158,10 +164,10 @@ try {
     Check "  ... and the font is kept beside it" ($Written.profiles[0].font.face -ne $null) $true
 
     $Saved = Get-Content $Recipe -Raw | ConvertFrom-Json
-    Check "and into the instance's own file" $Saved.ColorScheme $Schemes[0]
+    Check "and into the instance's own file" $Saved.Recipe.Look.ColorScheme $Schemes[0]
     Check "which is still the instance's" $Saved.Name $FakeName
-    Check "and the icon's recipe survives the change" $Saved.IconText "CT"
-    Check "  ... colours and all" "$($Saved.IconTop) $($Saved.IconBottom) $($Saved.IconTextColor)" "#111111 #222222 #FFFFFF"
+    Check "and the icon's recipe survives the change" $Saved.Recipe.Look.IconText "CT"
+    Check "  ... colours and all" "$($Saved.Recipe.Look.IconTop) $($Saved.Recipe.Look.IconBottom) $($Saved.Recipe.Look.IconTextColor)" "#111111 #222222 #FFFFFF"
 } finally {
     Remove-Item $Key -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item $WslFragment -Force -ErrorAction SilentlyContinue
