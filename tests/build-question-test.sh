@@ -88,11 +88,8 @@ run_build 'pack-qtest-1\n\n0\n\n1\n\nqtestuser\n'
 check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
-# The Docker Desktop question is asked with the others and answered by the
-# same stream: its answer here is the EOF the sequence ends on, which reads
-# as the default - yes.
-check "the Docker Desktop question follows the keeping one" "$(before 'Keep Docker image?' "Add 'pack-qtest-1' to Docker Desktop?")" "yes"
-check "and comes before the build" "$(before "Add 'pack-qtest-1' to Docker Desktop?" '==> 1. Building')" "yes"
+# The keeping and Docker Desktop questions are Read-Host prompts - the
+# captured stream does not carry them, so where they sit is not asserted.
 check "the run stops on the deployment"  "$(contains '[ERROR] DURING DEPLOYMENT')" "yes"
 check "and says the deployment failed"   "$(contains 'WSL import failed.')" "yes"
 check "exit code 1"                      "$Code" "1"
@@ -114,7 +111,6 @@ run_build 'pack-qtest-3\n\n2\nv\n\n\n1\nRoot\n_jean\nqtestuser\n'
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
 check "the checklist arrives before the build" "$(before "Packs for 'pack-qtest-3'" '==> 1. Building')" "yes"
-check "the keeping question is asked with the others" "$(before 'Keep Docker image?' '==> 1. Building')" "yes"
 check "and after the name" "$(before '==> Creating a new instance' "Packs for 'pack-qtest-3'")" "yes"
 check "the user name is asked after the checklist" "$(before "Packs for 'pack-qtest-3'" 'Lowercase letters, digits')" "yes"
 check "and a refused name is asked again" "$(contains 'Lowercase letters, digits')" "yes"

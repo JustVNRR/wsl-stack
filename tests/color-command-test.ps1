@@ -1,3 +1,6 @@
+# The classes this file names, pulled in by the file itself.
+using module ..\src\windows\WslModel\WslModel.psd1
+
 # Drives `color` - the command behind `.\wsl.ps1 theme` - the way a script
 # would: the numbered prompt, answers on standard input, no console anywhere.
 #
