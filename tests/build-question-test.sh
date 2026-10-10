@@ -17,7 +17,6 @@
 #     rule accepts
 #   - the checklist opens with the shell pack ticked: applied as-is it chooses
 #     it; cancelling means no pack, says so, and is asked no confirmation
-#   - a pack chosen is installed later, so the failure report names it
 #   - a recipe path that is not a file stops the run before anything is asked
 #   - an option the build knows binds by name, one it does not is refused
 #   - the onboarding is asked with the rest (Y on an empty answer) and the
@@ -82,11 +81,18 @@ before() {
 echo "--- cancelled at the checklist (answer 0)"
 # The user name is left empty: the proposed Windows name must be taken. The
 # name after it is the fallback for a build that fails to propose - the check
-# on the hint is what tells the two apart.
+# on the hint is what tells the two apart - and it doubles as the answer the
+# keeping-the-image question reads next: not an 'n', so the image is kept,
+# which is the default this suite wants here.
 run_build 'pack-qtest-1\n\n0\n\n1\n\nqtestuser\n'
 check "says no pack was selected"     "$(contains '[OK] No pack selected.')" "yes"
 check "an empty answer takes the proposed name" "$(contains 'Lowercase letters, digits')" "no"
 check "does not mention any chosen pack" "$(contains 'The packs chosen earlier')" "no"
+# The Docker Desktop question is asked with the others and answered by the
+# same stream: its answer here is the EOF the sequence ends on, which reads
+# as the default - yes.
+check "the Docker Desktop question follows the keeping one" "$(before 'Keep Docker image?' "Add 'pack-qtest-1' to Docker Desktop?")" "yes"
+check "and comes before the build" "$(before "Add 'pack-qtest-1' to Docker Desktop?" '==> 1. Building')" "yes"
 check "the run stops on the deployment"  "$(contains '[ERROR] DURING DEPLOYMENT')" "yes"
 check "and says the deployment failed"   "$(contains 'WSL import failed.')" "yes"
 check "exit code 1"                      "$Code" "1"
@@ -95,7 +101,6 @@ echo ""
 echo "--- the pre-ticked shell, applied as-is (answer v, then the confirmation)"
 run_build 'pack-qtest-2\n\nv\n\n\n1\n\nqtestuser\n'
 check "does not say no pack was selected" "$(contains '[OK] No pack selected.')" "no"
-check "and names the pack that was"       "$(contains 'The packs chosen earlier')" "yes"
 check "exit code 1"                       "$Code" "1"
 
 echo ""
@@ -108,16 +113,15 @@ run_build 'pack-qtest-3\n\n2\nv\n\n\n1\nRoot\n_jean\nqtestuser\n'
 # Which pack answer 2 chose is read from the run rather than written here: this
 # checkout's packs are not another checkout's packs.
 Chosen=$(grep -aoE 'Will install : .*' "$Out" | head -1 | sed 's/Will install : //' | tr -d '\r')
-check "the checklist arrives before the build" "$(before "Packs for 'pack-qtest-3'" '==> 1. Building Docker')" "yes"
+check "the checklist arrives before the build" "$(before "Packs for 'pack-qtest-3'" '==> 1. Building')" "yes"
+check "the keeping question is asked with the others" "$(before 'Keep Docker image?' '==> 1. Building')" "yes"
 check "and after the name" "$(before '==> Creating a new instance' "Packs for 'pack-qtest-3'")" "yes"
 check "the user name is asked after the checklist" "$(before "Packs for 'pack-qtest-3'" 'Lowercase letters, digits')" "yes"
 check "and a refused name is asked again" "$(contains 'Lowercase letters, digits')" "yes"
 check "both refused names come back to the question" "$(grep -ac 'Lowercase letters, digits' "$Out")" "2"
-check "and the build starts only after it" "$(before 'Lowercase letters, digits' '==> 1. Building Docker')" "yes"
+check "and the build starts only after it" "$(before 'Lowercase letters, digits' '==> 1. Building')" "yes"
 check "the one line of the summary names a pack" "$([ -n "$Chosen" ] && echo yes || echo no)" "yes"
 check "no empty 'Will remove' line"              "$(contains 'Will remove')" "no"
-check "the failure names the pack it could not install" \
-    "$(contains "The packs chosen earlier ($Chosen) were not installed: the build stopped before them.")" "yes"
 check "exit code 1" "$Code" "1"
 
 echo ""
@@ -127,7 +131,7 @@ echo "--- the onboarding skipped (answer n): no account is asked for"
 run_build 'pack-qtest-5\n\n0\nn\nRoot\n'
 check "says no pack was selected"         "$(contains '[OK] No pack selected.')" "yes"
 check "the account question is not asked" "$(contains 'Lowercase letters')" "no"
-check "and the run goes on to the build"  "$(contains '==> 1. Building Docker')" "yes"
+check "and the run goes on to the build"  "$(contains '==> 1. Building')" "yes"
 check "exit code 1"                       "$Code" "1"
 
 echo ""
@@ -135,7 +139,7 @@ echo "--- the folder question's other answers: n, an unusable path, cancel"
 run_build 'path-qtest-1\nn\nx<y\n\n'
 check "says the path is unusable" "$(contains "'x<y' is not a usable path.")" "yes"
 check "and cancels on the empty answer" "$(contains '[ABORT] Operation cancelled by user.')" "yes"
-check "nothing is built"                "$(contains '==> 1. Building Docker')" "no"
+check "nothing is built"                "$(contains '==> 1. Building')" "no"
 check "exit code 0"                     "$Code" "0"
 
 echo ""
@@ -146,7 +150,7 @@ run_build 'recipe-qtest-1\n' -Dockerfile "$RepoTemplate/nowhere/Dockerfile"
 check "refuses a Dockerfile that is not a file" "$(contains '[ABORT] The Dockerfile is not a file:')" "yes"
 check "and says nothing was modified"           "$(contains 'Nothing was modified.')" "yes"
 check "and asks nothing"                        "$(contains 'Name of the instance')" "no"
-check "and builds nothing"                      "$(contains '==> 1. Building Docker')" "no"
+check "and builds nothing"                      "$(contains '==> 1. Building')" "no"
 check "exit code 1"                             "$Code" "1"
 
 run_build 'recipe-qtest-2\n' -FirstBoot "$RepoTemplate/nowhere/onboarding.sh"
@@ -157,7 +161,7 @@ check "exit code 1"                             "$Code" "1"
 # the run goes all the way to the build, where the stand-in docker stops it
 # like every other run here.
 run_build 'pack-qtest-4\n\n0\n\n1\n\nqtestuser\n' -Dockerfile "$RepoTemplate/src/distro/build/Dockerfile"
-check "a real Dockerfile is accepted" "$(contains '==> 1. Building Docker')" "yes"
+check "a real Dockerfile is accepted" "$(contains '==> 1. Building')" "yes"
 check "no recipe abort"               "$(contains '[ABORT] The Dockerfile')" "no"
 check "exit code 1"                   "$Code" "1"
 

@@ -85,16 +85,22 @@ $LaunchJob = {
     Remove-Item -LiteralPath (Join-Path $env:TEMP "wsl-stack-gui-job.log") -ErrorAction SilentlyContinue
 
     # The paths travel quoted - an array of arguments is joined blindly, and a
-    # folder with a space would split it.
+    # folder with a space would split it. -NonInteractive: a hidden console
+    # cannot answer, and a Read-Host reached in the chain would wait forever -
+    # the window stuck on a job that never ends. Non-interactive, the wait
+    # turns into the job's own failure, which the trail carries.
     $script:Child = Start-Process pwsh -PassThru -WindowStyle Hidden -ArgumentList @(
-        "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
+        "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
         $Verb, $Name, $ArchiveFirst, "`"$ModulePath`""
     )
     $script:JobVerb = $Verb
     $script:JobName = $Name
 
     try {
-        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer
+        # Input priority, not the default Background: a Background queue item
+        # was starving across the pump - the window's own events ran, the tick
+        # never did (measured: the remove flow, ticks dead while clicks live).
+        $script:Poller = New-Object System.Windows.Threading.DispatcherTimer([System.Windows.Threading.DispatcherPriority]::Input)
         $script:Poller.Interval = [TimeSpan]::FromMilliseconds(400)
         $script:Poller.Add_Tick($WatchJob)
         $script:Poller.Start()

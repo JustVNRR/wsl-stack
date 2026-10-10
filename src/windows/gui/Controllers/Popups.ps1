@@ -734,15 +734,19 @@ function Show-AddInstance {
     if ($cmbFirstBoot.Items.Count -gt 0) { $cmbFirstBoot.SelectedIndex = 0 }
     if ($cmbDockerImage.Items.Count -gt 0) { $cmbDockerImage.SelectedIndex = 0 }
 
-    # The toggle: one road or the other, and only its row shows - the checked
-    # event covers both directions, since a radio leaving fires the arriving
-    # one's.
-    $rbDockerfile = $form.FindName("RbFromDockerfile")
-    $rbImage = $form.FindName("RbFromImage")
+    # The road: one combo, fed from the manager's own list - the recipe class
+    # says which roads a build can take, and the window never names the enum:
+    # the type travels as its own word ('Image'), compared, never named. Only
+    # the chosen road's row shows; its picking covers both directions, a
+    # change firing once whichever way it moved.
+    $cmbRoad = $form.FindName("CmbRoad")
+    $roadChoices = @($Manager.BuildTypes)
+    foreach ($road in $roadChoices) { $null = $cmbRoad.Items.Add("$($road.Label)") }
+    if ($cmbRoad.Items.Count -gt 0) { $cmbRoad.SelectedIndex = 0 }
     $boxDockerfile = $form.FindName("BoxDockerfile")
     $boxImage = $form.FindName("BoxDockerImage")
     $ShowRecipeBox = {
-        $fromImage = [bool]$rbImage.IsChecked
+        $fromImage = ($roadChoices[[Math]::Max(0, $cmbRoad.SelectedIndex)].Type -eq 'Image')
         # The onboarding follows the road: an uploaded image is presumed
         # complete as it is - or foreign, alpine having no bash - so its
         # box arrives unticked; a Dockerfile build keeps it, our images
@@ -751,8 +755,7 @@ function Show-AddInstance {
         $boxDockerfile.Visibility = if ($fromImage) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
         $boxImage.Visibility = if ($fromImage) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
     }
-    $rbDockerfile.Add_Checked({ & $ShowRecipeBox; & $RefreshChecklist })
-    $rbImage.Add_Checked({ & $ShowRecipeBox; & $RefreshChecklist })
+    $cmbRoad.Add_SelectionChanged({ & $ShowRecipeBox; & $RefreshChecklist })
 
     # The onboarding box: unticked, the image is used as it is - nothing of
     # the first_boot is placed or run, and there is no account to name: the
@@ -760,6 +763,14 @@ function Show-AddInstance {
     # brings. The empty first_boot the form sends is what tells the build.
     $chkRunFirstBoot = $form.FindName("ChkRunFirstBoot")
     $boxFirstBoot = $form.FindName("BoxFirstBoot")
+    # The working image, the same word as the console's keep question: the
+    # box rides inside the Dockerfile box, so the Docker image road never
+    # shows it - that image is not the build's to keep or save.
+    $chkSaveImage = $form.FindName("ChkSaveImage")
+    # Docker Desktop's own tick box, outside the Dockerfile box: the place an
+    # instance takes in Docker Desktop says nothing about the road its image
+    # came by, so this one shows on both.
+    $chkRegisterDocker = $form.FindName("ChkRegisterDocker")
 
     # The checklist follows the recipe: the shell pack is ticked for a
     # Debian-family one and for it alone - the family is read off the chosen
@@ -769,7 +780,8 @@ function Show-AddInstance {
     # redraw, and so do the boxes the new family still offers.
     $script:ChecklistDefaults = @(Get-BuildDefaultPacks -Catalog $Catalog)
     $RefreshChecklist = {
-        $family = if ($rbImage.IsChecked) { "" } else { Get-BuildRecipeFamily -Dockerfile $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
+        $fromImage = ($roadChoices[[Math]::Max(0, $cmbRoad.SelectedIndex)].Type -eq 'Image')
+        $family = if ($fromImage) { "" } else { Get-BuildRecipeFamily -Dockerfile $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
         # A family that cannot be read is SAID, not hidden: the packs stay in
         # reach - the image may well be Debian under a name we cannot read -
         # and the line is the guard for whoever does not know.
@@ -945,17 +957,19 @@ function Show-AddInstance {
         & $CheckName
         $runFirstBoot = [bool]$chkRunFirstBoot.IsChecked
         if ($runFirstBoot) { & $CheckUser } else { $script:AddUserOk = $true }
-        $fromImage = [bool]$rbImage.IsChecked
+        $fromImage = ($roadChoices[[Math]::Max(0, $cmbRoad.SelectedIndex)].Type -eq 'Image')
         $txtImageError.Text = if ($fromImage -and $cmbDockerImage.SelectedIndex -lt 0) { "Upload a Docker image first." } else { "" }
         $txtImageError.Visibility = if ($txtImageError.Text) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
         if ($script:AddNameOk -and $script:AddUserOk -and -not $txtImageError.Text) {
             $script:AddResult = [PSCustomObject]@{
-                Name       = $txtName.Text.Trim()
-                User       = if ($runFirstBoot) { $txtUser.Text.Trim() } else { "" }
-                Dockerfile = if ($fromImage) { "" } else { $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
-                FirstBoot  = if ($runFirstBoot) { $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path } else { "" }
-                Image      = if ($fromImage) { $imageChoices[$cmbDockerImage.SelectedIndex].Path } else { "" }
-                Packs      = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
+                Name           = $txtName.Text.Trim()
+                User           = if ($runFirstBoot) { $txtUser.Text.Trim() } else { "" }
+                Dockerfile     = if ($fromImage) { "" } else { $dockerChoices[[Math]::Max(0, $cmbDockerfile.SelectedIndex)].Path }
+                FirstBoot      = if ($runFirstBoot) { $bootChoices[[Math]::Max(0, $cmbFirstBoot.SelectedIndex)].Path } else { "" }
+                Image          = if ($fromImage) { $imageChoices[$cmbDockerImage.SelectedIndex].Path } else { "" }
+                SaveImage      = [bool]$chkSaveImage.IsChecked
+                RegisterDocker = [bool]$chkRegisterDocker.IsChecked
+                Packs          = @($script:ChecklistSelection.ToAdd | ForEach-Object { $_.Name })
             }
             $form.Close()
         }

@@ -333,8 +333,8 @@ function Get-RegisteredDistros {
 # The file as every reader should see it: today's shape - a Recipe block with
 # the look inside - whatever the file's age. A flat one (written before the
 # recipe existed, or before the look moved in) is read into the shape key by
-# key; what it does not carry stays unknown, and the repository's own files
-# remain the build's default.
+# key; a road the file does not carry falls back to the Dockerfile one, the
+# only road those files could have come by.
 function ConvertTo-CurrentLookFile {
     param([PSCustomObject]$Look)
 
@@ -343,8 +343,9 @@ function ConvertTo-CurrentLookFile {
     if ($Names -contains "Recipe") { return $Look }
 
     $Recipe = [ordered]@{
-        BuildType = "Unknown"
+        BuildType = "Dockerfile"
         BuildPath = ""
+        Context   = ""
         FirstBoot = ""
         # The file exists: a making ran, and it wrote this.
         Status    = "Ok"
@@ -401,6 +402,7 @@ function Get-InstanceRecipe {
     try { $Recipe.BuildType = [WslBuildType]$File.Recipe.BuildType } catch { }
     try { $Recipe.Status = [WslRecipeStatus]$File.Recipe.Status } catch { }
     $Recipe.BuildPath = "$($File.Recipe.BuildPath)"
+    $Recipe.Context   = "$($File.Recipe.Context)"
     $Recipe.FirstBoot = "$($File.Recipe.FirstBoot)"
     $Recipe.Messages  = @($File.Recipe.Messages)
 
@@ -459,6 +461,7 @@ function ConvertTo-InstanceFile {
         Recipe = [PSCustomObject]@{
             BuildType = "$($Recipe.BuildType)"
             BuildPath = "$($Recipe.BuildPath)"
+            Context   = "$($Recipe.Context)"
             FirstBoot = "$($Recipe.FirstBoot)"
             Status    = "$($Recipe.Status)"
             Messages  = @($Recipe.Messages)
@@ -640,6 +643,7 @@ function Set-InstanceState {
         try { $Recipe.BuildType = [WslBuildType]$Archive.Recipe.BuildType } catch { }
         try { $Recipe.Status = [WslRecipeStatus]$Archive.Recipe.Status } catch { }
         $Recipe.BuildPath = "$($Archive.Recipe.BuildPath)"
+        $Recipe.Context   = "$($Archive.Recipe.Context)"
         $Recipe.FirstBoot = "$($Archive.Recipe.FirstBoot)"
         $Recipe.Messages  = @($Archive.Recipe.Messages)
         $Recipe.Look      = ConvertTo-WslTheme -Look $Archive.Recipe.Look -Name $Archive.Name
@@ -713,6 +717,111 @@ function Set-InstanceState {
                 Write-Host "  * Docker Desktop   : not added - its settings can take it later" -ForegroundColor (Get-MessageColour muted)
             }
         }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# THE BUILD'S DOCKER MOVES
+# ---------------------------------------------------------------------------
+# What a build does to the local Docker store around an image: a rootfs
+# exported from it - the tar WSL imports - and a tag taken back out. The
+# image itself is the recipe's own business (WslRecipe.MakeImage).
+
+# The image, as a filesystem tar WSL can import: a throwaway container inside
+# the image, exported, removed. The container is the build's; the image is
+# not touched.
+function Export-DockerRootfs {
+    param([string]$Image, [string]$OutputPath)
+
+    $Container = "wsl-temp-export-$([guid]::NewGuid().ToString().Substring(0, 8))"
+    try {
+        # The container's ID lands on stdout and says nothing here; the
+        # assignment swallows it and nothing else - stderr, the why of a
+        # failure, stays on screen.
+        Invoke-NativeCommand { $null = docker create --name $Container $Image } "Container creation failed."
+        Invoke-NativeCommand { docker export -o $OutputPath $Container } "Docker export failed."
+    } finally {
+        # Best effort, and nothing here may raise: the finally runs on a
+        # failure too, and an error raised here would bury the message above.
+        $null = Test-NativeCommand { docker rm -f $Container }
+    }
+}
+
+# Takes a tag back out of the local store - the image under its own name left
+# alone - and answers whether it worked.
+function Remove-DockerImage {
+    param([string]$Tag)
+
+    return Test-NativeCommand { docker rmi -f $Tag }
+}
+
+# Writes the image to a file - the save-tar the image road loads back, so a
+# build's image comes back in seconds instead of a rebuild. The slot comes
+# first: the folder is the unit the image road lists, and a save into a
+# missing one would fail for a reason that is not the image's. Answers
+# whether it worked; docker save -o says nothing either way.
+function Save-DockerImage {
+    param([string]$Tag, [string]$OutputPath)
+
+    $Folder = Split-Path $OutputPath -Parent
+    if (-not (Test-Path $Folder)) { New-Item -ItemType Directory -Path $Folder -Force | Out-Null }
+
+    $PreviousEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $null = & docker save -o $OutputPath $Tag 2>&1
+    $Code = $LASTEXITCODE
+    $ErrorActionPreference = $PreviousEAP
+    return ($Code -eq 0)
+}
+
+
+# ---------------------------------------------------------------------------
+# THE BUILD'S ONBOARDING
+# ---------------------------------------------------------------------------
+# The onboarding script, placed in the instance right after the import: the
+# image carries none any more, so changing the first_boot costs no image
+# rebuild. The file travels in from the mounted drives - a fresh import has
+# them, WSL mounts them itself - and is armed in root's .bashrc the way the
+# image used to arm it: the .bashrc line is the fallback for a build that
+# stops between here and the run below, where the first root shell runs it.
+function Install-FirstBootScript {
+    param([string]$DistroName, [string]$Source)
+
+    # D:\...\onboarding.sh -> /mnt/d/.../onboarding.sh: the packs' own road.
+    $ThroughTheDrives = "/mnt/" + $Source.Substring(0, 1).ToLower() + ($Source.Substring(2) -replace "\\", "/")
+    $ExitCode = 0
+
+    # One shell, three moves, in this order: the copy, the executable bit, the
+    # .bashrc line last - a root shell opening in between must not run an
+    # onboarding that is not all there yet. Single-quoted inside the sh -c,
+    # the pack copy's rule: wsl.exe re-splits what it is handed.
+    Invoke-InInstance -DistroName $DistroName -RunAs "root" -ExitCode ([ref]$ExitCode) -Quiet -Command @(
+        "sh", "-c",
+        "cp -f '$ThroughTheDrives' /root/onboarding.sh && chmod 755 /root/onboarding.sh && echo /root/onboarding.sh >> /root/.bashrc"
+    )
+    if ($ExitCode -ne 0) {
+        throw "'$Source' could not be placed in '$DistroName' as /root/onboarding.sh - are the Windows drives mounted in it?"
+    }
+}
+
+# Runs it, as root, with the account name as its one argument. What the
+# script makes of the name - creating the account, keeping one the image
+# already carries, asking again in its own console - is the script's
+# business: it is the caller's file, and nothing here presumes to know it.
+#
+# A process of its own, the shell's own road: a native run under a class
+# method has its output swallowed whole (measured - the birth runs under
+# WslInstance.Build), and the onboarding is a script the user must SEE and
+# ANSWER. WaitForExit, not -Wait: -Wait would also wait on the WSL helper a
+# session leaves behind.
+function Invoke-WslFirstBoot {
+    param([string]$DistroName, [string]$User)
+
+    $Arguments = '-d {0} -u root /root/onboarding.sh {1}' -f $DistroName, $User
+    $Process = Start-Process wsl.exe -ArgumentList $Arguments -NoNewWindow -PassThru
+    $Process.WaitForExit()
+    if ($Process.ExitCode -ne 0) {
+        throw "The onboarding.sh configuration script failed. (Exit code: $($Process.ExitCode))"
     }
 }
 

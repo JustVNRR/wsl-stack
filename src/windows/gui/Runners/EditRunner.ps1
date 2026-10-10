@@ -26,7 +26,7 @@ try {
 
     Write-Host ""
     Write-Host "==> Packs of '$Name'" -ForegroundColor (Get-MessageColour info)
-    $report = $mgr.ManagePacks($inst, $toAdd, $toRemove, "")
+    $report = $mgr.ManagePacks($inst, $toAdd, $toRemove)
 
     if ($null -eq $report.Failure) {
         Write-Host ""

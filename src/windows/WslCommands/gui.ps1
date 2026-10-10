@@ -241,10 +241,12 @@ $btnAdd.Add_Click({
     $script:BuildChild = Start-Process pwsh -PassThru -ArgumentList @(
         "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$RunnerPath`"",
         "`"$($form.Name)`"", "`"$($form.User)`"", "`"$($form.Packs -join ',')`"",
-        "`"$($form.Dockerfile)`"", "`"$($form.FirstBoot)`"", "`"$($form.Image)`"",
+        "`"$($form.Dockerfile)`"", "`"$($form.FirstBoot)`"", "`"$($form.Image)`"", "`"$($form.SaveImage)`"", "`"$($form.RegisterDocker)`"",
         "`"$ModulePath`"", "`"$BuildScript`""
     )
-    $script:BuildWatch = New-Object System.Windows.Threading.DispatcherTimer
+    # Input priority: the same starvation story as the job watcher (see
+    # Jobs.ps1) - a Background tick can starve across the pump.
+    $script:BuildWatch = New-Object System.Windows.Threading.DispatcherTimer([System.Windows.Threading.DispatcherPriority]::Input)
     $script:BuildWatch.Interval = [TimeSpan]::FromMilliseconds(1000)
     $script:BuildWatch.Add_Tick($WatchBuild)
     $script:BuildWatch.Start()

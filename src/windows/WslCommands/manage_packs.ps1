@@ -53,10 +53,9 @@ if ($Selection.ToAdd.Count -eq 0 -and $Selection.ToRemove.Count -eq 0) {
     exit 0
 }
 
-# 4. Hand the changes over to the engine
-# $Manager.ManagePacks runs Invoke-PackApply internally and returns a structured report.
-# The 4th argument is the resume hint: "" lets the engine's own line stand.
-$Report = $Manager.ManagePacks($Distro, $Selection.ToAdd, $Selection.ToRemove, "")
+# 4. Hand the changes over to the engine: the manager asks the instance to
+# apply them - AddPack and RemovePack - and answers a structured report.
+$Report = $Manager.ManagePacks($Distro, $Selection.ToAdd, $Selection.ToRemove)
 
 if ($null -ne $Report.Failure) {
     exit $Report.ExitCode

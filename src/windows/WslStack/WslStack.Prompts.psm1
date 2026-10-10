@@ -182,11 +182,11 @@ function Resolve-InstallPath {
             } | Select-Object -First 1
         }
 
-        # The rebuild is the only case where this folder is ours to erase, and
-        # the instance's own name is what says so.
-        $ItsOwn = $Registered | Where-Object { $_.Name -eq $DistroName -and $_.Path -eq $Full } | Select-Object -First 1
+        # The folder belongs to a name that was just proven free: an existing
+        # one is occupied by definition - nothing here is ours to erase any
+        # more, builds never take an instance over.
         $Occupied = $false
-        if ($Full -and (Test-Path $Full) -and (-not $ItsOwn)) {
+        if ($Full -and (Test-Path $Full)) {
             $Occupied = @(Get-ChildItem -Path $Full -Force -ErrorAction SilentlyContinue).Count -gt 0
         }
 
@@ -219,23 +219,21 @@ function Resolve-InstallPath {
     return $InstallPath
 }
 
-# The instance's full name, resolved: which instance it is, where it will
-# live, and - when Windows already carries the name - the destruction that
-# takes. One question after the other, all of it before the machine starts;
-# the checks hold on a first build too, where no distribution exists yet and
-# the banner never shows. An empty answer anywhere, or a name not retyped,
-# cancels the run with nothing modified. Answers the name, the folder, and
-# whether Windows already had the name.
+# The instance's full name, resolved: which instance it is, and where it will
+# live. One question after the other, all of it before the machine starts. An
+# empty answer anywhere cancels the run with nothing modified. A name Windows
+# already carries is refused on the spot - an instance is never built over,
+# the window's road refusing the same way - and the strict list read also
+# answers "is this path another instance's folder" below.
 function Resolve-InstanceIdentity {
     param([string]$Root)
 
     $DistroName = Read-InstanceName "Name of the instance (CTRL+C to abort)"
 
     # What Windows already knows, read once and read strictly: this one list
-    # answers "is this path another instance's folder" below, "is this name
-    # taken" for the banner, and "may this still be erased" just before the
-    # erasing. A list that cannot be read stops the run rather than passing
-    # for an empty one.
+    # answers "is this name taken" right now, and "is this path another
+    # instance's folder" below. A list that cannot be read stops the run
+    # rather than passing for an empty one.
     try {
         $Registered = @(Get-RegisteredDistros)
     } catch {
@@ -245,21 +243,16 @@ function Resolve-InstanceIdentity {
         Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
         exit 1
     }
-    $WasRegistered = [bool]($Registered | Where-Object { $_.Name -eq $DistroName } | Select-Object -First 1)
-
-    $InstallPath = Resolve-InstallPath -DistroName $DistroName -Root $Root -Registered $Registered
-
-    # The safety check: a name Windows already carries is destroyed only once
-    # the exact name is typed back - the banner asks for it, and a reflexive
-    # Enter aborts.
-    if ($WasRegistered) {
-        if (-not (Confirm-Destruction -DistroName $DistroName -InstallPath $InstallPath -Lead "A WSL distribution named '$DistroName' ALREADY exists.")) {
-            Write-Host "[ABORT] Operation cancelled. No data was modified." -ForegroundColor (Get-MessageColour warning)
-            exit 0
-        }
+    if (@($Registered | Where-Object { $_.Name -eq $DistroName }).Count -gt 0) {
+        Write-Host ""
+        Write-Host "[ABORT] '$DistroName' is already registered." -ForegroundColor (Get-MessageColour error)
+        Write-Host "        Remove it first:  .\wsl.ps1 unregister" -ForegroundColor (Get-MessageColour hint)
+        Write-Host "        Nothing was modified." -ForegroundColor (Get-MessageColour muted)
+        exit 1
     }
 
-    return [PSCustomObject]@{ Name = $DistroName; InstallPath = $InstallPath; WasRegistered = $WasRegistered }
+    $InstallPath = Resolve-InstallPath -DistroName $DistroName -Root $Root -Registered $Registered
+    return [PSCustomObject]@{ Name = $DistroName; InstallPath = $InstallPath }
 }
 
 # ---------------------------------------------------------------------------

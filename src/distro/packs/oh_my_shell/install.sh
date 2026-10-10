@@ -68,13 +68,14 @@ if ! command -v tldr >/dev/null 2>&1; then
     chmod +x "$HOME/.local/bin/tldr"
 fi
 
-# The shell's own files, into the home. -n: a file that is already there is
-# never replaced - the settings are the ones you have, and re-running the
-# install cannot overwrite an edit. The .env files the gmake keeps your
-# variables in are not in this folder either way.
+# The shell's own files, into the home. --update=none: a file that is already
+# there is never replaced - the settings are the ones you have, and
+# re-running the install cannot overwrite an edit. (The old -n spelling told
+# the same; newer coreutils deprecate it and print a warning.) The .env
+# files the gmake keeps your variables in are not in this folder either way.
 echo "Installing the shell configuration..."
 mkdir -p "$HOME/.config/zsh" "$HOME/.local/state/zsh" "$HOME/.cache/zsh"
-cp -rn "$here/config/." "$HOME/.config/zsh/"
+cp -r --update=none "$here/config/." "$HOME/.config/zsh/"
 
 # The one line that points zsh at the settings. A ~/.zshenv of your own is
 # never touched: either it already does this, or it is told what to add.

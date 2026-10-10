@@ -42,11 +42,12 @@
 # graphical one would replace that loop whole.
 #
 # This class loads with the other classes (its only class dependencies are
-# WslInstance, WslTheme, WslState, WslPackCatalog); the scripts are the thin
-# interface; the menu classes stay interface-side.
+# WslInstance, WslRecipe, WslTheme, WslState, WslPack and WslPackCatalog);
+# the scripts are the thin interface; the menu classes stay interface-side.
 # ==============================================================================
-# What this one names, declared here, the four of them.
+# What this one names, declared here, each one of them.
 using module .\WslInstance.psm1
+using module .\WslRecipe.psm1
 using module .\WslTheme.psm1
 using module .\WslState.psm1
 using module .\WslPack.psm1
@@ -131,6 +132,11 @@ class WslInstanceManager {
     [string]$InstancesRoot
     [string]$ArchivesRoot
     [WslPackCatalog]$Catalog
+
+    # The roads a build can take - the recipe class's own list, handed to the
+    # window the way the catalog is: the gui reads this, never the enum.
+    [object[]]$BuildTypes = @()
+
     [WslInstance[]]$Instances = @()
 
     # Folders under the root carrying the marker that no registered instance
@@ -143,6 +149,7 @@ class WslInstanceManager {
         $this.InstancesRoot = $instancesRoot.TrimEnd('\')
         $this.ArchivesRoot  = Join-Path $this.InstancesRoot "archives"
         $this.Catalog = [WslPackCatalog]::new($packsRoot)
+        $this.BuildTypes = [WslRecipe]::Roads()
         $this.Refresh()
     }
 
@@ -254,18 +261,13 @@ class WslInstanceManager {
     # =========================================================================
 
     # The packs an instance carries, by name - or $null when it cannot say
-    # where its user's home is (the caller says so and stops).
+    # where its user's home is (the caller says so and stops). The read is the
+    # instance's own; the null is the caller's stop signal, kept here.
     [object] InstalledPacks([WslInstance]$Instance) {
-        # Not named $home: HOME is a PowerShell automatic variable, read-only,
-        # and the assignment throws - paid once already, in RefreshPacks.
-        $InstanceHome = Get-InstanceHome -DistroName $Instance.Name
-        if (-not $InstanceHome) { return $null }
-        $PacksDirectory = "$InstanceHome/.config/packs"
-        return @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
-    }
-
-    [string] PacksDirectoryOf([WslInstance]$Instance) {
-        return "$(Get-InstanceHome -DistroName $Instance.Name)/.config/packs"
+        # The instance's own read; the null the callers stop on is this
+        # method's signal alone - each caller has its sentence for it.
+        try { return @($Instance.GetPacks()) }
+        catch { return $null }
     }
 
     # The packs a question may offer: this checkout carries them, the
@@ -273,8 +275,7 @@ class WslInstanceManager {
     # - an invisible pack arrives with the pack that requires it, never
     # offered.
     [WslPack[]] CandidatePacks([WslInstance]$Instance) {
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
-        $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
+        $Installed = @($Instance.GetPacks())
         $Family = Get-InstanceFamily -DistroName $Instance.Name
         return @($this.Catalog.OfferedFor($Family) | Where-Object { $Installed -notcontains $_.Name })
     }
@@ -282,8 +283,7 @@ class WslInstanceManager {
     # The packs this instance carries that a user may take out by hand: the
     # invisible ones leave with the last pack that requires them.
     [string[]] RemovablePacks([WslInstance]$Instance) {
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
-        $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
+        $Installed = @($Instance.GetPacks())
         $Offered = @()
         foreach ($Name in $Installed) {
             $Pack = $this.Catalog.GetPack($Name)
@@ -298,8 +298,8 @@ class WslInstanceManager {
     # whether a neighbour still claims its packages while it can still say
     # yes. -Missing names the ones installed before packs had a remove.sh.
     [object] RemovalPlan([WslInstance]$Instance, [string]$PackName) {
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
-        $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
+        $Installed = @($Instance.GetPacks())
+        $PacksDirectory = $Instance.PacksDirectory()
         $ToRemove = @($this.Catalog.ResolveRemoval($Installed, @($PackName), @()))
 
         $Missing = @()
@@ -347,20 +347,17 @@ class WslInstanceManager {
     }
 
     # build - the fleet side of it. The command keeps its own scene (the
-    # image, the download, the questions of prompts.ps1); what is the fleet's
-    # is here: the name and the folder are this template's rules, the creation
-    # is the instance's own Build, and the fleet is re-read after.
-    #
-    # -Replace says the caller went through the destruction confirmation and
-    # its last look: the old distribution was destroyed a moment ago, and the
-    # name is its to take back. The name guard asks WINDOWS, live - not the
-    # inventory this object read at its birth, which still carries the
-    # destroyed one and would refuse a name the build is entitled to.
-    [WslInstance] CreateNew([string]$name, [string]$tarRootfs, [string]$user, [WslTheme]$look, [bool]$Replace) {
+    # questions, the confirmations, the destruction of an instance it is
+    # replacing - its act, and its risk, by the user's own word); what is the
+    # fleet's is here: the name and the folder are this template's rules, the
+    # creation is the instance's own Build - the recipe in, a complete
+    # instance out - and the fleet is re-read after. The name guard asks
+    # WINDOWS, live - not the inventory this object read at its birth.
+    [WslInstance] CreateNew([string]$name, [WslRecipe]$recipe, [string]$user) {
         if (-not $this.IsNameUsable($name)) {
             throw "'$name' is not usable as an instance name (letters, digits, '.', '_' and '-' only)."
         }
-        if (-not $Replace -and ((Get-DistroNames) -contains $name)) {
+        if ((Get-DistroNames) -contains $name) {
             throw "An instance named '$name' is registered on this machine."
         }
 
@@ -369,7 +366,7 @@ class WslInstanceManager {
             throw "Installation folder '$installPath' already exists and is not empty."
         }
 
-        $newInstance = [WslInstance]::Build($name, $installPath, $tarRootfs, $user, $look)
+        $newInstance = [WslInstance]::Build($name, $installPath, $recipe, $user)
         $this.Refresh()
         return $newInstance
     }
@@ -405,8 +402,8 @@ class WslInstanceManager {
     # halves is undone, a half-installed pack is worse than none, the Makefile
     # loads whatever folder is there.
     [object] AddPack([WslInstance]$Instance, [string]$PackName) {
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
-        $Installed = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
+        $PacksDirectory = $Instance.PacksDirectory()
+        $Installed = @($Instance.GetPacks())
 
         $ToInstall = @()
         foreach ($Name in @($this.Catalog.ResolveSelection(@($PackName), $Installed))) {
@@ -493,7 +490,7 @@ class WslInstanceManager {
     # once, at the end: a question about the instance, not about a pack.
     [object] RemovePack([WslInstance]$Instance, [string]$PackName) {
         $Plan = $this.RemovalPlan($Instance, $PackName)
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
+        $PacksDirectory = $Instance.PacksDirectory()
 
         $Steps = @()
         foreach ($Name in $Plan.ToRemove) {
@@ -522,22 +519,22 @@ class WslInstanceManager {
     }
 
     # manage_packs - what was ticked arrives, what was unticked leaves; the
-    # checklist itself is the interface's (prompts.ps1's Select-Packs). What
-    # stands comes back read from the instance: the folder is the state.
-    [object] ManagePacks([WslInstance]$Instance, [WslPack[]]$ToAdd, [string[]]$ToRemove, [string]$ResumeHint) {
-        # A class method takes no default; the one packs.ps1 would have used
-        # applies when the caller has none of its own (the build does).
-        if (-not $ResumeHint) { $ResumeHint = "Run this again to finish." }
-        $PacksDirectory = $this.PacksDirectoryOf($Instance)
-        $Failure = Invoke-PackApply -DistroName $Instance.Name -PacksDirectory $PacksDirectory `
-            -ToAdd $ToAdd -ToRemove $ToRemove -ResumeHint $ResumeHint
-        $Now = @(Get-InstalledPacks -DistroName $Instance.Name -PacksDirectory $PacksDirectory)
+    # checklist itself is the interface's (prompts.ps1's Select-Packs). The
+    # applying is the instance's own act; what stands comes back read from
+    # the instance: the folder is the state.
+    [object] ManagePacks([WslInstance]$Instance, [WslPack[]]$ToAdd, [string[]]$ToRemove) {
+        # The report tells what really happened: the before-and-after read is
+        # what makes Added and Removed true names - a run that failed added
+        # less than it was asked, and says so.
+        $Before = @($Instance.GetPacks())
+        $Failure = $Instance.ApplyPacks($ToAdd, $ToRemove)
+        $Now = @($Instance.GetPacks())
 
         return [PSCustomObject]@{
             Failure  = $Failure
             Now      = $Now
-            Added    = @($ToAdd | ForEach-Object { $_.Name })
-            Removed  = @($ToRemove)
+            Added    = @($Now | Where-Object { $Before -notcontains $_ })
+            Removed  = @($Before | Where-Object { $Now -notcontains $_ })
             ExitCode = if ($null -ne $Failure) { $Failure.ExitCode } else { 0 }
         }
     }

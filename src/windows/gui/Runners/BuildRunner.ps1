@@ -7,20 +7,41 @@
 # Enter only when the build ABORTED, so the error is read instead of vanishing
 # with the process.
 
-param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Image, [string]$Module, [string]$BuildScript)
+# SaveImage and RegisterDocker ride as strings like JobRunner's archive flag:
+# a [bool] parameter refuses every token pwsh -File hands it (measured - even
+# "1" and "$true" die at the binding), so the window sends True/False and the
+# conversion happens here.
+param([string]$Name, [string]$User, [string]$Packs, [string]$Dockerfile, [string]$FirstBoot, [string]$Image, [string]$SaveImage, [string]$RegisterDocker, [string]$Module, [string]$BuildScript)
 
 $failed = $false
+# Zeroed first, the entry's own rule: a run that simply ends returns zero -
+# what an earlier native left in $LASTEXITCODE must not read as this run's.
+$LASTEXITCODE = 0
 try {
     Import-Module $Module -Force
     $mgr = New-InstanceManager
-    & $BuildScript -Name $Name -User $User -Packs $Packs -Dockerfile $Dockerfile -FirstBoot $FirstBoot -Image $Image -Manager $mgr
+    # The window's answers, one object - the build's mode IS its presence,
+    # and the console never sees these as parameters any more.
+    $Form = [PSCustomObject]@{
+        Name           = $Name
+        User           = $User
+        Packs          = $Packs
+        Dockerfile     = $Dockerfile
+        FirstBoot      = $FirstBoot
+        Image          = $Image
+        SaveImage      = [bool]::Parse($SaveImage)
+        RegisterDocker = [bool]::Parse($RegisterDocker)
+    }
+    & $BuildScript -Form $Form -Manager $mgr
 } catch {
     Write-Host ""
     Write-Host "[ERROR] $($_.Exception.Message)"
     $failed = $true
 }
 
-if ($failed) {
+# The script's own refusals end in exit 1, not in a throw - the window must
+# stay for those too, or the message is gone before it is read.
+if ($failed -or $LASTEXITCODE -ne 0) {
     Write-Host ""
     $null = Read-Host "Press Enter to close this window"
 }

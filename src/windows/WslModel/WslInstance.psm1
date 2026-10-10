@@ -29,11 +29,6 @@ class WslInstance {
 
     [WslState]$State = [WslState]::Unknown
 
-    # The packs the instance carries, by name: inside an instance a pack is its
-    # folder - what it requires and whether it is ever offered come from the
-    # catalog, the rule the commands have always followed.
-    [string[]]$InstalledPacks = @()
-
     # The recipe it was made with - where the image came from, the onboarding
     # shell, the look, and how the making went. Born empty and Pending: the
     # build fills it, the profile step writes it out with the look
@@ -47,10 +42,12 @@ class WslInstance {
 
     # The instance as a block of lines, its look and its packs included -
     # whose description is the theme's own. Whoever shows it decides where
-    # and when; one Write-Host is enough.
+    # and when; one Write-Host is enough. The packs are asked live: nothing
+    # caches them, so the line cannot go stale - a read that fails says none.
     [string] ToString() {
         $LookLine = if ($this.Recipe.Look) { "$($this.Recipe.Look)" } else { "-" }
-        $PacksLine = if ($this.InstalledPacks.Count -eq 0) { "none" } else { $this.InstalledPacks -join ", " }
+        $Packs = try { @($this.GetPacks()) } catch { @() }
+        $PacksLine = if ($Packs.Count -eq 0) { "none" } else { $Packs -join ", " }
         $Lines = @(
             "  * Distribution Name : $($this.Name)",
             "  * Default User      : $($this.DefaultUser)",
@@ -477,6 +474,42 @@ class WslInstance {
         return [PSCustomObject]@{ Applied = $Applied; Warnings = @($Warnings) }
     }
 
+    # The distro's place in Docker Desktop, taken: its name written among the
+    # ones Docker Desktop knows, the app restarted so its docker client is
+    # injected - it reads that list only when it starts - then the thing
+    # itself asked, as the default user and never root, which would pass
+    # whatever the answer is. What was asked is done or the birth fails: the
+    # write and the restart go through unwrapped - registering was the
+    # caller's word, not a fancy. What the client then does is the recipe's
+    # verdict, like the look's - ready, or a warning and why: the injection
+    # runs at Docker Desktop's own pace, and being slow is not being
+    # impossible. The name is read out first, so the blocks below carry a
+    # plain local.
+    [void] RegisterDockerDesktop() {
+        $DistroName = $this.Name
+        try { Set-DockerState -Name $DistroName }
+        catch { throw "Docker Desktop's settings could not take '$DistroName': $($_.Exception.Message)" }
+        if (-not (Test-NativeCommand { docker desktop restart })) {
+            throw "Docker Desktop would not restart to pick '$DistroName' up."
+        }
+
+        $DockerUsable = $false
+        for ($Attempt = 1; $Attempt -le 5 -and -not $DockerUsable; $Attempt++) {
+            $DockerUsable = Test-NativeCommand { wsl.exe -d $DistroName -- docker version }
+            if (-not $DockerUsable) { Start-Sleep -Seconds 2 }
+        }
+        if ($DockerUsable) {
+            $this.Recipe.Messages = @($this.Recipe.Messages) + "Docker Desktop: ready - 'docker' works in this instance."
+        } else {
+            $this.Recipe.Status = [WslRecipeStatus]::Warning
+            $this.Recipe.Messages = @($this.Recipe.Messages) + @(
+                "Docker Desktop: 'docker' does not answer in this instance yet.",
+                "run 'docker version' in there; if it names the socket's permissions, restart Docker Desktop and open a new terminal."
+            )
+        }
+        try { $this.Save() } catch { }
+    }
+
     # The four gestures of the look: what the theme's children change, one at a
     # time. ApplyTerminalProfile above walks the same road (the profile's guid,
     # the fragment, then the look - the icon recipe kept through: a font or
@@ -552,49 +585,152 @@ class WslInstance {
     # INSTANCE METHODS: Packs Management
     # =========================================================================
 
-    # Explicit, and the constructor does not run it: it asks the instance,
-    # which boots it on the way - only the commands that need the packs pay.
-    # A pack's folder is the one HOLDING pack.conf, and the path comes from the
-    # home the instance names - a tilde only expands inside a shell.
-    [void] RefreshPacks() {
-        $this.InstalledPacks = @()
-        # Not named $home: HOME is a PowerShell automatic variable, and the
-        # assignment is refused - read-only.
-        $InstanceHome = @(& wsl.exe -d $this.Name -- printenv HOME 2>$null |
-            ForEach-Object { ($_ -replace "`0", "").Trim() } | Where-Object { $_ })
-        if (-not $InstanceHome) { return }
+    # The user's home, asked live - the anchor of every path that goes in. An
+    # instance that cannot name it says so here, at the moment it matters;
+    # nobody checks it beforehand.
+    [string] Home() {
+        $InstanceHome = Get-InstanceHome -DistroName $this.Name
+        if (-not $InstanceHome) { throw "'$($this.Name)' did not say where its user's home is." }
+        return $InstanceHome
+    }
 
-        $packsDirectory = "$($InstanceHome[0])/.config/packs"
-        $found = & wsl.exe -d $this.Name -- find $packsDirectory -mindepth 2 -maxdepth 2 -name pack.conf 2>$null
-        foreach ($conf in @($found)) {
-            $clean = "$conf".Trim()
-            if (-not $clean) { continue }
-            $packName = (($clean -replace "/pack.conf$", "").Split("/") | Select-Object -Last 1)
-            $this.InstalledPacks += $packName
+    # Where its packs live, once: every gesture that touches them anchors
+    # here - the home, then the one folder.
+    [string] PacksDirectory() {
+        return "$($this.Home())/.config/packs"
+    }
+
+    # What the instance carries, asked live: a pack's folder is the one
+    # HOLDING pack.conf, and the path comes from the home the instance names -
+    # a tilde only expands inside a shell. Answers live; nothing caches it -
+    # the manager's reads and the description both come through here.
+    [string[]] GetPacks() {
+        $PacksDirectory = $this.PacksDirectory()
+        return @(Get-InstalledPacks -DistroName $this.Name -PacksDirectory $PacksDirectory)
+    }
+
+    # The packs, one pack at a time. AddPack brings one in - its folder
+    # placed, its root half as root, its install behind WSL's own
+    # passwordless door - and RemovePack takes one out - its remove.sh, its
+    # folder. Neither speaks: the sentences belong to the caller. Each
+    # answers $null, or where it stopped - the pack, its exit code, the step
+    # ("copy", "root", "install", "remove", "folder"). A pack that declines
+    # (exit code 2) is not a failure: its folder goes back out, and the null
+    # says so.
+    [object] AddPack([WslPack]$pack) {
+        $DistroName = $this.Name
+        $PacksDirectory = $this.PacksDirectory()
+        $ErrorLog = if ($this.Path) { Join-Path $this.Path "pack-errors.log" } else { "" }
+        $Code = 0
+
+        # The folder first: a remove.sh running later in the same gesture
+        # asks which installed pack claims a package, and this one must be
+        # among them.
+        $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $pack.Name
+        if (-not (Copy-PackIntoInstance -DistroName $DistroName -PackPath $pack.Path -Target $Target -ExitCode ([ref]$Code))) {
+            return [PSCustomObject]@{ Pack = $pack.Name; ExitCode = $Code; Step = "copy" }
         }
+
+        # The root half, as WSL's own root, before the door opens: the shell
+        # pack carries sudo itself, and on a bare Debian its install_root.sh
+        # must run where no door can open yet.
+        if (Test-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code)) {
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install_root.sh" -ExitCode ([ref]$Code) -AsRoot -ErrorLog $ErrorLog
+            if ($Code -ne 0) {
+                # Nothing of this pack has run its install yet: its folder
+                # goes back out. What its root part put in place stays -
+                # running it again picks up there.
+                $RootCode = $Code
+                Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Code)
+                return [PSCustomObject]@{ Pack = $pack.Name; ExitCode = $RootCode; Step = "root" }
+            }
+        }
+
+        # The install, behind WSL's own door: passwordless sudo for its
+        # length, nothing of it after - the files stay the user's.
+        $sudoWindow = $false
+        try {
+            $sudoWindow = Enable-PackSudo -DistroName $DistroName
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "install.sh" -ExitCode ([ref]$Code) -ErrorLog $ErrorLog
+        } finally {
+            if ($sudoWindow) { Disable-PackSudo -DistroName $DistroName }
+        }
+
+        # Exit code 2 is the pack's way of saying it asked a question and the
+        # answer was no - the oh_my_code pack asks before adding a second copy
+        # of a program already installed on Windows. Its folder goes back out
+        # - the folder is what the menu reads, and a pack with no tool behind
+        # it is a menu that lies - but nothing failed. Spelled out here rather
+        # than guessed from the output, so a failure and a decline are never
+        # taken one for the other (docs/packs.md).
+        if ($Code -eq 2) {
+            $Declined = 0
+            Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Declined)
+            return $null
+        }
+
+        # A half-installed pack is worse than none: its folder goes back out,
+        # and what its install had already written to the system stays.
+        if ($Code -ne 0) {
+            $InstallCode = $Code
+            Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Code)
+            return [PSCustomObject]@{ Pack = $pack.Name; ExitCode = $InstallCode; Step = "install" }
+        }
+
+        return $null
     }
 
-    [bool] HasPack([string]$packName) {
-        return ($this.InstalledPacks -contains $packName)
+    # One pack out: its remove.sh - as root, the removals' own gesture - then
+    # its folder. A pack without a remove.sh was installed before packs had
+    # one: its folder leaves, nothing is undone, and no line says it.
+    [object] RemovePack([string]$name) {
+        $DistroName = $this.Name
+        $PacksDirectory = $this.PacksDirectory()
+        $ErrorLog = if ($this.Path) { Join-Path $this.Path "pack-errors.log" } else { "" }
+        $Code = 0
+
+        $Target = Get-PackFolder -PacksDirectory $PacksDirectory -Name $name
+        if (Test-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code)) {
+            Invoke-PackScript -DistroName $DistroName -Target $Target -Script "remove.sh" -ExitCode ([ref]$Code) -AsRoot -ErrorLog $ErrorLog
+            if ($Code -ne 0) {
+                return [PSCustomObject]@{ Pack = $name; ExitCode = $Code; Step = "remove" }
+            }
+        }
+
+        Remove-PackFolder -DistroName $DistroName -Target $Target -ExitCode ([ref]$Code)
+        if ($Code -ne 0) {
+            return [PSCustomObject]@{ Pack = $name; ExitCode = $Code; Step = "folder" }
+        }
+        return $null
     }
 
-    # The one order that works, mirrored from the real engine (packs.ps1):
-    # newcomers' folders first (a remove.sh asking which installed pack claims
-    # a package must see them), then what leaves, then the installs, then the
-    # dependencies the removals left behind. Answers $null, or the pack that
-    # stopped the run and its exit code - what that means is the caller's
-    # sentence.
-    #
-    # TODO: port the moves from packs.ps1 - the copy into the instance (/mnt,
-    # or \\wsl.localhost when the drives are unmounted), the scripts run from
-    # inside the folder, the decline code (2: the folder goes back out, nothing
-    # failed), the rollback of placed folders, and the cleanup_orphans.sh pass
-    # when something left.
-    #
-    # The newcomers are the catalog's packs, requirements already resolved;
-    # what leaves is named. Both lists are explicit, @() included: a class
-    # method takes no default.
+    # The whole gesture, in the engine's one working order: the newcomers
+    # first - a remove.sh asks which installed pack claims a package and must
+    # see them - then what leaves, then the dependencies the removals left
+    # behind. The first failure stops the run; the packs already done stay.
     [object] ApplyPacks([WslPack[]]$toAdd, [string[]]$toRemove) {
+        # The run's errors, kept aside: the scripts' error channel lands in
+        # one file beside the instance, reset at the start of every run - the
+        # build opens it when something failed.
+        $ErrorLog = if ($this.Path) { Join-Path $this.Path "pack-errors.log" } else { "" }
+        if ($ErrorLog) { Remove-Item -Path $ErrorLog -Force -ErrorAction SilentlyContinue }
+
+        foreach ($Pack in $toAdd) {
+            $Failure = $this.AddPack($Pack)
+            if ($null -ne $Failure) { return $Failure }
+        }
+        foreach ($Name in $toRemove) {
+            $Failure = $this.RemovePack($Name)
+            if ($null -ne $Failure) { return $Failure }
+        }
+
+        # The dependencies the removals left behind, taken back only where
+        # nothing can still need them. An early stop is not a failure: the
+        # packs are in place, and the news of it is the caller's to say.
+        if ($toRemove.Count -gt 0) {
+            $CleanupCode = 0
+            $null = Invoke-PackOrphanCleanup -DistroName $this.Name -ExitCode ([ref]$CleanupCode)
+        }
         return $null
     }
 
@@ -602,15 +738,44 @@ class WslInstance {
     # STATIC METHODS: Factory, Restore & Queries
     # =========================================================================
 
-    static [WslInstance] Build([string]$name, [string]$installPath, [string]$tarPath, [string]$user, [WslTheme]$look) {
-        if (-not (Test-Path $installPath)) {
-            New-Item -ItemType Directory -Path $installPath -Force | Out-Null
+    # The birth, from the recipe to a complete instance: the image is made
+    # (the recipe's own move), exported as a rootfs tar, imported, the
+    # recipe's onboarding placed and run, the look applied, and the working
+    # image kept or taken back, the recipe's word.
+    # The old instance of the same name, if there was one, is already gone:
+    # destroying it was the calling command's act - confirmation and last
+    # look included - and the name is free by the time this runs. The image
+    # still comes first: every step after it writes, and a Docker that fails
+    # leaves nothing of this birth behind. The look is tried, never owed: an
+    # instance born with a plain shell is better than none, and what could
+    # not be applied is said in the status and the messages - never in a
+    # thrown birth.
+    static [WslInstance] Build([string]$name, [string]$installPath, [WslRecipe]$recipe, [string]$user) {
+        $Tag = [WslRecipe]::ImageTag
+        # The name the image is worked under from here: the recipe's own
+        # build tag, or the name - or bare id - its tar carried.
+        $ImageRef = $recipe.MakeImage()
+
+        try {
+            $tarPath = Join-Path (Split-Path $installPath -Parent) "$name-rootfs.tar"
+            Export-DockerRootfs -Image $ImageRef -OutputPath $tarPath
+
+            if (-not (Test-Path $installPath)) {
+                New-Item -ItemType Directory -Path $installPath -Force | Out-Null
+            }
+
+            Invoke-External { wsl.exe --import $name $installPath $tarPath --version 2 } "WSL import failed."
+        } catch {
+            # A birth that did not register leaves no folder behind: the
+            # machine is found again the way this run found it.
+            Remove-Item -Recurse -Force $installPath -ErrorAction SilentlyContinue
+            throw
+        } finally {
+            Remove-Item $tarPath -Force -ErrorAction SilentlyContinue
         }
 
-        Invoke-External { wsl.exe --import $name $installPath $tarPath --version 2 } "WSL import failed."
-
-        # Ours from here on, whatever happens next - written before the steps
-        # that can still fail, so a build that stops later leaves a real
+        # Ours from here on, whatever happens next - written before the look,
+        # which can still fail, so a build that stops later leaves a real
         # instance behind, not an invisible one.
         New-InstanceMarker -Folder $installPath -By "build"
 
@@ -618,7 +783,84 @@ class WslInstance {
         $instance.Name        = $name
         $instance.Path        = $installPath
         $instance.DefaultUser = $user
-        $instance.Recipe.Look = $look
+        $instance.Recipe      = $recipe
+
+        # The recipe's onboarding, when it names one: placed, run as root
+        # with the account name as its argument, and the distro stopped so
+        # the next boot reads the account it made. What the script makes of
+        # the name is its own business.
+        if ($recipe.FirstBoot) {
+            Install-FirstBootScript -DistroName $name -Source $recipe.FirstBoot
+            Invoke-WslFirstBoot -DistroName $name -User $user
+            Invoke-NativeCommand { wsl.exe --terminate $name } "Could not stop '$name'." -SuppressOutput
+        } else {
+            # An image used as it is keeps its own account: who opens the
+            # instance is what its /etc/wsl.conf says - asked of the
+            # instance, WSL opening root when it names nobody.
+            $ImageDefaultUser = ""
+            foreach ($Line in @(Get-InInstanceOutput -DistroName $name -Command @("cat", "/etc/wsl.conf"))) {
+                if ("$Line" -match '^\s*default\s*=\s*(\S+)\s*$') { $ImageDefaultUser = $Matches[1]; break }
+            }
+            $instance.DefaultUser = if ($ImageDefaultUser) { $ImageDefaultUser } else { "root" }
+        }
+
+        try {
+            $null = $instance.ApplyTerminalProfile()
+        } catch {
+            $instance.Recipe.Status = [WslRecipeStatus]::Warning
+            $instance.Recipe.Messages = @($instance.Recipe.Messages) + "the look failed: $($_.Exception.Message)"
+            try { $instance.Save() } catch { }
+        }
+
+        # The working image, the recipe's word: a Dockerfile build's image is
+        # saved as a tar beside the other images when the caller asked to
+        # keep it - the image road loads it back in seconds, no rebuild -
+        # and its working tag goes back either way: nothing needs it any
+        # more. Best effort throughout - a birth never fails on its own
+        # leavings, a failed save is said in the recipe.
+        if ($recipe.BuildType -eq [WslBuildType]::Dockerfile) {
+            if ($recipe.KeepImage) {
+                $SavePath = Join-Path $recipe.Context "assets\dockerimages\$name\$name.tar"
+                if (-not (Save-DockerImage -Tag $Tag -OutputPath $SavePath)) {
+                    $instance.Recipe.Status = [WslRecipeStatus]::Warning
+                    $instance.Recipe.Messages = @($instance.Recipe.Messages) + "the image could not be saved to '$SavePath'."
+                    try { $instance.Save() } catch { }
+                }
+            }
+            $null = Remove-DockerImage -Tag $Tag
+        }
+
+        # The recipe's word on Docker Desktop, the birth's last act - after
+        # the image's taking-back above, which a restart mid-way would break.
+        # The instance's own method does the whole of it; the verdict rides
+        # on the recipe like the look's, and saves itself there.
+        if ($recipe.RegisterDocker) {
+            $instance.RegisterDockerDesktop()
+        }
+
+        # The recipe's packs, the birth's last step: the instance installs
+        # what was chosen - its own act, the one the commands use too. Best
+        # effort, like the look: a failure is a note on the recipe, never a
+        # failed birth - the instance is born, registered and usable.
+        if ($recipe.Packs.Count -gt 0) {
+            try {
+                $PacksFailure = $instance.ApplyPacks($recipe.Packs, @())
+                if ($null -ne $PacksFailure) {
+                    $Now = @($instance.GetPacks())
+                    $Skipped = @($recipe.Packs | Where-Object { $_.Name -ne $PacksFailure.Pack -and $Now -notcontains $_.Name } | ForEach-Object { $_.Name })
+                    $instance.Recipe.Status = [WslRecipeStatus]::Warning
+                    $instance.Recipe.Messages = @($instance.Recipe.Messages) + "'$($PacksFailure.Pack)' installation failed."
+                    if ($Skipped.Count -gt 0) {
+                        $instance.Recipe.Messages = @($instance.Recipe.Messages) + "$($Skipped -join ', ') installation skipped."
+                    }
+                    try { $instance.Save() } catch { }
+                }
+            } catch {
+                $instance.Recipe.Status = [WslRecipeStatus]::Warning
+                $instance.Recipe.Messages = @($instance.Recipe.Messages) + "not installed - $($_.Exception.Message)"
+                try { $instance.Save() } catch { }
+            }
+        }
         return $instance
     }
 

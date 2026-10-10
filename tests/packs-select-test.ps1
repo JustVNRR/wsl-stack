@@ -3,16 +3,16 @@
 #
 #   Select-Packs   is answered on standard input: with no console the numbered
 #                  prompt is what runs, and it reads its answers from there.
-#   Invoke-PackApply  has every move intercepted. The stand-in for
+#   ApplyPacks     has every move intercepted. The stand-in for
 #                  Invoke-InInstance is the one place where a pack touches the
 #                  instance - copy its folder in, run one of its scripts, take
 #                  the folder out, travel the cleanup - so recording the calls
 #                  there records the ORDER, which is the whole design: the
-#                  newcomer's folder is placed BEFORE a remove.sh asks its
-#                  question, so a shared package is left where it is.
+#                  newcomer is installed BEFORE a remove.sh asks its question,
+#                  so a shared package is left where it is.
 #                  Get-InstanceHome is stubbed below, and inside the packs
-#                  module: the pack moves ask it directly, and it would
-#                  otherwise reach the machine.
+#                  and the model modules: the pack moves ask it directly, and
+#                  it would otherwise reach the machine.
 #
 # Run it with tests\packs-select-test.answers on standard input: the answers,
 # one per line, in the order they are read - and in these exact counts, because
@@ -38,6 +38,8 @@
 #
 #   powershell -File tests\packs-select-test.ps1 < tests\packs-select-test.answers
 #
+using module ..\src\windows\WslModel\WslModel.psd1
+
 $ErrorActionPreference = "Stop"
 Import-Module (Join-Path $PSScriptRoot "..\src\windows\WslStack\WslStack.psd1") -Force
 
@@ -273,7 +275,7 @@ Check "the fedora checklist offers the fedora pack" `
     (($Selection.ToAdd | ForEach-Object { $_.Name }) -join ",") "beta"
 
 Write-Output ""
-Write-Output "--- Invoke-PackApply: the order, and where a failure stops ---"
+Write-Output "--- ApplyPacks: the order, and where a failure stops ---"
 
 # The stand-in speaks on purpose: a returned value must not carry the output of
 # what was run to produce it - a pack's install once went silent into the
@@ -312,21 +314,35 @@ function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
 & ((Get-Module WslStack).NestedModules | Where-Object { $_.Name -eq 'WslStack.Packs' }) {
     function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
 }
+# The moves live on the instance now: its own lookups start inside the model
+# module, where this script's functions are out of reach just the same.
+& (Get-Module WslModel) {
+    function Get-InstanceHome { param([string]$DistroName) return "/home/u" }
+}
 
-$Add = @([PSCustomObject]@{ Name = "fake-a"; Path = "X:\packs\fake-a"; Description = "d" })
+# The instance the moves act on: nothing but a name - no folder on disk,
+# so no error log is written, and the home it asks for is the stub's.
+$Inst = [WslInstance]::new()
+$Inst.Name = "test"
+
+# The fake packs live on a drive letter of their own: the moves read their
+# source through the /mnt road, whose anchor is that letter. A machine that
+# already carries an X: keeps its own.
+if (-not (Test-Path "X:\")) { $null = New-PSDrive -Name X -PSProvider FileSystem -Root ([System.IO.Path]::GetTempPath()) }
+$Add = @([WslPack]::new("fake-a", "X:\packs\fake-a"))
 $Directory = "/home/u/.config/packs"
 
 Reset
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add -ToRemove @("fake-b")
+$Result = $Inst.ApplyPacks($Add, @("fake-b"))
 Check "the newcomer is placed BEFORE the removal asks its question" `
     ($script:Calls.IndexOf("~ :: mkdir -p $Directory/fake-a") -lt
      $script:Calls.IndexOf("~ :: test -f $Directory/fake-b/remove.sh")) "True"
-Check "the install comes after the removal" `
-    ($script:Calls.IndexOf("$Directory/fake-a :: bash install.sh") -gt
+Check "the install comes BEFORE the removal" `
+    ($script:Calls.IndexOf("$Directory/fake-a :: bash install.sh") -lt
      $script:Calls.IndexOf("~ :: rm -rf $Directory/fake-b")) "True"
 Check "and the dependencies are taken back last" `
-    ((@($script:Calls[-4..-1] | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ")) `
-    "cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | env HOME=/home/u bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh | rm -f /etc/sudoers.d/90-wsl-stack-packs"
+    ((@($script:Calls[-3..-1] | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ")) `
+    "cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | env HOME=/home/u bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh"
 Check "nothing failed" ($null -eq $Result) "True"
 Check "  ... and the instance's own words are not in the answer" ("$Result".Contains("INSTANCE-SAYS")) "False"
 
@@ -340,7 +356,7 @@ $DoorOpen = "bash -c printf '%s`n' 'u ALL=(ALL) NOPASSWD: ALL' > /tmp/wsl-stack-
 $DoorClose = "rm -f /etc/sudoers.d/90-wsl-stack-packs"
 
 Reset
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+$Result = $Inst.ApplyPacks($Add, @())
 Check "nothing to remove -> no removal, and no cleanup" `
     ((Commands) -join " | ") "mkdir -p $Directory/fake-a | test -d /mnt/x/packs/fake-a | cp -r . $Directory/fake-a/ | sh -c find '$Directory/fake-a' -name '*.sh' -exec chmod +x {} + | test -f $Directory/fake-a/install_root.sh | env HOME=/home/u bash install_root.sh | $DoorOpen | bash install.sh | $DoorClose"
 
@@ -354,7 +370,7 @@ Check "  ... and it ran before the door opened" `
 # A pack without a root half - claude is one - installs all the same.
 Reset
 $script:FailCommand = "test -f $Directory/fake-a/install_root.sh"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+$Result = $Inst.ApplyPacks($Add, @())
 Check "a pack without a root half skips it" `
     (@($script:Calls | Where-Object { $_ -like "*install_root.sh*" }).Count) "1"
 Check "  ... and still runs its install behind the door" `
@@ -366,7 +382,7 @@ Check "  ... nothing failed" ($null -eq $Result) "True"
 # run, so every folder goes back out - and the door never opens.
 Reset
 $script:FailCommand = "env HOME=/home/u bash install_root.sh"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+$Result = $Inst.ApplyPacks($Add, @())
 Check "a failed root half names the pack" "$($Result.Pack)/$($Result.ExitCode)" "fake-a/1"
 Check "  ... no install.sh ran" `
     (@($script:Calls | Where-Object { $_ -like "*bash install.sh*" }).Count) "0"
@@ -377,20 +393,20 @@ Check "  ... and every folder went back out" `
 
 Reset
 $script:FailCommand = "test -f"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToRemove @("fake-b")
+$Result = $Inst.ApplyPacks(@(), @("fake-b"))
 Check "no remove.sh -> the folder leaves, no script runs" `
     ((Commands) -join " | ") `
     "test -f $Directory/fake-b/remove.sh | rm -rf $Directory/fake-b | cp cleanup_orphans.sh /tmp/cleanup_orphans.sh | env HOME=/home/u bash cleanup_orphans.sh | rm -f /tmp/cleanup_orphans.sh"
 
 Reset
 $script:FailCommand = "cp -r ."
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add -ToRemove @("fake-b")
+$Result = $Inst.ApplyPacks($Add, @("fake-b"))
 Check "a failed copy names the pack that stopped it" "$($Result.Pack)/$($Result.ExitCode)" "fake-a/1"
 Check "  ... and nothing else was touched" (@($script:Calls).Count) "4"
 
 Reset
 $script:FailCommand = "bash install.sh"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+$Result = $Inst.ApplyPacks($Add, @())
 Check "a failed install takes the folder back out" "$($Result.Pack)/$($Result.ExitCode)" "fake-a/1"
 Check "  ... and the answer is one object, not that plus the output" (@($Result).Count) "1"
 Check "  ... after the failure, not before" `
@@ -403,7 +419,7 @@ Check "  ... after the failure, not before" `
 Reset
 $script:FailCommand = "bash install.sh"
 $script:FailCode = 2
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add
+$Result = $Inst.ApplyPacks($Add, @())
 Check "a declined install is not a failure" ($null -eq $Result) "True"
 Check "  ... its folder goes back out" `
     ($script:Calls.IndexOf("~ :: rm -rf $Directory/fake-a") -gt
@@ -411,42 +427,42 @@ Check "  ... its folder goes back out" `
 
 Reset
 $script:FailCommand = "env HOME=/home/u bash remove.sh"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $Add -ToRemove @("fake-b")
+$Result = $Inst.ApplyPacks($Add, @("fake-b"))
 Check "a failed remove.sh names that pack" "$($Result.Pack)" "fake-b"
-Check "  ... and nothing is installed after it" `
-    (@($script:Calls | Where-Object { $_ -like "*bash install.sh*" }).Count) "0"
-Check "  ... and its folder stays, it is still installed" `
+Check "  ... and the newcomer was already installed - the failure does not undo it" `
+    (@($script:Calls | Where-Object { $_ -like "*bash install.sh*" }).Count) "1"
+Check "  ... its folder stays, it is still installed" `
     (@($script:Calls | Where-Object { $_ -like "*rm -rf $Directory/fake-b*" }).Count) "0"
-Check "  ... and the placed pack, never run, loses its folder" `
-    (@($script:Calls | Where-Object { $_ -like "*rm -rf $Directory/fake-a*" }).Count) "1"
+Check "  ... and it keeps its folder" `
+    (@($script:Calls | Where-Object { $_ -like "*rm -rf $Directory/fake-a*" }).Count) "0"
 
-# The packs after a failure were placed but never ran: their folders go back
-# out with the one that stopped the run, or the menu reads them as
-# installations that never happened. The queue is ordered, so the position is
-# what says which ones never ran.
+# A failure stops the queue at its pack: the ones after it were never
+# touched - not even placed - so nothing of theirs is taken back, and the
+# failing pack's own folder is the only one that goes out.
 Reset
 $AddTwo = @(
-    [PSCustomObject]@{ Name = "fake-a"; Path = "X:\packs\fake-a"; Description = "d" },
-    [PSCustomObject]@{ Name = "fake-b"; Path = "X:\packs\fake-b"; Description = "d" }
+    [WslPack]::new("fake-a", "X:\packs\fake-a"),
+    [WslPack]::new("fake-b", "X:\packs\fake-b")
 )
 $script:FailCommand = "bash install.sh"
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $AddTwo
-Check "a failed install takes the tail's folders back out too" `
+$Result = $Inst.ApplyPacks($AddTwo, @())
+Check "a failed install takes its own folder back out, and only it" `
     ((@($script:Calls | Where-Object { $_ -like "*rm -rf*" }) | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ") `
-    "rm -rf $Directory/fake-a | rm -rf $Directory/fake-b"
+    "rm -rf $Directory/fake-a"
 Check "  ... and the pack after it never ran" `
     (@($script:Calls | Where-Object { $_ -like "*fake-b :: bash install.sh*" }).Count) "0"
 Check "  ... and the run names the pack that stopped it" "$($Result.Pack)/$($Result.ExitCode)" "fake-a/1"
 
-# A copy that fails takes the folders placed before it back out: nothing was
-# installed, and a folder left behind would pass for an installation.
+# A copy that fails takes its own half-done folder back out; the pack before
+# it is already installed and stays - a folder left behind, though, would
+# pass for an installation.
 Reset
 $script:FailCommand = "cp -r ."
 $script:FailAfter = 2
-$Result = Invoke-PackApply -DistroName "test" -PacksDirectory $Directory -ToAdd $AddTwo
-Check "a failed copy takes the earlier placed folder back out" `
+$Result = $Inst.ApplyPacks($AddTwo, @())
+Check "a failed copy takes its own folder back out, nothing before it" `
     ((@($script:Calls | Where-Object { $_ -like "*rm -rf*" }) | ForEach-Object { ($_ -split " :: ", 2)[1] }) -join " | ") `
-    "rm -rf $Directory/fake-b | rm -rf $Directory/fake-a"
+    "rm -rf $Directory/fake-b"
 Check "  ... and the run names the pack that stopped it" "$($Result.Pack)/$($Result.ExitCode)" "fake-b/1"
 
 Remove-Item -Recurse -Force $PacksRoot, $PacksRoot2, $PacksRoot3 -ErrorAction SilentlyContinue
