@@ -65,6 +65,13 @@ Import-Module $StackModule -Force
 # is thrown away, which is what blinded a build's whiptail (measured).
 $Gesture = {
     param($Command, $Run)
+    # The commands whose answers came from the console's conversation: they
+    # arrived whole, and the words that built them are spent - the command
+    # takes its answers and nothing else.
+    if ($Run.ContainsKey("Answers")) {
+        & (Join-Path $Run.Scripts "$($Command.Key).ps1") -Form $Run.Answers -Manager $Run.Manager
+        return
+    }
     # The tokens after the command, in words: `-Name` starts a parameter and
     # the tokens up to the next one are its values - the command's own
     # parameters then bind by name, the way they read on the command line.
@@ -160,6 +167,18 @@ if (-not (Test-Path $Script)) {
 # or wsl.exe.
 $Manager = New-InstanceManager
 
+# The console's conversations, one arm per command that asks - the window's
+# popups have their caller in gui.ps1, and these are theirs. The answers
+# ride the run context; the words they were built from are spent.
+$Answers = $null
+if ($Chosen.Key -eq "build") {
+    . (Join-Path $CommandFiles "..\cli\Controllers\Build.ps1")
+    Write-Host ""
+    Write-Host "==> Creating a new instance" -ForegroundColor (Get-MessageColour info)
+    $Answers = Read-BuildAnswers -Manager $Manager -RepoRoot $PSScriptRoot -Options $RemainingArgs
+    if ($null -eq $Answers) { exit 1 }
+}
+
 # Whatever followed the command travels in this run context: the gesture
 # rebuilds it into named parameters and loose values (see above), so a command
 # that has options binds them by name, and one handed a name it does not know
@@ -170,8 +189,21 @@ $Run = @{
     Args    = $RemainingArgs
     Manager = $Manager
 }
+if ($null -ne $Answers) { $Run.Answers = $Answers }
 
 & $Chosen.Action $Chosen $Run
+
+# A console build that went through opens the shell its summary promised -
+# the window's runner does the same on its side.
+if ($Chosen.Key -eq "build" -and $LASTEXITCODE -eq 0) {
+    try {
+        $Manager.Refresh()
+        $New = @($Manager.Instances | Where-Object { $_.Name -eq $Answers.Name })[0]
+        if ($New) { $New.OpenShell() }
+    } catch {
+        Write-Host "The shell window could not be opened: $($_.Exception.Message)" -ForegroundColor (Get-MessageColour warning)
+    }
+}
 
 if ($null -eq $LASTEXITCODE) { exit 0 }
 exit $LASTEXITCODE

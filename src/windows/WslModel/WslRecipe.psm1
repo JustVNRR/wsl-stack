@@ -73,9 +73,12 @@ class WslRecipe {
     # above: nothing needs them after, and the file does not keep them.
     [WslPack[]]$Packs = @()
 
-    # The one name the whole project tags its working image under - here, read
-    # on the spot by the making and the taking-back, carried by nobody.
-    static [string]$ImageTag = "wsl-stack:latest"
+    # The tag a build's working image wears: one per instance, so two builds
+    # cannot fight over the same name - the making and the taking-back both
+    # ask here, and neither spells it itself.
+    static [string] TagFor([string]$name) {
+        return "wsl-stack:$name"
+    }
 
     WslRecipe() {}
 
@@ -138,13 +141,13 @@ class WslRecipe {
 
     # Makes the image this recipe stands for, in the local Docker store, and
     # answers the name the birth works under from there: for the Dockerfile
-    # road the working tag the class carries - the image is built under it -
-    # and for an uploaded image's tar whatever docker load read out of it,
-    # name or bare id. The tar's own name, never a second one put on it: an
-    # image made elsewhere keeps its name. The roads not walked - Registry
-    # named before its time - throw.
-    [string] MakeImage() {
-        $Tag = [WslRecipe]::ImageTag
+    # road the working tag its instance's name wears - the image is built
+    # under it - and for an uploaded image's tar whatever docker load read
+    # out of it, name or bare id. The tar's own name, never a second one put
+    # on it: an image made elsewhere keeps its name. The roads not walked -
+    # Registry named before its time - throw.
+    [string] MakeImage([string]$name) {
+        $Tag = [WslRecipe]::TagFor($name)
         switch ($this.BuildType) {
             ([WslBuildType]::Dockerfile) {
                 # Not named $Context: a method's local cannot carry a

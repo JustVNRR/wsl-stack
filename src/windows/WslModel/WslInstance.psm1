@@ -751,10 +751,10 @@ class WslInstance {
     # not be applied is said in the status and the messages - never in a
     # thrown birth.
     static [WslInstance] Build([string]$name, [string]$installPath, [WslRecipe]$recipe, [string]$user) {
-        $Tag = [WslRecipe]::ImageTag
+        $Tag = [WslRecipe]::TagFor($name)
         # The name the image is worked under from here: the recipe's own
         # build tag, or the name - or bare id - its tar carried.
-        $ImageRef = $recipe.MakeImage()
+        $ImageRef = $recipe.MakeImage($name)
 
         try {
             $tarPath = Join-Path (Split-Path $installPath -Parent) "$name-rootfs.tar"

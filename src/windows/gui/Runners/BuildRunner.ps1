@@ -32,6 +32,8 @@ try {
         SaveImage      = [bool]::Parse($SaveImage)
         RegisterDocker = [bool]::Parse($RegisterDocker)
     }
+    Write-Host ""
+    Write-Host "==> Creating a new instance" -ForegroundColor (Get-MessageColour info)
     & $BuildScript -Form $Form -Manager $mgr
 } catch {
     Write-Host ""
@@ -40,8 +42,18 @@ try {
 }
 
 # The script's own refusals end in exit 1, not in a throw - the window must
-# stay for those too, or the message is gone before it is read.
+# stay for those too, or the message is gone before it is read. A build that
+# went through gets its other ending: the summary's moment, then the shell.
 if ($failed -or $LASTEXITCODE -ne 0) {
     Write-Host ""
     $null = Read-Host "Press Enter to close this window"
+} else {
+    $null = Read-Host "Press Enter to open the shell"
+    try {
+        $mgr.Refresh()
+        $inst = @($mgr.Instances | Where-Object { $_.Name -eq $Name })[0]
+        if ($inst) { $inst.OpenShell() }
+    } catch {
+        Write-Host "The shell window could not be opened: $($_.Exception.Message)" -ForegroundColor (Get-MessageColour warning)
+    }
 }

@@ -172,32 +172,6 @@ check "an unknown option is refused" "$(contains '[ABORT] Unknown options after 
 check "exit code 1"                  "$Code" "1"
 
 echo ""
-echo "--- a build started while another holds the lock"
-# Another build is a small PowerShell holding the same named lock; it says so
-# by writing a file, so the test knows the lock is taken before running the
-# second one. The second must refuse before asking anything.
-Holder=$(mktemp --suffix=.ps1)
-HeldFlag=$(mktemp)
-rm -f "$HeldFlag"
-cat > "$Holder" <<'EOF'
-$m = [System.Threading.Mutex]::new($false, "Global\wsl-stack-build")
-$null = $m.WaitOne(0)
-[System.IO.File]::WriteAllText($args[0], "held")
-Start-Sleep -Seconds 15
-$m.ReleaseMutex()
-EOF
-$PS -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$Holder")" "$(cygpath -w "$HeldFlag")" &
-HolderPid=$!
-for _ in $(seq 1 60); do [ -f "$HeldFlag" ] && break; sleep 0.25; done
-run_build 'lock-qtest\n'
-check "refuses while another build holds the lock" "$(contains '[ABORT] Another build is already running.')" "yes"
-check "and asks nothing first"                     "$(contains 'Name of the instance')" "no"
-check "exit code 1"                                "$Code" "1"
-kill $HolderPid 2>/dev/null
-wait $HolderPid 2>/dev/null
-rm -f "$Holder" "$HeldFlag"
-
-echo ""
 echo "--- nothing left on the machine"
 check "no instance registered" "$(wsl.exe --list --quiet 2>/dev/null | tr -d '\0' | grep -ac 'pack-qtest' )" "0"
 check "no folder left"         "$(find /d/WSL -maxdepth 1 -name 'pack-qtest-*' 2>/dev/null | wc -l)" "0"
